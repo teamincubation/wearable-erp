@@ -33,6 +33,7 @@
                         <th>Reference Source</th>
                         <th>Batch / Lot No</th>
                         <th>Date & Time</th>
+                        <th class="text-end">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -66,11 +67,17 @@
                                 </td>
                                 <td><span class="font-monospace text-secondary small"><?= htmlspecialchars($t['batch_no'] ?: 'N/A') ?></span></td>
                                 <td><?= date('d M Y H:i', strtotime($t['created_at'])) ?></td>
+                                <td class="text-end">
+                                    <form action="<?= base_url('company/inventory/delete/' . $t['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete this stock transaction log?');">
+                                        <?= \App\Core\Session::csrfField() ?>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                                    </form>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="9" class="text-center p-5 text-secondary">
+                            <td colspan="10" class="text-center p-5 text-secondary">
                                 <i class="fa-solid fa-boxes-stacked fs-1 mb-3 text-light"></i>
                                 <p class="m-0">No stock ledger entries generated yet. Log a GRN to add stock.</p>
                             </td>

@@ -318,4 +318,25 @@ class PurchaseController extends Controller {
 
         $this->redirect('company/purchase/grns');
     }
+
+    public function deleteRequisition(Request $request, Response $response, string $id): void {
+        $model = new PurchaseRequisition();
+        $model->delete($id, Session::get('user_id'));
+        Session::setFlash('success', 'Purchase Requisition deleted successfully.');
+        $this->redirect('company/purchase/requisitions');
+    }
+
+    public function deleteOrder(Request $request, Response $response, string $id): void {
+        $model = new PurchaseOrder();
+        $model->delete($id, Session::get('user_id'));
+        Session::setFlash('success', 'Supplier Purchase Order deleted successfully.');
+        $this->redirect('company/purchase/orders');
+    }
+
+    public function deleteGrn(Request $request, Response $response, string $id): void {
+        $model = new Grn();
+        $model->delete($id, Session::get('user_id'));
+        Session::setFlash('success', 'GRN record deleted successfully.');
+        $this->redirect('company/purchase/grns');
+    }
 }

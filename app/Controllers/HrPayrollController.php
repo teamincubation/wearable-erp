@@ -217,4 +217,18 @@ class HrPayrollController extends Controller {
         Session::setFlash('success', 'Payroll salary record processed successfully.');
         $this->redirect('company/hr/payroll');
     }
+
+    public function deleteAttendance(Request $request, Response $response, string $id): void {
+        $model = new EmployeeAttendance();
+        $model->delete($id, Session::get('user_id'));
+        Session::setFlash('success', 'Attendance record deleted successfully.');
+        $this->redirect('company/hr/attendance');
+    }
+
+    public function deletePayroll(Request $request, Response $response, string $id): void {
+        $model = new PayrollRecord();
+        $model->delete($id, Session::get('user_id'));
+        Session::setFlash('success', 'Payroll record deleted successfully.');
+        $this->redirect('company/hr/payroll');
+    }
 }

@@ -126,4 +126,11 @@ class InventoryController extends Controller {
             'barcode_text' => $barcodeText
         ]);
     }
+
+    public function deleteTransaction(Request $request, Response $response, string $id): void {
+        $model = new InventoryTransaction();
+        $model->delete($id, Session::get('user_id'));
+        Session::setFlash('success', 'Inventory transaction record deleted successfully.');
+        $this->redirect('company/inventory/ledger');
+    }
 }

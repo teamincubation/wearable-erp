@@ -238,4 +238,11 @@ class StyleMasterController extends Controller {
         Session::setFlash('success', 'Tech Pack specifications updated successfully.');
         $this->redirect("company/styles/techpack/{$techpack['style_id']}");
     }
+
+    public function deleteStyle(Request $request, Response $response, string $id): void {
+        $styleModel = new Style();
+        $styleModel->delete($id, Session::get('user_id'));
+        Session::setFlash('success', 'Style master deleted successfully.');
+        $this->redirect('company/styles');
+    }
 }

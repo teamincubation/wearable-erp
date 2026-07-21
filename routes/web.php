@@ -408,3 +408,52 @@ $router->post('/company/settings', [CompanyController::class, 'saveSettings'])
        ->middleware(CsrfMiddleware::class)
        ->middleware(PermissionMiddleware::class)
        ->permission('company.settings');
+
+// Generic Item Deletion Endpoints for Super Admin & Authorized Roles
+$router->post('/company/masterdata/contacts/delete/{id}', [\App\Controllers\MasterDataController::class, 'deleteContact'])
+       ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
+
+$router->post('/company/masterdata/bomcategories/delete/{id}', [\App\Controllers\MasterDataController::class, 'deleteBomCategory'])
+       ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
+
+$router->post('/company/masterdata/warehouses/delete/{id}', [\App\Controllers\MasterDataController::class, 'deleteWarehouse'])
+       ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
+
+$router->post('/company/masterdata/branches/delete/{id}', [\App\Controllers\MasterDataController::class, 'deleteBranch'])
+       ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
+
+$router->post('/company/styles/delete/{id}', [\App\Controllers\StyleMasterController::class, 'deleteStyle'])
+       ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
+
+$router->post('/company/merchandising/costsheets/delete/{id}', [\App\Controllers\MerchandisingController::class, 'deleteCostSheet'])
+       ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
+
+$router->post('/company/merchandising/buyerpos/delete/{id}', [\App\Controllers\MerchandisingController::class, 'deleteBuyerPo'])
+       ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
+
+$router->post('/company/purchase/requisitions/delete/{id}', [\App\Controllers\PurchaseController::class, 'deleteRequisition'])
+       ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
+
+$router->post('/company/purchase/orders/delete/{id}', [\App\Controllers\PurchaseController::class, 'deleteOrder'])
+       ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
+
+$router->post('/company/purchase/grn/delete/{id}', [\App\Controllers\PurchaseController::class, 'deleteGrn'])
+       ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
+
+$router->post('/company/inventory/delete/{id}', [\App\Controllers\InventoryController::class, 'deleteTransaction'])
+       ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
+
+$router->post('/company/production/orders/delete/{id}', [\App\Controllers\ProductionController::class, 'deleteOrder'])
+       ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
+
+$router->post('/company/production/quality/delete/{id}', [\App\Controllers\ProductionController::class, 'deleteInspection'])
+       ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
+
+$router->post('/company/hr/attendance/delete/{id}', [\App\Controllers\HrPayrollController::class, 'deleteAttendance'])
+       ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
+
+$router->post('/company/hr/payroll/delete/{id}', [\App\Controllers\HrPayrollController::class, 'deletePayroll'])
+       ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
+
+$router->post('/company/tally/vouchers/delete/{id}', [\App\Controllers\TallyController::class, 'deleteVoucher'])
+       ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);

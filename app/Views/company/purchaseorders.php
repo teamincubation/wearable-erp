@@ -24,6 +24,7 @@
                         <th>PO Date</th>
                         <th>Total Cost</th>
                         <th>Status</th>
+                        <th class="text-end">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -46,11 +47,17 @@
                                         <?= htmlspecialchars(str_replace('_', ' ', ucfirst($o['status']))) ?>
                                     </span>
                                 </td>
+                                <td class="text-end">
+                                    <form action="<?= base_url('company/purchase/orders/delete/' . $o['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete this supplier purchase order?');">
+                                        <?= \App\Core\Session::csrfField() ?>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                                    </form>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="5" class="text-center p-5 text-secondary">
+                            <td colspan="6" class="text-center p-5 text-secondary">
                                 <i class="fa-solid fa-file-invoice-dollar fs-1 mb-3 text-light"></i>
                                 <p class="m-0">No supplier purchase orders registered yet.</p>
                                 <?php if (\App\Core\Auth::hasPermission('company.styles.manage')): ?>

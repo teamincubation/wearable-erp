@@ -155,4 +155,32 @@ class MasterDataController extends Controller {
         Session::setFlash('success', "Branch '{$name}' registered successfully.");
         $this->redirect('company/masterdata');
     }
+
+    public function deleteContact(Request $request, Response $response, string $id): void {
+        $model = new Contact();
+        $model->delete($id, Session::get('user_id'));
+        Session::setFlash('success', 'Party contact deleted successfully.');
+        $this->redirect('company/masterdata');
+    }
+
+    public function deleteBomCategory(Request $request, Response $response, string $id): void {
+        $model = new BomCategory();
+        $model->delete($id, Session::get('user_id'));
+        Session::setFlash('success', 'BOM category deleted successfully.');
+        $this->redirect('company/masterdata');
+    }
+
+    public function deleteWarehouse(Request $request, Response $response, string $id): void {
+        $model = new Warehouse();
+        $model->delete($id, Session::get('user_id'));
+        Session::setFlash('success', 'Warehouse location deleted successfully.');
+        $this->redirect('company/masterdata');
+    }
+
+    public function deleteBranch(Request $request, Response $response, string $id): void {
+        $model = new Branch();
+        $model->delete($id, Session::get('user_id'));
+        Session::setFlash('success', 'Branch office deleted successfully.');
+        $this->redirect('company/masterdata');
+    }
 }

@@ -24,6 +24,7 @@
                         <th>Receipt Date</th>
                         <th>Invoice Ref</th>
                         <th>Status</th>
+                        <th class="text-end">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -45,11 +46,17 @@
                                 <td>
                                     <span class="badge badge-pepp badge-success text-capitalize"><?= htmlspecialchars($g['status']) ?></span>
                                 </td>
+                                <td class="text-end">
+                                    <form action="<?= base_url('company/purchase/grn/delete/' . $g['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete this Goods Receipt Note?');">
+                                        <?= \App\Core\Session::csrfField() ?>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                                    </form>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="5" class="text-center p-5 text-secondary">
+                            <td colspan="6" class="text-center p-5 text-secondary">
                                 <i class="fa-solid fa-warehouse fs-1 mb-3 text-light"></i>
                                 <p class="m-0">No Goods Receipt Notes logged in the ledger yet.</p>
                                 <?php if (\App\Core\Auth::hasPermission('company.styles.manage')): ?>

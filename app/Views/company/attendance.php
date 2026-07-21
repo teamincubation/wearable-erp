@@ -29,6 +29,7 @@
                         <th>Clock In / Out</th>
                         <th>Overtime Hours</th>
                         <th>Duty Status</th>
+                        <th class="text-end">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -64,11 +65,17 @@
                                         <?= htmlspecialchars(ucfirst($att['status'])) ?>
                                     </span>
                                 </td>
+                                <td class="text-end">
+                                    <form action="<?= base_url('company/hr/attendance/delete/' . $att['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete this attendance log?');">
+                                        <?= \App\Core\Session::csrfField() ?>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                                    </form>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="5" class="text-center p-5 text-secondary">
+                            <td colspan="6" class="text-center p-5 text-secondary">
                                 <i class="fa-solid fa-user-clock fs-1 mb-3 text-light"></i>
                                 <p class="m-0">No attendance records logged for this month.</p>
                             </td>

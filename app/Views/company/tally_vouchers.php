@@ -44,9 +44,13 @@
                                         <td class="font-monospace text-dark fw-bold">₹<?= number_format($v['amount'], 2) ?></td>
                                         <td><?= date('d M Y', strtotime($v['date'])) ?></td>
                                         <td class="text-end">
-                                            <a href="<?= base_url('company/tally/vouchers/download/' . $v['id']) ?>" class="btn btn-sm btn-outline-success px-3 rounded-pill">
+                                            <a href="<?= base_url('company/tally/vouchers/download/' . $v['id']) ?>" class="btn btn-sm btn-outline-success px-3 rounded-pill me-1">
                                                 <i class="fa-solid fa-download me-1"></i> Tally XML
                                             </a>
+                                            <form action="<?= base_url('company/tally/vouchers/delete/' . $v['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete this voucher entry?');">
+                                                <?= \App\Core\Session::csrfField() ?>
+                                                <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                                            </form>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>

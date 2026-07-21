@@ -61,9 +61,13 @@
                                     </span>
                                 </td>
                                 <td class="text-end">
-                                    <a href="<?= base_url('company/production/stage/' . $o['id']) ?>" class="btn btn-sm btn-outline-primary px-3 rounded-pill">
+                                    <a href="<?= base_url('company/production/stage/' . $o['id']) ?>" class="btn btn-sm btn-outline-primary px-3 rounded-pill me-1">
                                         <i class="fa-solid fa-list-check me-1"></i> Stage Tracker / WIP
                                     </a>
+                                    <form action="<?= base_url('company/production/orders/delete/' . $o['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete this production order?');">
+                                        <?= \App\Core\Session::csrfField() ?>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                                    </form>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

@@ -179,4 +179,18 @@ class MerchandisingController extends Controller {
         Session::setFlash('success', 'Purchase Order approved successfully. Order is now active for production planning.');
         $this->redirect('company/merchandising/buyerpos');
     }
+
+    public function deleteCostSheet(Request $request, Response $response, string $id): void {
+        $model = new CostSheet();
+        $model->delete($id, Session::get('user_id'));
+        Session::setFlash('success', 'Cost Sheet record deleted successfully.');
+        $this->redirect('company/merchandising/costsheets');
+    }
+
+    public function deleteBuyerPo(Request $request, Response $response, string $id): void {
+        $model = new BuyerPo();
+        $model->delete($id, Session::get('user_id'));
+        Session::setFlash('success', 'Buyer Purchase Order deleted successfully.');
+        $this->redirect('company/merchandising/buyerpos');
+    }
 }

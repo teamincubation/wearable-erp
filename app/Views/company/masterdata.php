@@ -46,6 +46,7 @@
                                 <th>Category Code</th>
                                 <th>Category Name</th>
                                 <th>Created Date</th>
+                                <th class="text-end">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -55,11 +56,17 @@
                                         <td><strong class="text-primary font-monospace"><?= htmlspecialchars($cat['code']) ?></strong></td>
                                         <td><strong class="text-dark"><?= htmlspecialchars($cat['name']) ?></strong></td>
                                         <td><?= date('d M Y H:i', strtotime($cat['created_at'])) ?></td>
+                                        <td class="text-end">
+                                            <form action="<?= base_url('company/masterdata/bomcategories/delete/' . $cat['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete this BOM category?');">
+                                                <?= \App\Core\Session::csrfField() ?>
+                                                <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                                            </form>
+                                        </td>
                                     </tr>
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="3" class="text-center p-5 text-secondary">
+                                    <td colspan="4" class="text-center p-5 text-secondary">
                                         <i class="fa-solid fa-tags fs-1 mb-3 text-light"></i>
                                         <p class="m-0">No BOM categories added yet. Seed some to organize your Tech Pack items.</p>
                                     </td>
@@ -95,6 +102,7 @@
                                 <th>Phone</th>
                                 <th>GSTIN</th>
                                 <th>Address</th>
+                                <th class="text-end">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -117,11 +125,17 @@
                                         <td><?= htmlspecialchars($con['phone'] ?: '--') ?></td>
                                         <td><span class="font-monospace text-secondary small"><?= htmlspecialchars($con['gstin'] ?: '--') ?></span></td>
                                         <td><span class="small text-secondary"><?= htmlspecialchars($con['address'] ?: '--') ?></span></td>
+                                        <td class="text-end">
+                                            <form action="<?= base_url('company/masterdata/contacts/delete/' . $con['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete party contact record?');">
+                                                <?= \App\Core\Session::csrfField() ?>
+                                                <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                                            </form>
+                                        </td>
                                     </tr>
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="7" class="text-center p-5 text-secondary">
+                                    <td colspan="8" class="text-center p-5 text-secondary">
                                         <i class="fa-solid fa-address-book fs-1 mb-3 text-light"></i>
                                         <p class="m-0">No buyer or vendor contacts registered yet.</p>
                                     </td>
@@ -157,6 +171,7 @@
                                         <th>Branch Code</th>
                                         <th>Branch Name</th>
                                         <th>Address Info</th>
+                                        <th class="text-end">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -166,11 +181,17 @@
                                                 <td><strong class="text-warning font-monospace"><?= htmlspecialchars($br['code']) ?></strong></td>
                                                 <td><strong class="text-dark"><?= htmlspecialchars($br['name']) ?></strong></td>
                                                 <td><span class="small text-secondary"><?= htmlspecialchars($br['address'] ?: '--') ?></span></td>
+                                                <td class="text-end">
+                                                    <form action="<?= base_url('company/masterdata/branches/delete/' . $br['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete branch office?');">
+                                                        <?= \App\Core\Session::csrfField() ?>
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                                                    </form>
+                                                </td>
                                             </tr>
                                         <?php endforeach; ?>
                                     <?php else: ?>
                                         <tr>
-                                            <td colspan="3" class="text-center p-5 text-secondary">
+                                            <td colspan="4" class="text-center p-5 text-secondary">
                                                 <p class="m-0">No branch locations configured.</p>
                                             </td>
                                         </tr>
@@ -201,6 +222,7 @@
                                         <th>Store Code</th>
                                         <th>Store Name</th>
                                         <th>Category Type</th>
+                                        <th class="text-end">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -210,11 +232,17 @@
                                                 <td><strong class="text-warning font-monospace"><?= htmlspecialchars($wh['code']) ?></strong></td>
                                                 <td><strong class="text-dark"><?= htmlspecialchars($wh['name']) ?></strong></td>
                                                 <td><span class="badge bg-light text-secondary text-capitalize"><?= htmlspecialchars(str_replace('_', ' ', $wh['type'])) ?></span></td>
+                                                <td class="text-end">
+                                                    <form action="<?= base_url('company/masterdata/warehouses/delete/' . $wh['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete warehouse store?');">
+                                                        <?= \App\Core\Session::csrfField() ?>
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                                                    </form>
+                                                </td>
                                             </tr>
                                         <?php endforeach; ?>
                                     <?php else: ?>
                                         <tr>
-                                            <td colspan="3" class="text-center p-5 text-secondary">
+                                            <td colspan="4" class="text-center p-5 text-secondary">
                                                 <p class="m-0">No warehouse configurations registered.</p>
                                             </td>
                                         </tr>

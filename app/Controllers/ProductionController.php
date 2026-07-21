@@ -258,4 +258,18 @@ class ProductionController extends Controller {
         Session::setFlash('success', 'Quality Control AQL inspection report saved successfully.');
         $this->redirect('company/production/quality');
     }
+
+    public function deleteOrder(Request $request, Response $response, string $id): void {
+        $model = new ProductionOrder();
+        $model->delete($id, Session::get('user_id'));
+        Session::setFlash('success', 'Production Order deleted successfully.');
+        $this->redirect('company/production/orders');
+    }
+
+    public function deleteInspection(Request $request, Response $response, string $id): void {
+        $model = new QualityInspection();
+        $model->delete($id, Session::get('user_id'));
+        Session::setFlash('success', 'Quality inspection record deleted successfully.');
+        $this->redirect('company/production/quality');
+    }
 }

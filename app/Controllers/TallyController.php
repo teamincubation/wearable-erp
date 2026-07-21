@@ -127,4 +127,11 @@ class TallyController extends Controller {
         fclose($output);
         exit;
     }
+
+    public function deleteVoucher(Request $request, Response $response, string $id): void {
+        $model = new TallyVoucher();
+        $model->delete($id, Session::get('user_id'));
+        Session::setFlash('success', 'Tally voucher record deleted successfully.');
+        $this->redirect('company/tally/vouchers');
+    }
 }

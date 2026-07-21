@@ -24,6 +24,7 @@
                         <th>Buyer PO Link</th>
                         <th>Date Registered</th>
                         <th>Status</th>
+                        <th class="text-end">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -50,11 +51,17 @@
                                 <td>
                                     <span class="badge badge-pepp badge-success text-capitalize"><?= htmlspecialchars($r['status']) ?></span>
                                 </td>
+                                <td class="text-end">
+                                    <form action="<?= base_url('company/purchase/requisitions/delete/' . $r['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete this requisition?');">
+                                        <?= \App\Core\Session::csrfField() ?>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                                    </form>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="5" class="text-center p-5 text-secondary">
+                            <td colspan="6" class="text-center p-5 text-secondary">
                                 <i class="fa-solid fa-clipboard-list fs-1 mb-3 text-light"></i>
                                 <p class="m-0">No purchase requisitions registered yet.</p>
                                 <?php if (\App\Core\Auth::hasPermission('company.styles.manage')): ?>

@@ -32,6 +32,7 @@
                         <th>Deductions</th>
                         <th>Net Salary Payable</th>
                         <th>Status</th>
+                        <th class="text-end">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -52,11 +53,17 @@
                                 <td>
                                     <span class="badge badge-pepp badge-success text-capitalize"><?= htmlspecialchars($pr['status']) ?></span>
                                 </td>
+                                <td class="text-end">
+                                    <form action="<?= base_url('company/hr/payroll/delete/' . $pr['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete this payroll record?');">
+                                        <?= \App\Core\Session::csrfField() ?>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                                    </form>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="8" class="text-center p-5 text-secondary">
+                            <td colspan="9" class="text-center p-5 text-secondary">
                                 <i class="fa-solid fa-money-bill-wave fs-1 mb-3 text-light"></i>
                                 <p class="m-0">No salary payroll slips processed for this cycle.</p>
                             </td>

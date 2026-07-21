@@ -30,6 +30,7 @@
                         <th>AQL Status</th>
                         <th>Inspector</th>
                         <th>Date</th>
+                        <th class="text-end">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -66,11 +67,17 @@
                                 </td>
                                 <td><?= htmlspecialchars($qi['inspector_name'] ?: 'Inspector') ?></td>
                                 <td><?= date('d M Y', strtotime($qi['created_at'])) ?></td>
+                                <td class="text-end">
+                                    <form action="<?= base_url('company/production/quality/delete/' . $qi['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete this AQL inspection log?');">
+                                        <?= \App\Core\Session::csrfField() ?>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                                    </form>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="11" class="text-center p-5 text-secondary">
+                            <td colspan="12" class="text-center p-5 text-secondary">
                                 <i class="fa-solid fa-clipboard-check fs-1 mb-3 text-light"></i>
                                 <p class="m-0">No quality inspections registered yet.</p>
                             </td>

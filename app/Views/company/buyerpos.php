@@ -66,13 +66,15 @@
                                     <?php if ($o['status'] === 'draft' && \App\Core\Auth::hasPermission('company.styles.manage')): ?>
                                         <form action="<?= base_url('company/merchandising/buyerpos/approve/' . $o['id']) ?>" method="POST" class="d-inline">
                                             <?= \App\Core\Session::csrfField() ?>
-                                            <button type="submit" class="btn btn-sm btn-success rounded-pill px-3">
+                                            <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 me-1">
                                                 <i class="fa-solid fa-circle-check me-1"></i> Approve PO
                                             </button>
                                         </form>
-                                    <?php else: ?>
-                                        <span class="text-secondary small">Locked</span>
                                     <?php endif; ?>
+                                    <form action="<?= base_url('company/merchandising/buyerpos/delete/' . $o['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete this buyer PO?');">
+                                        <?= \App\Core\Session::csrfField() ?>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                                    </form>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
