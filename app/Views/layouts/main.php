@@ -59,6 +59,14 @@
 
                 <?php if (\App\Core\Auth::hasPermission('company.styles.view')): ?>
                 <li class="sidebar-item">
+                    <a href="<?= base_url('company/buyers') ?>" class="sidebar-link <?= $isActive('company/buyers') ?>">
+                        <i class="fa-solid fa-user-tie"></i> Buyers / Clients
+                    </a>
+                </li>
+                <?php endif; ?>
+
+                <?php if (\App\Core\Auth::hasPermission('company.styles.view')): ?>
+                <li class="sidebar-item">
                     <a href="<?= base_url('company/styles') ?>" class="sidebar-link <?= $isActive('company/styles') ?>">
                         <i class="fa-solid fa-shirt"></i> Style Master
                     </a>

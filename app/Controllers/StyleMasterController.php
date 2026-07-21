@@ -22,9 +22,16 @@ class StyleMasterController extends Controller {
         $styleModel = new Style();
         $styles = $styleModel->all();
 
+        $db = Database::getInstance();
+        $companyId = Session::get('company_id');
+        $stmt = $db->prepare("SELECT id, name, code, brand_name FROM contacts WHERE company_id = ? AND type = 'buyer' AND status = 'active' AND deleted_at IS NULL ORDER BY name ASC");
+        $stmt->execute([$companyId]);
+        $buyers = $stmt->fetchAll() ?: [];
+
         $this->renderView('company/styles', [
             'title' => 'Style Master | ERP',
-            'styles' => $styles
+            'styles' => $styles,
+            'buyers' => $buyers
         ]);
     }
 

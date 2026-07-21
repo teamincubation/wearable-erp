@@ -233,6 +233,36 @@ $router->post('/company/masterdata/branches/create', [\App\Controllers\MasterDat
        ->middleware(PermissionMiddleware::class)
        ->permission('company.styles.manage');
 
+// Buyer & Client Master Management
+$router->get('/company/buyers', [\App\Controllers\BuyerController::class, 'index'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.view');
+
+$router->post('/company/buyers/create', [\App\Controllers\BuyerController::class, 'create'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
+$router->post('/company/buyers/edit/{id}', [\App\Controllers\BuyerController::class, 'edit'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
+$router->post('/company/buyers/status/{id}', [\App\Controllers\BuyerController::class, 'updateStatus'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
+$router->post('/company/buyers/delete/{id}', [\App\Controllers\BuyerController::class, 'delete'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
 // Merchandising (Cost Sheets & Buyer POs)
 $router->get('/company/merchandising/costsheets', [\App\Controllers\MerchandisingController::class, 'costsheets'])
        ->middleware(AuthMiddleware::class)

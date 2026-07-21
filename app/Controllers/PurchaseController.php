@@ -140,7 +140,7 @@ class PurchaseController extends Controller {
                 'po_no' => $poNo,
                 'date' => $date,
                 'total_amount' => 0.00, // Updated later
-                'status' => 'draft',
+                'status' => 'active',
                 'created_by' => Session::get('user_id')
             ]);
 

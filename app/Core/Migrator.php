@@ -98,6 +98,24 @@ class Migrator {
                 }
             }
 
+            // Auto-heal contacts table columns for Buyers/Clients
+            $contactColumns = [
+                'brand_name' => "VARCHAR(150) DEFAULT NULL",
+                'contact_person' => "VARCHAR(150) DEFAULT NULL",
+                'country' => "VARCHAR(100) DEFAULT 'India'",
+                'currency' => "VARCHAR(10) DEFAULT 'INR'",
+                'payment_terms' => "VARCHAR(100) DEFAULT NULL",
+                'shipping_address' => "TEXT DEFAULT NULL"
+            ];
+            foreach ($contactColumns as $col => $type) {
+                try {
+                    $check = $db->query("SHOW COLUMNS FROM `contacts` LIKE '{$col}'");
+                    if (!$check || $check->rowCount() === 0) {
+                        $db->exec("ALTER TABLE `contacts` ADD COLUMN `{$col}` {$type}");
+                    }
+                } catch (\PDOException $e) {}
+            }
+
             // Run database self-healing check: Repair any user whose company_id does not exist in companies table
             try {
                 $db->exec("
