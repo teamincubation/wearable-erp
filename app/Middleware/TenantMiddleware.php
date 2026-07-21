@@ -17,10 +17,30 @@ class TenantMiddleware extends Middleware {
             \App\Core\Session::start();
         }
 
+        // 1. If logged in with a tenant company context, prioritize it
+        if (\App\Core\Session::has('company_id') && \App\Core\Session::get('company_id') !== null) {
+            $companyId = (int)\App\Core\Session::get('company_id');
+            Model::setActiveCompanyId($companyId);
+            
+            if (!\App\Core\Session::has('current_tenant') || \App\Core\Session::get('current_tenant') === null) {
+                try {
+                    $db = Database::getInstance();
+                    $stmt = $db->prepare("SELECT * FROM companies WHERE id = ? AND deleted_at IS NULL LIMIT 1");
+                    $stmt->execute([$companyId]);
+                    $company = $stmt->fetch();
+                    if ($company) {
+                        \App\Core\Session::set('current_tenant', $company);
+                    }
+                } catch (\Exception $e) {
+                }
+            }
+            return true;
+        }
+
         $host = $_SERVER['HTTP_HOST'] ?? '';
         $subdomain = null;
 
-        // 1. Developer query override or session override (For local dev ease)
+        // 2. Developer query override or session override (For local dev ease)
         $overrideTenant = $request->get('tenant');
         if ($overrideTenant) {
             $subdomain = $overrideTenant;
@@ -28,7 +48,7 @@ class TenantMiddleware extends Middleware {
         } elseif (\App\Core\Session::has('active_tenant_subdomain')) {
             $subdomain = \App\Core\Session::get('active_tenant_subdomain');
         } else {
-            // 2. Resolve via Host Subdomain (e.g. tocco.mywellgro.online)
+            // 3. Resolve via Host Subdomain (e.g. tocco.mywellgro.online)
             $parts = explode('.', $host);
             if (count($parts) >= 3) {
                 // If it looks like subdomain.domain.com, take the first part
