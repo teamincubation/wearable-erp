@@ -47,12 +47,6 @@
     <button type="submit" class="btn btn-pepp-primary w-100 py-2.5 mb-3">
         <i class="fa-solid fa-arrow-right-to-bracket me-2"></i> Log In
     </button>
-
-    <div class="text-center pt-2">
-        <a href="<?= base_url() ?>" class="text-secondary text-decoration-none" style="font-size: 14px;">
-            <i class="fa-solid fa-arrow-left me-1"></i> Back to Main Portal
-        </a>
-    </div>
 </form>
 
 <script>
@@ -70,11 +64,3 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-
-<div class="mt-4 p-3 bg-light rounded text-secondary" style="font-size: 12px; border: 1px dashed var(--border-color);">
-    <strong><i class="fa-solid fa-circle-info text-primary"></i> Review & Test Credentials:</strong>
-    <ul class="m-0 ps-3 mt-1">
-        <li><strong>Developer Admin:</strong> admin@mywellgro.online / Admin@1234</li>
-        <li><strong>TOCCO Exports:</strong> adnan@toccoexports.com / Tocco@1234</li>
-    </ul>
-</div>
