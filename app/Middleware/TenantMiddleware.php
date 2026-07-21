@@ -17,24 +17,38 @@ class TenantMiddleware extends Middleware {
             \App\Core\Session::start();
         }
 
-        // 1. If logged in with a tenant company context, prioritize it
+        // 1. If logged in with a tenant company context, validate that the company_id exists in DB
         if (\App\Core\Session::has('company_id') && \App\Core\Session::get('company_id') !== null) {
             $companyId = (int)\App\Core\Session::get('company_id');
-            Model::setActiveCompanyId($companyId);
             
-            if (!\App\Core\Session::has('current_tenant') || \App\Core\Session::get('current_tenant') === null) {
-                try {
-                    $db = Database::getInstance();
-                    $stmt = $db->prepare("SELECT * FROM companies WHERE id = ? AND deleted_at IS NULL LIMIT 1");
-                    $stmt->execute([$companyId]);
-                    $company = $stmt->fetch();
+            try {
+                $db = Database::getInstance();
+                $stmt = $db->prepare("SELECT * FROM companies WHERE id = ? AND deleted_at IS NULL LIMIT 1");
+                $stmt->execute([$companyId]);
+                $company = $stmt->fetch();
+
+                if (!$company) {
+                    // Self-healing: If company_id does not exist, resolve company by subdomain or fall back to active company
+                    $subdomain = \App\Core\Session::get('active_tenant_subdomain', 'tocco');
+                    $stmt2 = $db->prepare("SELECT * FROM companies WHERE (subdomain = ? OR status = 'active') AND deleted_at IS NULL ORDER BY id ASC LIMIT 1");
+                    $stmt2->execute([$subdomain]);
+                    $company = $stmt2->fetch();
+
                     if ($company) {
-                        \App\Core\Session::set('current_tenant', $company);
+                        $companyId = (int)$company['id'];
+                        \App\Core\Session::set('company_id', $companyId);
+                    } else {
+                        $companyId = null;
                     }
-                } catch (\Exception $e) {
                 }
+
+                if ($companyId !== null) {
+                    Model::setActiveCompanyId($companyId);
+                    \App\Core\Session::set('current_tenant', $company);
+                    return true;
+                }
+            } catch (\Exception $e) {
             }
-            return true;
         }
 
         $host = $_SERVER['HTTP_HOST'] ?? '';

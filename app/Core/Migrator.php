@@ -98,6 +98,16 @@ class Migrator {
                 }
             }
 
+            // Run database self-healing check: Repair any user whose company_id does not exist in companies table
+            try {
+                $db->exec("
+                    UPDATE users u 
+                    LEFT JOIN companies c ON u.company_id = c.id 
+                    SET u.company_id = (SELECT id FROM companies WHERE deleted_at IS NULL ORDER BY id ASC LIMIT 1)
+                    WHERE u.company_id IS NOT NULL AND c.id IS NULL
+                ");
+            } catch (\PDOException $e) {}
+
             // Restore foreign key checks
             $db->exec("SET FOREIGN_KEY_CHECKS = 1;");
 
