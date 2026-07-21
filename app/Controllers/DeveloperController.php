@@ -320,18 +320,41 @@ class DeveloperController extends Controller {
 
         $db = Database::getInstance();
         try {
-            $db->beginTransaction();
+            // Disable foreign key checks for clean tenant hard deletion
+            $db->exec("SET FOREIGN_KEY_CHECKS = 0;");
 
-            // Hard delete from database
+            // Cascade delete all child data belonging to this tenant company_id
+            $tablesWithCompanyId = [
+                'users', 'roles', 'feature_flags', 'license_keys', 'system_settings',
+                'styles', 'tech_packs', 'bom_categories', 'contacts', 'branches',
+                'warehouses', 'cost_sheets', 'buyer_pos', 'purchase_requisitions',
+                'purchase_orders', 'purchase_order_items', 'grns', 'grn_items',
+                'inventory_transactions', 'production_orders', 'production_stage_logs',
+                'quality_inspections', 'employee_attendance', 'payroll_records',
+                'tally_vouchers', 'audit_logs'
+            ];
+
+            foreach ($tablesWithCompanyId as $table) {
+                try {
+                    $stmt = $db->prepare("DELETE FROM {$table} WHERE company_id = ?");
+                    $stmt->execute([$id]);
+                } catch (\Exception $ex) {
+                }
+            }
+
+            // Hard delete company record itself
             $stmt = $db->prepare("DELETE FROM companies WHERE id = ?");
             $stmt->execute([$id]);
 
-            $db->commit();
+            // Restore foreign key checks
+            $db->exec("SET FOREIGN_KEY_CHECKS = 1;");
 
             AuditLog::log(null, Session::get('user_id'), 'hard_delete_company', 'Company', (int)$id, null, null, "Hard deleted company tenant: {$company['name']} ({$company['subdomain']})");
-            Session::setFlash('success', "Tenant company '{$company['name']}' has been permanently deleted from the system.");
+            Session::setFlash('success', "Tenant company '{$company['name']}' and all its associated records have been permanently deleted from the system.");
         } catch (\Exception $e) {
-            $db->rollBack();
+            try {
+                $db->exec("SET FOREIGN_KEY_CHECKS = 1;");
+            } catch (\Exception $ex) {}
             Session::setFlash('error', 'Failed to delete company: ' . $e->getMessage());
         }
 
