@@ -122,11 +122,17 @@
                         <div class="mb-3">
                             <label class="form-label small fw-bold">Item Type <span class="text-danger">*</span></label>
                             <select name="item_type" class="form-select text-dark" required>
-                                <option value="fabric">Fabric</option>
-                                <option value="yarn">Yarn</option>
-                                <option value="accessories">Accessories</option>
-                                <option value="chemical">Chemicals</option>
-                                <option value="packing">Packing Materials</option>
+                                <?php if (!empty($categories)): ?>
+                                    <?php foreach ($categories as $cat): ?>
+                                        <option value="<?= htmlspecialchars($cat['name']) ?>"><?= htmlspecialchars($cat['name']) ?> (<?= htmlspecialchars($cat['code']) ?>)</option>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <option value="Fabric">Fabric</option>
+                                    <option value="Yarn">Yarn</option>
+                                    <option value="Accessories">Accessories</option>
+                                    <option value="Chemicals">Chemicals</option>
+                                    <option value="Packing">Packing Materials</option>
+                                <?php endif; ?>
                             </select>
                         </div>
                         <div class="mb-3">

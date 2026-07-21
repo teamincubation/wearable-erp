@@ -321,6 +321,12 @@ $router->post('/company/purchase/orders/create', [\App\Controllers\PurchaseContr
        ->middleware(PermissionMiddleware::class)
        ->permission('company.styles.manage');
 
+$router->post('/company/purchase/orders/edit/{id}', [\App\Controllers\PurchaseController::class, 'editOrder'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
 $router->get('/company/purchase/grns', [\App\Controllers\PurchaseController::class, 'grns'])
        ->middleware(AuthMiddleware::class)
        ->middleware(PermissionMiddleware::class)

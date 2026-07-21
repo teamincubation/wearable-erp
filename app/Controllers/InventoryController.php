@@ -36,10 +36,16 @@ class InventoryController extends Controller {
         $warehouseModel = new Warehouse();
         $warehouses = $warehouseModel->all();
 
+        // Fetch BOM categories
+        $stmtCat = $db->prepare("SELECT * FROM bom_categories WHERE company_id = ? AND deleted_at IS NULL ORDER BY name ASC");
+        $stmtCat->execute([$companyId]);
+        $categories = $stmtCat->fetchAll() ?: [];
+
         $this->renderView('company/inventory_ledger', [
             'title' => 'Stock Transaction Ledger | ERP',
             'transactions' => $transactions,
-            'warehouses' => $warehouses
+            'warehouses' => $warehouses,
+            'categories' => $categories
         ]);
     }
 

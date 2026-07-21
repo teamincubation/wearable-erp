@@ -44,7 +44,7 @@ class ProductionController extends Controller {
             FROM buyer_pos po
             JOIN contacts c ON po.buyer_id = c.id
             JOIN styles s ON po.style_id = s.id
-            WHERE po.company_id = ? AND po.status IN ('approved', 'active') AND c.status = 'active' AND po.deleted_at IS NULL AND c.deleted_at IS NULL
+            WHERE po.company_id = ? AND po.status IN ('approved', 'draft', 'pending_approval') AND c.status = 'active' AND po.deleted_at IS NULL AND c.deleted_at IS NULL
             ORDER BY po.id DESC
         ");
         $stmt->execute([$companyId]);

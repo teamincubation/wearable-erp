@@ -47,7 +47,7 @@ class PurchaseController extends Controller {
             SELECT po.id, po.po_no, c.name as buyer_name, c.code as buyer_code, c.brand_name
             FROM buyer_pos po
             JOIN contacts c ON po.buyer_id = c.id
-            WHERE po.company_id = ? AND po.status IN ('approved', 'active') AND c.status = 'active' AND po.deleted_at IS NULL AND c.deleted_at IS NULL
+            WHERE po.company_id = ? AND po.status IN ('approved', 'draft', 'pending_approval') AND c.status = 'active' AND po.deleted_at IS NULL AND c.deleted_at IS NULL
             ORDER BY po.id DESC
         ");
         $stmt->execute([$companyId]);
@@ -190,6 +190,92 @@ class PurchaseController extends Controller {
         } catch (\Exception $e) {
             $db->rollBack();
             Session::setFlash('error', 'Failed to save Supplier PO: ' . $e->getMessage());
+        }
+
+        $this->redirect('company/purchase/orders');
+    }
+
+    /**
+     * Edit Supplier Purchase Order & Items
+     */
+    public function editOrder(Request $request, Response $response, string $id): void {
+        $supplierId = (int)$request->get('supplier_id');
+        $poNo = trim($request->get('po_no'));
+        $date = $request->get('date');
+        $status = $request->get('status') ?: 'active';
+        
+        $itemNames = $request->get('item_name') ?: [];
+        $itemTypes = $request->get('item_type') ?: [];
+        $quantities = $request->get('quantity') ?: [];
+        $prices = $request->get('unit_price') ?: [];
+
+        if (empty($supplierId) || empty($poNo) || empty($date)) {
+            Session::setFlash('error', 'Supplier details, PO Number, and Date are required.');
+            $this->redirect('company/purchase/orders');
+        }
+
+        $db = Database::getInstance();
+        $companyId = Session::get('company_id');
+
+        try {
+            $db->beginTransaction();
+
+            $poModel = new PurchaseOrder();
+            $po = $poModel->find($id);
+            if (!$po) {
+                throw new \Exception("Purchase Order not found.");
+            }
+
+            // Update PO header details
+            $poModel->update($id, [
+                'supplier_id' => $supplierId,
+                'po_no' => $poNo,
+                'date' => $date,
+                'status' => $status,
+                'updated_by' => Session::get('user_id')
+            ]);
+
+            // If new items are provided, replace the old ones
+            if (!empty($itemNames)) {
+                // Delete old items
+                $db->prepare("DELETE FROM purchase_order_items WHERE po_id = ?")->execute([$id]);
+
+                $totalAmount = 0.00;
+                for ($i = 0; $i < count($itemNames); $i++) {
+                    if (!empty($itemNames[$i])) {
+                        $qty = (float)($quantities[$i] ?? 0);
+                        $price = (float)($prices[$i] ?? 0);
+                        $total = $qty * $price;
+                        $totalAmount += $total;
+
+                        $stmt = $db->prepare("INSERT INTO purchase_order_items (
+                                                company_id, po_id, item_type, item_name, quantity, unit_price, total_price, created_at
+                                            ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())");
+                        $stmt->execute([
+                            $companyId,
+                            $id,
+                            $itemTypes[$i] ?? 'accessories',
+                            trim($itemNames[$i]),
+                            $qty,
+                            $price,
+                            $total
+                        ]);
+                    }
+                }
+
+                // Update PO total amount
+                $poModel->update($id, [
+                    'total_amount' => $totalAmount
+                ]);
+            }
+
+            $db->commit();
+
+            AuditLog::log($companyId, Session::get('user_id'), 'edit_supplier_po', 'PurchaseOrder', (int)$id, null, null, "Updated supplier purchase order: {$poNo}");
+            Session::setFlash('success', 'Supplier Purchase Order updated successfully.');
+        } catch (\Exception $e) {
+            $db->rollBack();
+            Session::setFlash('error', 'Failed to update Supplier PO: ' . $e->getMessage());
         }
 
         $this->redirect('company/purchase/orders');

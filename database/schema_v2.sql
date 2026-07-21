@@ -561,7 +561,9 @@ CREATE TABLE IF NOT EXISTS `bom_categories` (
   `name` VARCHAR(100) NOT NULL,
   `code` VARCHAR(50) NOT NULL,
   `created_by` INT DEFAULT NULL,
+  `updated_by` INT DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `deleted_at` TIMESTAMP NULL DEFAULT NULL,
   CONSTRAINT `fk_bom_cat_company` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE,
   INDEX `idx_bom_cat_company` (`company_id`)

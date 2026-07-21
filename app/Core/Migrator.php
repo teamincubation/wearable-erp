@@ -116,6 +116,20 @@ class Migrator {
                 } catch (\PDOException $e) {}
             }
 
+            // Auto-heal bom_categories table columns for update tracking
+            $bomCatColumns = [
+                'updated_by' => "INT DEFAULT NULL",
+                'updated_at' => "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+            ];
+            foreach ($bomCatColumns as $col => $type) {
+                try {
+                    $check = $db->query("SHOW COLUMNS FROM `bom_categories` LIKE '{$col}'");
+                    if (!$check || $check->rowCount() === 0) {
+                        $db->exec("ALTER TABLE `bom_categories` ADD COLUMN `{$col}` {$type}");
+                    }
+                } catch (\PDOException $e) {}
+            }
+
             // Run database self-healing check: Repair any user whose company_id does not exist in companies table
             try {
                 $db->exec("

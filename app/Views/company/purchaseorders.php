@@ -42,18 +42,118 @@
                                         <?php 
                                             if ($o['status'] === 'grn_completed') echo 'badge-success';
                                             elseif ($o['status'] === 'draft') echo 'badge-warning';
+                                            elseif ($o['status'] === 'active') echo 'badge-info';
                                             else echo 'badge-info';
                                         ?>">
                                         <?= htmlspecialchars(str_replace('_', ' ', ucfirst($o['status']))) ?>
                                     </span>
                                 </td>
                                 <td class="text-end">
-                                    <form action="<?= base_url('company/purchase/orders/delete/' . $o['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete this supplier purchase order?');">
-                                        <?= \App\Core\Session::csrfField() ?>
-                                        <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
-                                    </form>
+                                    <?php if (\App\Core\Auth::hasPermission('company.styles.manage')): ?>
+                                        <button class="btn btn-sm btn-light border me-1" data-bs-toggle="modal" data-bs-target="#editSupplierPoModal-<?= $o['id'] ?>"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
+                                        <form action="<?= base_url('company/purchase/orders/delete/' . $o['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete this supplier purchase order?');">
+                                            <?= \App\Core\Session::csrfField() ?>
+                                            <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                                        </form>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
+
+                            <!-- Edit Supplier PO Modal -->
+                            <div class="modal fade" id="editSupplierPoModal-<?= $o['id'] ?>" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-lg">
+                                    <form action="<?= base_url('company/purchase/orders/edit/' . $o['id']) ?>" method="POST">
+                                        <?= \App\Core\Session::csrfField() ?>
+                                        <div class="modal-content text-start" style="border-radius: 12px;">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title fw-bold">Edit Supplier Purchase Order: <?= htmlspecialchars($o['po_no']) ?></h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="row g-3 mb-3">
+                                                    <div class="col-md-6">
+                                                        <label class="form-label small fw-bold">Supplier / Vendor <span class="text-danger">*</span></label>
+                                                        <select name="supplier_id" class="form-select text-dark" required>
+                                                            <?php foreach ($suppliers as $s): ?>
+                                                                <option value="<?= $s['id'] ?>" <?= ($s['id'] == $o['supplier_id']) ? 'selected' : '' ?>><?= htmlspecialchars($s['name']) ?> (<?= htmlspecialchars($s['code']) ?>)</option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <label class="form-label small fw-bold">Supplier PO Number <span class="text-danger">*</span></label>
+                                                        <input type="text" name="po_no" class="form-control font-monospace" value="<?= htmlspecialchars($o['po_no']) ?>" required>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <label class="form-label small fw-bold">PO Date <span class="text-danger">*</span></label>
+                                                        <input type="date" name="date" class="form-control text-dark" value="<?= htmlspecialchars(date('Y-m-d', strtotime($o['date']))) ?>" required>
+                                                    </div>
+                                                </div>
+                                                <div class="row g-3 mb-3">
+                                                    <div class="col-md-4">
+                                                        <label class="form-label small fw-bold">Order Status</label>
+                                                        <select name="status" class="form-select text-dark">
+                                                            <option value="active" <?= ($o['status'] === 'active') ? 'selected' : '' ?>>Active</option>
+                                                            <option value="pending" <?= ($o['status'] === 'pending') ? 'selected' : '' ?>>Pending</option>
+                                                            <option value="grn_completed" <?= ($o['status'] === 'grn_completed') ? 'selected' : '' ?>>GRN Completed</option>
+                                                            <option value="draft" <?= ($o['status'] === 'draft') ? 'selected' : '' ?>>Draft</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Line Items Edit Table -->
+                                                <h6 class="fw-bold mb-3 border-bottom pb-2 text-primary"><i class="fa-solid fa-list me-1"></i> Order Items List</h6>
+                                                <table class="table table-bordered table-sm align-middle" id="editPoItemsTable-<?= $o['id'] ?>">
+                                                    <thead>
+                                                        <tr class="bg-light text-dark">
+                                                            <th style="width: 28%;">Category</th>
+                                                            <th style="width: 38%;">Item Name / Spec</th>
+                                                            <th style="width: 15%;">Quantity</th>
+                                                            <th style="width: 15%;">Unit Rate</th>
+                                                            <th style="width: 4%;"></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <?php 
+                                                        $db = \App\Core\Database::getInstance();
+                                                        $stmtItems = $db->prepare("SELECT * FROM purchase_order_items WHERE po_id = ?");
+                                                        $stmtItems->execute([$o['id']]);
+                                                        $orderItems = $stmtItems->fetchAll() ?: [];
+                                                        foreach ($orderItems as $item): 
+                                                        ?>
+                                                            <tr>
+                                                                <td>
+                                                                    <select name="item_type[]" class="form-select form-select-sm">
+                                                                        <?php if (!empty($categories)): ?>
+                                                                            <?php foreach ($categories as $cat): ?>
+                                                                                <option value="<?= htmlspecialchars($cat['name']) ?>" <?= ($cat['name'] === $item['item_type']) ? 'selected' : '' ?>><?= htmlspecialchars($cat['name']) ?> (<?= htmlspecialchars($cat['code']) ?>)</option>
+                                                                            <?php endforeach; ?>
+                                                                        <?php else: ?>
+                                                                            <option value="Fabric" <?= ($item['item_type'] === 'Fabric') ? 'selected' : '' ?>>Fabric</option>
+                                                                            <option value="Yarn" <?= ($item['item_type'] === 'Yarn') ? 'selected' : '' ?>>Yarn</option>
+                                                                            <option value="Accessories" <?= ($item['item_type'] === 'Accessories') ? 'selected' : '' ?>>Accessories</option>
+                                                                            <option value="Chemicals" <?= ($item['item_type'] === 'Chemicals') ? 'selected' : '' ?>>Chemicals</option>
+                                                                            <option value="Packing" <?= ($item['item_type'] === 'Packing') ? 'selected' : '' ?>>Packing Materials</option>
+                                                                        <?php endif; ?>
+                                                                    </select>
+                                                                </td>
+                                                                <td><input type="text" name="item_name[]" class="form-control form-control-sm" value="<?= htmlspecialchars($item['item_name']) ?>" required></td>
+                                                                <td><input type="number" step="0.01" name="quantity[]" class="form-control form-control-sm" value="<?= htmlspecialchars($item['quantity']) ?>" required></td>
+                                                                <td><input type="number" step="0.01" name="unit_price[]" class="form-control form-control-sm" value="<?= htmlspecialchars($item['unit_price']) ?>" required></td>
+                                                                <td class="text-center"><button type="button" class="btn btn-sm btn-link text-danger remove-item-btn p-0"><i class="fa-solid fa-circle-xmark"></i></button></td>
+                                                            </tr>
+                                                        <?php endforeach; ?>
+                                                    </tbody>
+                                                </table>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary add-edit-po-item-row-btn" data-target-table="editPoItemsTable-<?= $o['id'] ?>"><i class="fa-solid fa-plus me-1"></i> Add Item Line</button>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
+                                                <button type="submit" class="btn btn-primary px-4">Update Order</button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
@@ -178,6 +278,27 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         itemsTable.appendChild(row);
         bindPoRemoveButtons();
+    });
+
+    document.querySelectorAll('.add-edit-po-item-row-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const tableId = this.getAttribute('data-target-table');
+            const targetTableBody = document.getElementById(tableId).querySelector('tbody');
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>
+                    <select name="item_type[]" class="form-select form-select-sm">
+                        ${catOptionsHtml}
+                    </select>
+                </td>
+                <td><input type="text" name="item_name[]" class="form-control form-control-sm" placeholder="Item name" required></td>
+                <td><input type="number" step="0.01" name="quantity[]" class="form-control form-control-sm" value="0.00" required></td>
+                <td><input type="number" step="0.01" name="unit_price[]" class="form-control form-control-sm" value="0.00" required></td>
+                <td class="text-center"><button type="button" class="btn btn-sm btn-link text-danger remove-item-btn p-0"><i class="fa-solid fa-circle-xmark"></i></button></td>
+            `;
+            targetTableBody.appendChild(row);
+            bindPoRemoveButtons();
+        });
     });
 
     function bindPoRemoveButtons() {
