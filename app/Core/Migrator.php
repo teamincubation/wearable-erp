@@ -102,6 +102,10 @@ class Migrator {
             $db->exec("SET FOREIGN_KEY_CHECKS = 1;");
 
             // 4. Save current hash state on success
+            $storageDir = dirname($hashFilePath);
+            if (!is_dir($storageDir)) {
+                mkdir($storageDir, 0777, true);
+            }
             file_put_contents($hashFilePath, $currentHash);
 
         } catch (Exception $e) {

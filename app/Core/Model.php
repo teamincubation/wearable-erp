@@ -50,9 +50,15 @@ class Model {
             // For safety, developers should use the built-in CRUD helpers below which handle this automatically.
         }
 
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute($params);
-        return $stmt;
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
+            return $stmt;
+        } catch (\PDOException $e) {
+            $sessionVal = class_exists('\App\Core\Session') ? \App\Core\Session::get('company_id') : null;
+            $msg = $e->getMessage() . " | SQL: " . $sql . " | Params: " . json_encode($params) . " | ActiveTenant: " . var_export(self::$activeCompanyId, true) . " | Session company_id: " . var_export($sessionVal, true);
+            throw new \PDOException($msg, (int)$e->getCode(), $e);
+        }
     }
 
     /**
