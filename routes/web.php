@@ -203,6 +203,36 @@ $router->post('/company/styles/techpack/{id}', [\App\Controllers\StyleMasterCont
        ->middleware(PermissionMiddleware::class)
        ->permission('company.styles.manage');
 
+// Master Data Hub (Contacts, BOM Categories, Warehouses, Branches)
+$router->get('/company/masterdata', [\App\Controllers\MasterDataController::class, 'index'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.view');
+
+$router->post('/company/masterdata/contacts/create', [\App\Controllers\MasterDataController::class, 'createContact'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
+$router->post('/company/masterdata/bomcategories/create', [\App\Controllers\MasterDataController::class, 'createBomCategory'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
+$router->post('/company/masterdata/warehouses/create', [\App\Controllers\MasterDataController::class, 'createWarehouse'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
+$router->post('/company/masterdata/branches/create', [\App\Controllers\MasterDataController::class, 'createBranch'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
 // Merchandising (Cost Sheets & Buyer POs)
 $router->get('/company/merchandising/costsheets', [\App\Controllers\MerchandisingController::class, 'costsheets'])
        ->middleware(AuthMiddleware::class)

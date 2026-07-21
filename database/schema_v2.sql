@@ -548,4 +548,17 @@ ON DUPLICATE KEY UPDATE `name` = VALUES(`name`);
 INSERT IGNORE INTO `role_permissions` (`role_id`, `permission_id`) VALUES
 (2, 17), (2, 18), (2, 19), (2, 20), (2, 21), (2, 22), (2, 23), (2, 24);
 
+-- 28. BOM CATEGORIES TABLE
+CREATE TABLE IF NOT EXISTS `bom_categories` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `company_id` INT NOT NULL,
+  `name` VARCHAR(100) NOT NULL,
+  `code` VARCHAR(50) NOT NULL,
+  `created_by` INT DEFAULT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `deleted_at` TIMESTAMP NULL DEFAULT NULL,
+  CONSTRAINT `fk_bom_cat_company` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE,
+  INDEX `idx_bom_cat_company` (`company_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;
