@@ -267,6 +267,40 @@ $router->get('/company/inventory/barcode', [\App\Controllers\InventoryController
        ->middleware(PermissionMiddleware::class)
        ->permission('company.inventory.view');
 
+// Production stage tracking & Quality audits
+$router->get('/company/production/orders', [\App\Controllers\ProductionController::class, 'orders'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.production.view');
+
+$router->post('/company/production/orders/create', [\App\Controllers\ProductionController::class, 'createOrder'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.production.manage');
+
+$router->get('/company/production/stage/{id}', [\App\Controllers\ProductionController::class, 'stage'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.production.view');
+
+$router->post('/company/production/stage/{id}/log', [\App\Controllers\ProductionController::class, 'logStage'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.production.manage');
+
+$router->get('/company/production/quality', [\App\Controllers\ProductionController::class, 'quality'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.production.view');
+
+$router->post('/company/production/quality/create', [\App\Controllers\ProductionController::class, 'createInspection'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.production.manage');
+
 // Settings
 $router->get('/company/settings', [CompanyController::class, 'settings'])
        ->middleware(AuthMiddleware::class)

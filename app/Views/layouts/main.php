@@ -81,6 +81,14 @@
                 </li>
                 <?php endif; ?>
 
+                <?php if (\App\Core\Auth::hasPermission('company.production.view')): ?>
+                <li class="sidebar-item">
+                    <a href="<?= base_url('company/production/orders') ?>" class="sidebar-link <?= $isActive('company/production') ?>">
+                        <i class="fa-solid fa-industry"></i> Production & Quality
+                    </a>
+                </li>
+                <?php endif; ?>
+
                 <?php if (\App\Core\Auth::hasPermission('company.logs')): ?>
                 <li class="sidebar-item">
                     <a href="<?= base_url('company/logs') ?>" class="sidebar-link <?= $isActive('company/logs') ?>">
