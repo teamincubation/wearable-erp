@@ -78,7 +78,8 @@ class DeveloperController extends Controller {
         foreach ($flagsRaw as $flag) {
             $companyFlags[$flag['company_id']][$flag['feature_key']] = [
                 'status' => $flag['status'],
-                'expiry_date' => $flag['expiry_date']
+                'expiry_date' => $flag['expiry_date'],
+                'label' => $flag['label']
             ];
         }
 
