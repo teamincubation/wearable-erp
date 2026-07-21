@@ -81,14 +81,14 @@ if (!$isCompanyExpired && $currentPagePermission) {
                 ?>
                 <li class="sidebar-item">
                     <a href="<?= base_url('company/dashboard') ?>" class="sidebar-link <?= ($currentUri === '/company/dashboard') ? 'active' : '' ?>">
-                        <i class="fa-solid fa-chart-line"></i> Dashboard
+                        <i class="fa-solid fa-chart-line"></i> Dashboard <?= \App\Core\Auth::getFeatureLabelBadge('company.dashboard') ?>
                     </a>
                 </li>
                 
                 <?php if (\App\Core\Auth::hasPermission('company.users.view')): ?>
                 <li class="sidebar-item">
                     <a href="<?= base_url('company/users') ?>" class="sidebar-link <?= $isActive('company/users') ?>">
-                        <i class="fa-solid fa-users-gear"></i> Employees
+                        <i class="fa-solid fa-users-gear"></i> Employees <?= \App\Core\Auth::getFeatureLabelBadge('company.users.view') ?>
                     </a>
                 </li>
                 <?php endif; ?>
@@ -96,7 +96,7 @@ if (!$isCompanyExpired && $currentPagePermission) {
                 <?php if (\App\Core\Auth::hasPermission('company.roles.view')): ?>
                 <li class="sidebar-item">
                     <a href="<?= base_url('company/roles') ?>" class="sidebar-link <?= $isActive('company/roles') ?>">
-                        <i class="fa-solid fa-shield-halved"></i> Roles & Privileges
+                        <i class="fa-solid fa-shield-halved"></i> Roles & Privileges <?= \App\Core\Auth::getFeatureLabelBadge('company.roles.view') ?>
                     </a>
                 </li>
                 <?php endif; ?>
@@ -104,7 +104,7 @@ if (!$isCompanyExpired && $currentPagePermission) {
                 <?php if (\App\Core\Auth::hasPermission('company.styles.view')): ?>
                 <li class="sidebar-item">
                     <a href="<?= base_url('company/masterdata') ?>" class="sidebar-link <?= $isActive('company/masterdata') ?>">
-                        <i class="fa-solid fa-database"></i> Master Data Hub
+                        <i class="fa-solid fa-database"></i> Master Data Hub <?= \App\Core\Auth::getFeatureLabelBadge('company.styles.view') ?>
                     </a>
                 </li>
                 <?php endif; ?>
@@ -112,7 +112,7 @@ if (!$isCompanyExpired && $currentPagePermission) {
                 <?php if (\App\Core\Auth::hasPermission('company.styles.view')): ?>
                 <li class="sidebar-item">
                     <a href="<?= base_url('company/buyers') ?>" class="sidebar-link <?= $isActive('company/buyers') ?>">
-                        <i class="fa-solid fa-user-tie"></i> Buyers / Clients
+                        <i class="fa-solid fa-user-tie"></i> Buyers / Clients <?= \App\Core\Auth::getFeatureLabelBadge('company.styles.view') ?>
                     </a>
                 </li>
                 <?php endif; ?>
@@ -120,7 +120,7 @@ if (!$isCompanyExpired && $currentPagePermission) {
                 <?php if (\App\Core\Auth::hasPermission('company.styles.view')): ?>
                 <li class="sidebar-item">
                     <a href="<?= base_url('company/styles') ?>" class="sidebar-link <?= $isActive('company/styles') ?>">
-                        <i class="fa-solid fa-shirt"></i> Style Master
+                        <i class="fa-solid fa-shirt"></i> Style Master <?= \App\Core\Auth::getFeatureLabelBadge('company.styles.view') ?>
                     </a>
                 </li>
                 <?php endif; ?>
@@ -128,7 +128,7 @@ if (!$isCompanyExpired && $currentPagePermission) {
                 <?php if (\App\Core\Auth::hasPermission('company.styles.view')): ?>
                 <li class="sidebar-item">
                     <a href="<?= base_url('company/merchandising/costsheets') ?>" class="sidebar-link <?= $isActive('company/merchandising') ?>">
-                        <i class="fa-solid fa-calculator"></i> Merchandising
+                        <i class="fa-solid fa-calculator"></i> Merchandising <?= \App\Core\Auth::getFeatureLabelBadge('company.styles.view') ?>
                     </a>
                 </li>
                 <?php endif; ?>
@@ -136,7 +136,7 @@ if (!$isCompanyExpired && $currentPagePermission) {
                 <?php if (\App\Core\Auth::hasPermission('company.styles.view')): ?>
                 <li class="sidebar-item">
                     <a href="<?= base_url('company/purchase/orders') ?>" class="sidebar-link <?= $isActive('company/purchase') ?>">
-                        <i class="fa-solid fa-cart-shopping"></i> Procurement
+                        <i class="fa-solid fa-cart-shopping"></i> Procurement <?= \App\Core\Auth::getFeatureLabelBadge('company.styles.view') ?>
                     </a>
                 </li>
                 <?php endif; ?>
@@ -144,7 +144,7 @@ if (!$isCompanyExpired && $currentPagePermission) {
                 <?php if (\App\Core\Auth::hasPermission('company.inventory.view')): ?>
                 <li class="sidebar-item">
                     <a href="<?= base_url('company/inventory/ledger') ?>" class="sidebar-link <?= $isActive('company/inventory') ?>">
-                        <i class="fa-solid fa-boxes-stacked"></i> Inventory Ledger
+                        <i class="fa-solid fa-boxes-stacked"></i> Inventory Ledger <?= \App\Core\Auth::getFeatureLabelBadge('company.inventory.view') ?>
                     </a>
                 </li>
                 <?php endif; ?>
@@ -152,7 +152,7 @@ if (!$isCompanyExpired && $currentPagePermission) {
                 <?php if (\App\Core\Auth::hasPermission('company.production.view')): ?>
                 <li class="sidebar-item">
                     <a href="<?= base_url('company/production/orders') ?>" class="sidebar-link <?= $isActive('company/production') ?>">
-                        <i class="fa-solid fa-industry"></i> Production & Quality
+                        <i class="fa-solid fa-industry"></i> Production & Quality <?= \App\Core\Auth::getFeatureLabelBadge('company.production.view') ?>
                     </a>
                 </li>
                 <?php endif; ?>
@@ -160,7 +160,7 @@ if (!$isCompanyExpired && $currentPagePermission) {
                 <?php if (\App\Core\Auth::hasPermission('company.users.view')): ?>
                 <li class="sidebar-item">
                     <a href="<?= base_url('company/hr/attendance') ?>" class="sidebar-link <?= $isActive('company/hr') ?>">
-                        <i class="fa-solid fa-user-clock"></i> HR & Attendance
+                        <i class="fa-solid fa-user-clock"></i> HR & Attendance <?= \App\Core\Auth::getFeatureLabelBadge('company.users.view') ?>
                     </a>
                 </li>
                 <?php endif; ?>
@@ -168,7 +168,7 @@ if (!$isCompanyExpired && $currentPagePermission) {
                 <?php if (\App\Core\Auth::hasPermission('company.tally.export')): ?>
                 <li class="sidebar-item">
                     <a href="<?= base_url('company/tally/vouchers') ?>" class="sidebar-link <?= $isActive('company/tally') ?>">
-                        <i class="fa-solid fa-file-excel"></i> Tally Integration
+                        <i class="fa-solid fa-file-excel"></i> Tally Integration <?= \App\Core\Auth::getFeatureLabelBadge('company.tally.export') ?>
                     </a>
                 </li>
                 <?php endif; ?>
@@ -176,7 +176,7 @@ if (!$isCompanyExpired && $currentPagePermission) {
                 <?php if (\App\Core\Auth::hasPermission('company.logs')): ?>
                 <li class="sidebar-item">
                     <a href="<?= base_url('company/logs') ?>" class="sidebar-link <?= $isActive('company/logs') ?>">
-                        <i class="fa-solid fa-list-check"></i> Audit History
+                        <i class="fa-solid fa-list-check"></i> Audit History <?= \App\Core\Auth::getFeatureLabelBadge('company.logs') ?>
                     </a>
                 </li>
                 <?php endif; ?>
@@ -184,7 +184,7 @@ if (!$isCompanyExpired && $currentPagePermission) {
                 <?php if (\App\Core\Auth::hasPermission('company.settings')): ?>
                 <li class="sidebar-item">
                     <a href="<?= base_url('company/settings') ?>" class="sidebar-link <?= $isActive('company/settings') ?>">
-                        <i class="fa-solid fa-sliders"></i> ERP Settings
+                        <i class="fa-solid fa-sliders"></i> ERP Settings <?= \App\Core\Auth::getFeatureLabelBadge('company.settings') ?>
                     </a>
                 </li>
                 <?php endif; ?>
@@ -228,7 +228,10 @@ if (!$isCompanyExpired && $currentPagePermission) {
                         <span class="badge badge-pepp badge-success me-2">
                             <i class="fa-solid fa-industry"></i> <?= htmlspecialchars($tenant['name']) ?>
                         </span>
-                        <small class="text-secondary">Subdomain: <strong><?= htmlspecialchars($tenant['subdomain']) ?></strong></small>
+                        <small class="text-secondary me-2">Subdomain: <strong><?= htmlspecialchars($tenant['subdomain']) ?></strong></small>
+                        <?php if (!empty($currentPagePermission)): ?>
+                            <?= \App\Core\Auth::getFeatureLabelBadge($currentPagePermission) ?>
+                        <?php endif; ?>
                     <?php endif; ?>
                 </div>
 

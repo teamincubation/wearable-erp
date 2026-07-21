@@ -134,6 +134,10 @@ class DeveloperController extends Controller {
 
             $expiresAt = ($planCycle === 'lifetime') ? null : ($request->get('subscription_expires_at') ?: null);
 
+            // Auto-create developer login credentials for the tenant
+            $devUsername = 'dev_' . $subdomain;
+            $devPassword = bin2hex(random_bytes(6));
+
             $companyModel = new Company();
             $companyId = $companyModel->insert([
                 'name' => $name,
@@ -144,6 +148,8 @@ class DeveloperController extends Controller {
                 'subscription_status' => 'trial',
                 'subscription_expires_at' => $expiresAt,
                 'status' => 'active',
+                'dev_username' => $devUsername,
+                'dev_password' => $devPassword,
                 'tc_agreement' => $tcAgreement,
                 'payment_slip' => $paymentSlip,
                 'created_by' => Session::get('user_id')
@@ -198,6 +204,7 @@ class DeveloperController extends Controller {
 
             $assignedPermissions = $request->get('permissions') ?: [];
             $expiryDates = $request->get('expiry_date') ?: [];
+            $featureLabels = $request->get('labels') ?: [];
 
             // Add company.dashboard as a default permission if not selected
             if (!in_array('company.dashboard', $assignedPermissions)) {
@@ -205,10 +212,11 @@ class DeveloperController extends Controller {
             }
 
             // Insert assigned permissions as feature flags
-            $stmtFeature = $db->prepare("INSERT INTO feature_flags (company_id, feature_key, status, expiry_date) VALUES (?, ?, 'enabled', ?)");
+            $stmtFeature = $db->prepare("INSERT INTO feature_flags (company_id, feature_key, status, expiry_date, label) VALUES (?, ?, 'enabled', ?, ?)");
             foreach ($assignedPermissions as $feat) {
                 $expDate = (!empty($expiryDates[$feat]) && $planCycle !== 'lifetime') ? $expiryDates[$feat] : null;
-                $stmtFeature->execute([$companyId, $feat, $expDate]);
+                $labelVal = !empty($featureLabels[$feat]) ? $featureLabels[$feat] : 'no_label';
+                $stmtFeature->execute([$companyId, $feat, $expDate, $labelVal]);
             }
 
             // 6. Generate License
@@ -342,6 +350,7 @@ class DeveloperController extends Controller {
 
             $assignedPermissions = $request->get('permissions') ?: [];
             $expiryDates = $request->get('expiry_date') ?: [];
+            $featureLabels = $request->get('labels') ?: [];
 
             // Add company.dashboard as a default permission if not selected
             if (!in_array('company.dashboard', $assignedPermissions)) {
@@ -352,10 +361,11 @@ class DeveloperController extends Controller {
             $db->prepare("DELETE FROM feature_flags WHERE company_id = ?")->execute([$id]);
 
             // Insert assigned permissions as feature flags
-            $stmtFeature = $db->prepare("INSERT INTO feature_flags (company_id, feature_key, status, expiry_date) VALUES (?, ?, 'enabled', ?)");
+            $stmtFeature = $db->prepare("INSERT INTO feature_flags (company_id, feature_key, status, expiry_date, label) VALUES (?, ?, 'enabled', ?, ?)");
             foreach ($assignedPermissions as $feat) {
                 $expDate = (!empty($expiryDates[$feat]) && $planCycle !== 'lifetime') ? $expiryDates[$feat] : null;
-                $stmtFeature->execute([$id, $feat, $expDate]);
+                $labelVal = !empty($featureLabels[$feat]) ? $featureLabels[$feat] : 'no_label';
+                $stmtFeature->execute([$id, $feat, $expDate, $labelVal]);
             }
 
             $db->commit();
@@ -554,7 +564,7 @@ class DeveloperController extends Controller {
     /**
      * Global System configurations
      */
-    public function settings(Request $request, Response $response): void {
+     public function settings(Request $request, Response $response): void {
         $db = Database::getInstance();
         $rawSettings = $db->query("SELECT setting_key, setting_value FROM system_settings WHERE company_id IS NULL AND deleted_at IS NULL")->fetchAll();
         $settings = [];
@@ -562,10 +572,32 @@ class DeveloperController extends Controller {
             $settings[$row['setting_key']] = $row['setting_value'];
         }
 
+        $companies = $db->query("SELECT id, name, subdomain, dev_username, dev_password FROM companies WHERE deleted_at IS NULL ORDER BY name ASC")->fetchAll() ?: [];
+
         $this->renderView('developer/settings', [
             'title' => 'SaaS Settings',
-            'settings' => $settings
+            'settings' => $settings,
+            'companies' => $companies
         ], 'developer');
+    }
+
+    /**
+     * Generate missing developer credentials for all existing tenants
+     */
+    public function generateMissingDevCredentials(Request $request, Response $response): void {
+        $db = Database::getInstance();
+        $companies = $db->query("SELECT id, subdomain FROM companies WHERE (dev_username IS NULL OR dev_password IS NULL) AND deleted_at IS NULL")->fetchAll();
+
+        $count = 0;
+        foreach ($companies as $c) {
+            $devUsername = 'dev_' . $c['subdomain'];
+            $devPassword = bin2hex(random_bytes(6));
+            $db->prepare("UPDATE companies SET dev_username = ?, dev_password = ? WHERE id = ?")->execute([$devUsername, $devPassword, $c['id']]);
+            $count++;
+        }
+
+        Session::setFlash('success', "Generated missing developer login credentials for {$count} tenant ERP(s).");
+        $this->redirect('developer/settings');
     }
 
     /**

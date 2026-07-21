@@ -186,6 +186,16 @@
                                                                     <label class="small text-muted d-block mb-1">Access Expiration Date</label>
                                                                     <input type="date" name="expiry_date[<?= htmlspecialchars($perm['name']) ?>]" class="form-control form-control-sm expiry-date-input" value="<?= htmlspecialchars($expiryVal) ?>" style="max-width: 180px;">
                                                                 </div>
+                                                                <div class="mt-2 ps-4 label-input-container">
+                                                                    <label class="small text-muted d-block mb-1">Release Label</label>
+                                                                    <?php $labelVal = $hasFlag ? ($companyFlags[$c['id']][$perm['name']]['label'] ?? 'no_label') : 'no_label'; ?>
+                                                                    <select name="labels[<?= htmlspecialchars($perm['name']) ?>]" class="form-select form-select-sm" style="max-width: 150px;">
+                                                                        <option value="no_label" <?= $labelVal === 'no_label' ? 'selected' : '' ?>>No Label</option>
+                                                                        <option value="draft" <?= $labelVal === 'draft' ? 'selected' : '' ?>>Draft</option>
+                                                                        <option value="beta" <?= $labelVal === 'beta' ? 'selected' : '' ?>>Beta</option>
+                                                                        <option value="new" <?= $labelVal === 'new' ? 'selected' : '' ?>>New</option>
+                                                                    </select>
+                                                                </div>
                                                             </div>
                                                         <?php endforeach; ?>
                                                     <?php endif; ?>
@@ -319,6 +329,15 @@
                                         <div class="mt-1 ps-4 expiry-input-container">
                                             <label class="small text-muted d-block mb-1">Access Expiration Date</label>
                                             <input type="date" name="expiry_date[<?= htmlspecialchars($perm['name']) ?>]" class="form-control form-control-sm expiry-date-input" style="max-width: 180px;">
+                                        </div>
+                                        <div class="mt-2 ps-4 label-input-container">
+                                            <label class="small text-muted d-block mb-1">Release Label</label>
+                                            <select name="labels[<?= htmlspecialchars($perm['name']) ?>]" class="form-select form-select-sm" style="max-width: 150px;">
+                                                <option value="no_label" selected>No Label</option>
+                                                <option value="draft">Draft</option>
+                                                <option value="beta">Beta</option>
+                                                <option value="new">New</option>
+                                            </select>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>

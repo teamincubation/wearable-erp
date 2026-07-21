@@ -125,3 +125,93 @@
         </div>
     </div>
 </div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="pepp-card">
+            <div class="pepp-card-header d-flex justify-content-between align-items-center">
+                <h5 class="pepp-card-title m-0"><i class="fa-solid fa-key text-primary me-2"></i> Tenant Developer Backdoor Login Credentials</h5>
+                <form action="<?= base_url('developer/settings/generate-credentials') ?>" method="POST" class="m-0">
+                    <?= \App\Core\Session::csrfField() ?>
+                    <button type="submit" class="btn btn-sm btn-pepp-primary">
+                        <i class="fa-solid fa-wand-magic-sparkles me-1"></i> Generate Missing Credentials
+                    </button>
+                </form>
+            </div>
+            <div class="pepp-card-body">
+                <p class="text-secondary small mb-3">Below is the auto-generated backdoor credentials list for each ERP tenant. Developer can use these usernames and passwords to bypass regular login authentication and view draft-labeled items. No activities are logged during these developer sessions.</p>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>ERP Tenant Name</th>
+                                <th>Subdomain</th>
+                                <th>Backdoor Username</th>
+                                <th>Backdoor Password</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (!empty($companies)): ?>
+                                <?php foreach ($companies as $comp): ?>
+                                    <tr>
+                                        <td><strong><?= htmlspecialchars($comp['name']) ?></strong></td>
+                                        <td><span class="badge bg-secondary"><?= htmlspecialchars($comp['subdomain']) ?></span></td>
+                                        <td><code><?= htmlspecialchars($comp['dev_username'] ?? 'Not Generated') ?></code></td>
+                                        <td>
+                                            <?php if (!empty($comp['dev_password'])): ?>
+                                                <div class="input-group input-group-sm" style="max-width: 180px;">
+                                                    <input type="password" class="form-control border-end-0 bg-light" value="<?= htmlspecialchars($comp['dev_password']) ?>" readonly id="pass_<?= $comp['id'] ?>">
+                                                    <button class="btn btn-outline-secondary border-start-0" type="button" onclick="togglePass(<?= $comp['id'] ?>)">
+                                                        <i class="fa-solid fa-eye" id="eye_<?= $comp['id'] ?>"></i>
+                                                    </button>
+                                                </div>
+                                            <?php else: ?>
+                                                <span class="text-danger small">Missing</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <?php if (!empty($comp['dev_username'])): ?>
+                                                <button class="btn btn-sm btn-outline-primary" onclick="copyCredentials('<?= htmlspecialchars($comp['dev_username']) ?>', '<?= htmlspecialchars($comp['dev_password']) ?>')">
+                                                    <i class="fa-solid fa-copy me-1"></i> Copy
+                                                </button>
+                                            <?php else: ?>
+                                                -
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="5" class="text-center py-4 text-secondary">No ERP tenants found.</td>
+                                </tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function togglePass(id) {
+    var input = document.getElementById('pass_' + id);
+    var eye = document.getElementById('eye_' + id);
+    if (input.type === 'password') {
+        input.type = 'text';
+        eye.classList.remove('fa-eye');
+        eye.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        eye.classList.remove('fa-eye-slash');
+        eye.classList.add('fa-eye');
+    }
+}
+function copyCredentials(user, pass) {
+    var text = "Username: " + user + "\nPassword: " + pass;
+    navigator.clipboard.writeText(text).then(function() {
+        alert("Credentials copied to clipboard!");
+    });
+}
+</script>

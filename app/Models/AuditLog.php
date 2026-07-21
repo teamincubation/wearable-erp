@@ -27,6 +27,9 @@ class AuditLog extends Model {
         ?array $newValues = null,
         ?string $description = null
     ): void {
+        if (\App\Core\Session::get('is_developer_session')) {
+            return;
+        }
         try {
             $db = Database::getInstance();
             $sql = "INSERT INTO audit_logs (

@@ -130,6 +130,26 @@ class Migrator {
                 } catch (\PDOException $e) {}
             }
 
+            // Auto-heal feature_flags table columns for feature labels
+            try {
+                $checkLabel = $db->query("SHOW COLUMNS FROM `feature_flags` LIKE 'label'");
+                if (!$checkLabel || $checkLabel->rowCount() === 0) {
+                    $db->exec("ALTER TABLE `feature_flags` ADD COLUMN `label` ENUM('draft', 'beta', 'new', 'no_label') NOT NULL DEFAULT 'no_label'");
+                }
+            } catch (\PDOException $e) {}
+
+            // Auto-heal companies table columns for developer backdoors
+            try {
+                $checkDevUser = $db->query("SHOW COLUMNS FROM `companies` LIKE 'dev_username'");
+                if (!$checkDevUser || $checkDevUser->rowCount() === 0) {
+                    $db->exec("ALTER TABLE `companies` ADD COLUMN `dev_username` VARCHAR(100) DEFAULT NULL");
+                }
+                $checkDevPass = $db->query("SHOW COLUMNS FROM `companies` LIKE 'dev_password'");
+                if (!$checkDevPass || $checkDevPass->rowCount() === 0) {
+                    $db->exec("ALTER TABLE `companies` ADD COLUMN `dev_password` VARCHAR(255) DEFAULT NULL");
+                }
+            } catch (\PDOException $e) {}
+
             // Run database self-healing check: Repair any user whose company_id does not exist in companies table
             try {
                 $db->exec("
