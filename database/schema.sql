@@ -241,9 +241,9 @@ INSERT INTO `roles` (`id`, `company_id`, `name`, `description`, `is_system`) VAL
 (1, NULL, 'Super Admin', 'Developer / System Owner with full SaaS control privileges', 1);
 
 -- C. SEED GLOBAL DEVELOPER USER (Passes bcrypt password 'Admin@1234')
--- Hashed value: $2y$10$Q7wE63wZt/75oGq.4K.Ww.iNfLec5x9f4aHw8Gvq4Z4XpP09t0q.W
+-- Hashed value: $2y$10$1XzQkRs/Ube6HQkM3Ffj5.JCuWwna2JP3PyNiVB3zItPzwVs8k0vW
 INSERT INTO `users` (`id`, `company_id`, `role_id`, `name`, `email`, `password_hash`, `email_verified_at`, `status`) VALUES
-(1, NULL, 1, 'Wearable Dev Admin', 'admin@mywellgro.online', '$2y$10$Q7wE63wZt/75oGq.4K.Ww.iNfLec5x9f4aHw8Gvq4Z4XpP09t0q.W', NOW(), 'active');
+(1, NULL, 1, 'Wearable Dev Admin', 'admin@mywellgro.online', '$2y$10$1XzQkRs/Ube6HQkM3Ffj5.JCuWwna2JP3PyNiVB3zItPzwVs8k0vW', NOW(), 'active');
 
 -- D. SEED MODULE PERMISSIONS
 INSERT INTO `permissions` (`id`, `name`, `description`, `module`) VALUES
@@ -295,9 +295,9 @@ INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES
 (4, 8); -- company.dashboard
 
 -- I. SEED PILOT CUSTOMER ADMIN USER (Passes bcrypt password 'Tocco@1234')
--- Hashed value: $2y$10$vDskj0Z9n/yCgA6j/u202eD/gYgQ.bY.R97a1Bsh3Gk6Wz4pD1dM6
+-- Hashed value: $2y$10$GswmJdtNOjSpq5rWFX0Id.cVdEiv58H4fZKikzVUw9ycDaYl8uTUS
 INSERT INTO `users` (`id`, `company_id`, `role_id`, `name`, `email`, `password_hash`, `email_verified_at`, `status`) VALUES
-(2, 1, 2, 'Adnan Vellicheri', 'adnan@toccoexports.com', '$2y$10$vDskj0Z9n/yCgA6j/u202eD/gYgQ.bY.R97a1Bsh3Gk6Wz4pD1dM6', NOW(), 'active');
+(2, 1, 2, 'Adnan Vellicheri', 'adnan@toccoexports.com', '$2y$10$GswmJdtNOjSpq5rWFX0Id.cVdEiv58H4fZKikzVUw9ycDaYl8uTUS', NOW(), 'active');
 
 -- J. SEED PILOT CUSTOMER FEATURE FLAGS
 INSERT INTO `feature_flags` (`company_id`, `feature_key`, `status`) VALUES

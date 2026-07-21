@@ -85,29 +85,18 @@ try {
 
     echo "Executing migrations (" . count($queries) . " SQL statements)...<br><br>";
 
-    $db->beginTransaction();
     foreach ($queries as $index => $query) {
         $db->exec($query);
         // Extract statement type for clean log
         $type = preg_match('/^\s*([a-zA-Z]+)/i', $query, $matches) ? strtoupper($matches[1]) : 'SQL';
         echo "   [Statement " . ($index + 1) . "] Executing $type... <span class='success'>OK</span><br>";
     }
-    $db->commit();
 
     echo "<br><h4 class='success'>🎉 DATABASE SEEDED & INITIALIZED SUCCESSFULLY!</h4>";
     echo "<p>Please verify your portal. <strong>For safety, you should delete the <code>db_setup.php</code> file from your server root folder now.</strong></p>";
 
 } catch (Exception $e) {
     $originalMessage = $e->getMessage();
-    if (isset($db)) {
-        try {
-            if ($db->inTransaction()) {
-                $db->rollBack();
-            }
-        } catch (Exception $rollbackEx) {
-            // Silence rollback error so it doesn't mask original exception
-        }
-    }
     echo "<br><h4 class='error'>❌ Migration Failed!</h4>";
     echo "<pre>" . htmlspecialchars($originalMessage) . "</pre>";
     echo "<p>Please check your database configurations in <code>config/database.php</code>.</p>";
