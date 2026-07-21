@@ -5,11 +5,11 @@
  */
 
 return [
-    'host'      => '127.0.0.1',
+    'host'      => 'localhost',
     'port'      => '3306',
-    'database'  => 'wearable_erp',
-    'username'  => 'root',
-    'password'  => '',
+    'database'  => 'u361910773_wearable_erp',
+    'username'  => 'u361910773_erp_admin',
+    'password'  => 'Wellgro@erproot#w2027$',
     'charset'   => 'utf8mb4',
     'options'   => [
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
