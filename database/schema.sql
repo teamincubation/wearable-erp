@@ -296,8 +296,8 @@ INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES
 
 -- I. SEED PILOT CUSTOMER ADMIN USER (Passes bcrypt password 'Tocco@1234')
 -- Hashed value: $2y$10$GswmJdtNOjSpq5rWFX0Id.cVdEiv58H4fZKikzVUw9ycDaYl8uTUS
-INSERT INTO `users` (`id`, `company_id`, `role_id`, `name`, `email`, `password_hash`, `email_verified_at`, `status`) VALUES
-(2, 1, 2, 'Adnan Vellicheri', 'adnan@toccoexports.com', '$2y$10$GswmJdtNOjSpq5rWFX0Id.cVdEiv58H4fZKikzVUw9ycDaYl8uTUS', NOW(), 'active');
+INSERT INTO `users` (`id`, `company_id`, `role_id`, `name`, `email`, `password_hash`, `two_factor_enabled`, `email_verified_at`, `status`) VALUES
+(2, 1, 2, 'Adnan Vellicheri', 'adnan@toccoexports.com', '$2y$10$GswmJdtNOjSpq5rWFX0Id.cVdEiv58H4fZKikzVUw9ycDaYl8uTUS', 1, NOW(), 'active');
 
 -- J. SEED PILOT CUSTOMER FEATURE FLAGS
 INSERT INTO `feature_flags` (`company_id`, `feature_key`, `status`) VALUES
