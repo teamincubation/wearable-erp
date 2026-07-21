@@ -182,6 +182,69 @@ $router->post('/company/styles/techpack/{id}', [\App\Controllers\StyleMasterCont
        ->middleware(PermissionMiddleware::class)
        ->permission('company.styles.manage');
 
+// Merchandising (Cost Sheets & Buyer POs)
+$router->get('/company/merchandising/costsheets', [\App\Controllers\MerchandisingController::class, 'costsheets'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.view');
+
+$router->post('/company/merchandising/costsheets/create', [\App\Controllers\MerchandisingController::class, 'createCostsheet'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
+$router->get('/company/merchandising/buyerpos', [\App\Controllers\MerchandisingController::class, 'buyerpos'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.view');
+
+$router->post('/company/merchandising/buyerpos/create', [\App\Controllers\MerchandisingController::class, 'createBuyerpo'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
+$router->post('/company/merchandising/buyerpos/approve/{id}', [\App\Controllers\MerchandisingController::class, 'approveBuyerpo'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
+// Procurement & Purchase Workflow
+$router->get('/company/purchase/requisitions', [\App\Controllers\PurchaseController::class, 'requisitions'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.view');
+
+$router->post('/company/purchase/requisitions/create', [\App\Controllers\PurchaseController::class, 'createRequisition'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
+$router->get('/company/purchase/orders', [\App\Controllers\PurchaseController::class, 'orders'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.view');
+
+$router->post('/company/purchase/orders/create', [\App\Controllers\PurchaseController::class, 'createOrder'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
+$router->get('/company/purchase/grns', [\App\Controllers\PurchaseController::class, 'grns'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.view');
+
+$router->post('/company/purchase/grns/create', [\App\Controllers\PurchaseController::class, 'createGrn'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
 // Settings
 $router->get('/company/settings', [CompanyController::class, 'settings'])
        ->middleware(AuthMiddleware::class)

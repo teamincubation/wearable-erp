@@ -57,6 +57,22 @@
                 </li>
                 <?php endif; ?>
 
+                <?php if (\App\Core\Auth::hasPermission('company.styles.view')): ?>
+                <li class="sidebar-item">
+                    <a href="<?= base_url('company/merchandising/costsheets') ?>" class="sidebar-link <?= $isActive('company/merchandising') ?>">
+                        <i class="fa-solid fa-calculator"></i> Merchandising
+                    </a>
+                </li>
+                <?php endif; ?>
+
+                <?php if (\App\Core\Auth::hasPermission('company.styles.view')): ?>
+                <li class="sidebar-item">
+                    <a href="<?= base_url('company/purchase/orders') ?>" class="sidebar-link <?= $isActive('company/purchase') ?>">
+                        <i class="fa-solid fa-cart-shopping"></i> Procurement
+                    </a>
+                </li>
+                <?php endif; ?>
+
                 <?php if (\App\Core\Auth::hasPermission('company.logs')): ?>
                 <li class="sidebar-item">
                     <a href="<?= base_url('company/logs') ?>" class="sidebar-link <?= $isActive('company/logs') ?>">
