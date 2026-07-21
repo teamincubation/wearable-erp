@@ -49,6 +49,14 @@
                 </li>
                 <?php endif; ?>
 
+                <?php if (\App\Core\Auth::hasPermission('company.styles.view')): ?>
+                <li class="sidebar-item">
+                    <a href="<?= base_url('company/styles') ?>" class="sidebar-link <?= $isActive('company/styles') ?>">
+                        <i class="fa-solid fa-shirt"></i> Style Master
+                    </a>
+                </li>
+                <?php endif; ?>
+
                 <?php if (\App\Core\Auth::hasPermission('company.logs')): ?>
                 <li class="sidebar-item">
                     <a href="<?= base_url('company/logs') ?>" class="sidebar-link <?= $isActive('company/logs') ?>">

@@ -532,4 +532,20 @@ CREATE TABLE IF NOT EXISTS `tally_vouchers` (
   INDEX `idx_tv_company` (`company_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 26. SEED EXTENDED PERMISSIONS
+INSERT INTO `permissions` (`id`, `name`, `description`, `module`) VALUES
+(17, 'company.styles.view', 'View styles list and tech packs', 'tenant'),
+(18, 'company.styles.manage', 'Create, edit, and configure styles & cost sheets', 'tenant'),
+(19, 'company.inventory.view', 'View stock levels and transactions ledger', 'tenant'),
+(20, 'company.inventory.manage', 'Perform stock adjustments and warehouse transfers', 'tenant'),
+(21, 'company.production.view', 'View production orders and stage trackers', 'tenant'),
+(22, 'company.production.manage', 'Start and log production order activities', 'tenant'),
+(23, 'company.payroll.manage', 'Process monthly payroll and employee attendance', 'tenant'),
+(24, 'company.tally.export', 'Generate and download Tally financial vouchers', 'tenant')
+ON DUPLICATE KEY UPDATE `name` = VALUES(`name`);
+
+-- 27. MAP NEW PERMISSIONS TO COMPANY ADMIN (ROLE ID 2)
+INSERT IGNORE INTO `role_permissions` (`role_id`, `permission_id`) VALUES
+(2, 17), (2, 18), (2, 19), (2, 20), (2, 21), (2, 22), (2, 23), (2, 24);
+
 SET FOREIGN_KEY_CHECKS = 1;

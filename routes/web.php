@@ -153,6 +153,35 @@ $router->get('/company/logs', [CompanyController::class, 'logs'])
        ->middleware(PermissionMiddleware::class)
        ->permission('company.logs');
 
+// Style Master
+$router->get('/company/styles', [\App\Controllers\StyleMasterController::class, 'index'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.view');
+
+$router->post('/company/styles/create', [\App\Controllers\StyleMasterController::class, 'create'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
+$router->post('/company/styles/edit/{id}', [\App\Controllers\StyleMasterController::class, 'edit'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
+$router->get('/company/styles/techpack/{id}', [\App\Controllers\StyleMasterController::class, 'techpack'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.view');
+
+$router->post('/company/styles/techpack/{id}', [\App\Controllers\StyleMasterController::class, 'techpackUpdate'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
 // Settings
 $router->get('/company/settings', [CompanyController::class, 'settings'])
        ->middleware(AuthMiddleware::class)
