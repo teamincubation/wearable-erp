@@ -327,4 +327,43 @@ class DeveloperController extends Controller {
         Session::setFlash('success', 'Global system settings saved successfully.');
         $this->redirect('developer/settings');
     }
+
+    /**
+     * Dev Portal - SaaS Module Marketplace
+     */
+    public function marketplace(Request $request, Response $response): void {
+        $this->renderView('developer/marketplace', [
+            'title' => 'SaaS Module Marketplace',
+        ], 'developer');
+    }
+
+    /**
+     * Dev Portal - Database Diagnostics Monitor
+     */
+    public function dbMonitor(Request $request, Response $response): void {
+        $db = Database::getInstance();
+
+        // Gather database stats
+        $tables = $db->query("SHOW TABLE STATUS")->fetchAll() ?: [];
+        $vars = $db->query("SHOW VARIABLES LIKE 'version%'")->fetchAll() ?: [];
+
+        $this->renderView('developer/db_monitor', [
+            'title' => 'Database Diagnostics Monitor',
+            'tables' => $tables,
+            'variables' => $vars
+        ], 'developer');
+    }
+
+    /**
+     * Dev Portal - System Cron Jobs Logs
+     */
+    public function cronJobs(Request $request, Response $response): void {
+        $db = Database::getInstance();
+        $cronLogs = $db->query("SELECT * FROM cron_logs ORDER BY id DESC LIMIT 50")->fetchAll() ?: [];
+
+        $this->renderView('developer/cron_jobs', [
+            'title' => 'System Cron Jobs Logs',
+            'cron_logs' => $cronLogs
+        ], 'developer');
+    }
 }

@@ -97,6 +97,21 @@ $router->post('/developer/settings', [DeveloperController::class, 'saveSettings'
        ->middleware(PermissionMiddleware::class)
        ->permission('developer.settings');
 
+$router->get('/developer/marketplace', [DeveloperController::class, 'marketplace'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('developer.settings');
+
+$router->get('/developer/db-monitor', [DeveloperController::class, 'dbMonitor'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('developer.settings');
+
+$router->get('/developer/cron-jobs', [DeveloperController::class, 'cronJobs'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('developer.settings');
+
 // ==========================================================
 // 3. COMPANY ERP PORTAL ROUTES (Tenant Admin & Employees)
 // ==========================================================

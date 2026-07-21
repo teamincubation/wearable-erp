@@ -62,6 +62,24 @@
                         <i class="fa-solid fa-gears"></i> Platform Settings
                     </a>
                 </li>
+
+                <li class="sidebar-item">
+                    <a href="<?= base_url('developer/marketplace') ?>" class="sidebar-link <?= $isActive('developer/marketplace') ?>">
+                        <i class="fa-solid fa-shop"></i> Module Marketplace
+                    </a>
+                </li>
+
+                <li class="sidebar-item">
+                    <a href="<?= base_url('developer/db-monitor') ?>" class="sidebar-link <?= $isActive('developer/db-monitor') ?>">
+                        <i class="fa-solid fa-database"></i> Database Diagnostic
+                    </a>
+                </li>
+
+                <li class="sidebar-item">
+                    <a href="<?= base_url('developer/cron-jobs') ?>" class="sidebar-link <?= $isActive('developer/cron-jobs') ?>">
+                        <i class="fa-solid fa-clock"></i> Cron Job Logs
+                    </a>
+                </li>
             </ul>
 
             <div class="sidebar-footer">

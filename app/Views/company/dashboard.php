@@ -22,28 +22,41 @@
     <div class="col-md-3">
         <div class="stat-card">
             <div class="stat-icon icon-success">
-                <i class="fa-solid fa-shield-halved"></i>
+                <i class="fa-solid fa-industry"></i>
             </div>
-            <div class="stat-number"><?= $roles_count ?></div>
-            <div class="stat-label">Active User Roles</div>
+            <div class="stat-number"><?= $production_count ?></div>
+            <div class="stat-label">Active Production Batches</div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="stat-card">
             <div class="stat-icon icon-warning">
-                <i class="fa-solid fa-box-open"></i>
+                <i class="fa-solid fa-boxes-stacked"></i>
             </div>
-            <div class="stat-number">12,500m</div>
-            <div class="stat-label">Fabric Inventory (WIP)</div>
+            <div class="stat-number"><?= $unique_stock_count ?></div>
+            <div class="stat-label">Unique Stock Categories</div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="stat-card">
             <div class="stat-icon icon-danger">
-                <i class="fa-solid fa-truck-ramp-box"></i>
+                <i class="fa-solid fa-circle-exclamation"></i>
             </div>
-            <div class="stat-number">3,200 pcs</div>
-            <div class="stat-label">T-Shirts Ready to Ship</div>
+            <div class="stat-number"><?= number_format($reject_rate, 1) ?>%</div>
+            <div class="stat-label">Quality Rejection Rate (AQL)</div>
+        </div>
+    </div>
+</div>
+
+<!-- Financial Value Banner -->
+<div class="pepp-card bg-light-subtle mb-5 border border-primary">
+    <div class="pepp-card-body d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="fw-bold mb-1 text-dark"><i class="fa-solid fa-wallet text-primary me-2"></i> Active Buyer Order Book value</h5>
+            <p class="text-secondary small m-0">Sum of all approved production contract values booked this cycle</p>
+        </div>
+        <div class="text-end">
+            <h3 class="fw-bold text-success font-monospace m-0">₹<?= number_format($contracts_value, 2) ?></h3>
         </div>
     </div>
 </div>

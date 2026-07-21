@@ -58,13 +58,28 @@ class DashboardController extends Controller {
         $stmt->execute([$companyId]);
         $features = $stmt->fetchAll() ?: [];
 
+        // Dynamic ERP counts
+        $productionCount = $db->query("SELECT COUNT(*) FROM production_orders WHERE company_id = {$companyId} AND deleted_at IS NULL")->fetchColumn();
+        $contractsValue = $db->query("SELECT IFNULL(SUM(total_amount), 0.00) FROM buyer_pos WHERE company_id = {$companyId} AND deleted_at IS NULL")->fetchColumn();
+        $uniqueStockCount = $db->query("SELECT COUNT(DISTINCT item_name) FROM inventory_transactions WHERE company_id = {$companyId}")->fetchColumn();
+        
+        $inspectStats = $db->query("SELECT SUM(inspected_qty) as total_inspected, SUM(failed_qty) as total_failed FROM quality_inspections WHERE company_id = {$companyId} AND deleted_at IS NULL")->fetch();
+        $rejectRate = 0.0;
+        if (!empty($inspectStats['total_inspected']) && $inspectStats['total_inspected'] > 0) {
+            $rejectRate = ($inspectStats['total_failed'] / $inspectStats['total_inspected']) * 100;
+        }
+
         $this->renderView('company/dashboard', [
             'title' => 'Dashboard | ' . $company['name'],
             'company' => $company,
             'users_count' => $usersCount,
             'roles_count' => $rolesCount,
             'recent_logs' => $recentLogs,
-            'features' => $features
+            'features' => $features,
+            'production_count' => $productionCount,
+            'contracts_value' => $contractsValue,
+            'unique_stock_count' => $uniqueStockCount,
+            'reject_rate' => $rejectRate
         ]);
     }
 }
