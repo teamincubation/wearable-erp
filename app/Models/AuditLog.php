@@ -12,6 +12,7 @@ class AuditLog extends Model {
     protected string $table = 'audit_logs';
     protected string $primaryKey = 'id';
     protected bool $isMultiTenant = true; // Tenant isolation enabled
+    protected bool $useSoftDeletes = false; // Audit logs do not have deleted_at column
 
     /**
      * Log a security or transaction activity statically

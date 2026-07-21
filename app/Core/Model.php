@@ -16,6 +16,9 @@ class Model {
     // Set to false for system-wide tables like subscription_plans or system_versions
     protected bool $isMultiTenant = true;
 
+    // Set to false for tables that do not support soft deletes (e.g. audit_logs)
+    protected bool $useSoftDeletes = true;
+
     // Active global company context set by TenantMiddleware
     protected static ?int $activeCompanyId = null;
 
@@ -82,7 +85,7 @@ class Model {
      * Find a record by its primary key (automatically tenant-scoped)
      */
     public function find(mixed $id): ?array {
-        $sql = "SELECT * FROM {$this->table} WHERE {$this->primaryKey} = :primary_id AND deleted_at IS NULL";
+        $sql = "SELECT * FROM {$this->table} WHERE {$this->primaryKey} = :primary_id" . ($this->useSoftDeletes ? " AND deleted_at IS NULL" : "");
         $params = ['primary_id' => $id];
 
         $sql = $this->applyTenantScope($sql, $params);
@@ -95,7 +98,7 @@ class Model {
      * Fetch all records (automatically tenant-scoped)
      */
     public function all(string $orderBy = 'id DESC'): array {
-        $sql = "SELECT * FROM {$this->table} WHERE deleted_at IS NULL";
+        $sql = "SELECT * FROM {$this->table}" . ($this->useSoftDeletes ? " WHERE deleted_at IS NULL" : "");
         $params = [];
 
         $sql = $this->applyTenantScope($sql, $params);
@@ -109,7 +112,10 @@ class Model {
      * Find a single record matching specific criteria
      */
     public function findOneBy(array $criteria): ?array {
-        $conditions = ["deleted_at IS NULL"];
+        $conditions = [];
+        if ($this->useSoftDeletes) {
+            $conditions[] = "deleted_at IS NULL";
+        }
         $params = [];
 
         foreach ($criteria as $key => $value) {
@@ -117,7 +123,10 @@ class Model {
             $params[$key] = $value;
         }
 
-        $sql = "SELECT * FROM {$this->table} WHERE " . implode(' AND ', $conditions);
+        $sql = "SELECT * FROM {$this->table}";
+        if (!empty($conditions)) {
+            $sql .= " WHERE " . implode(' AND ', $conditions);
+        }
         $sql = $this->applyTenantScope($sql, $params);
 
         $stmt = $this->execute($sql, $params);
@@ -129,7 +138,10 @@ class Model {
      * Fetch all records matching specific criteria
      */
     public function findBy(array $criteria, string $orderBy = 'id DESC'): array {
-        $conditions = ["deleted_at IS NULL"];
+        $conditions = [];
+        if ($this->useSoftDeletes) {
+            $conditions[] = "deleted_at IS NULL";
+        }
         $params = [];
 
         foreach ($criteria as $key => $value) {
@@ -137,7 +149,10 @@ class Model {
             $params[$key] = $value;
         }
 
-        $sql = "SELECT * FROM {$this->table} WHERE " . implode(' AND ', $conditions);
+        $sql = "SELECT * FROM {$this->table}";
+        if (!empty($conditions)) {
+            $sql .= " WHERE " . implode(' AND ', $conditions);
+        }
         $sql = $this->applyTenantScope($sql, $params);
         $sql .= " ORDER BY {$orderBy}";
 
@@ -191,7 +206,7 @@ class Model {
         }
 
         $sql = sprintf(
-            "UPDATE %s SET %s WHERE %s = :primary_id AND deleted_at IS NULL",
+            "UPDATE %s SET %s WHERE %s = :primary_id" . ($this->useSoftDeletes ? " AND deleted_at IS NULL" : ""),
             $this->table,
             implode(', ', $fields),
             $this->primaryKey
@@ -206,12 +221,20 @@ class Model {
      * Soft delete a record
      */
     public function delete(mixed $id, ?int $deletedBy = null): bool {
-        $data = [
-            'deleted_at' => date('Y-m-d H:i:s')
-        ];
-        if ($deletedBy !== null) {
-            $data['updated_by'] = $deletedBy;
+        if ($this->useSoftDeletes) {
+            $data = [
+                'deleted_at' => date('Y-m-d H:i:s')
+            ];
+            if ($deletedBy !== null) {
+                $data['updated_by'] = $deletedBy;
+            }
+            return $this->update($id, $data);
+        } else {
+            $sql = "DELETE FROM {$this->table} WHERE {$this->primaryKey} = :primary_id";
+            $params = ['primary_id' => $id];
+            $sql = $this->applyTenantScope($sql, $params);
+            $stmt = $this->execute($sql, $params);
+            return $stmt->rowCount() > 0;
         }
-        return $this->update($id, $data);
     }
 }
