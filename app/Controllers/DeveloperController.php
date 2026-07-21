@@ -70,6 +70,14 @@ class DeveloperController extends Controller {
         $phone = $request->get('phone');
         $planId = (int) $request->get('subscription_plan_id');
 
+        // Added parameters: Super Admin credentials and optional documents
+        $adminEmail = $request->get('admin_email') ?: "admin@{$subdomain}.mywellgro.online";
+        $adminPassword = $request->get('admin_password') ?: 'Admin@1234';
+        $adminPhone = $request->get('admin_phone') ?: $phone;
+
+        $tcAgreement = $request->get('tc_agreement') ?: null;
+        $paymentSlip = $request->get('payment_slip') ?: null;
+
         if (empty($name) || empty($subdomain) || empty($email) || empty($planId)) {
             Session::setFlash('error', 'Please fill in all required company details.');
             $this->redirect('developer/companies');
@@ -99,6 +107,8 @@ class DeveloperController extends Controller {
                 'subscription_status' => 'trial',
                 'subscription_expires_at' => date('Y-m-d H:i:s', strtotime('+14 days')),
                 'status' => 'active',
+                'tc_agreement' => $tcAgreement,
+                'payment_slip' => $paymentSlip,
                 'created_by' => Session::get('user_id')
             ]);
 
@@ -123,8 +133,7 @@ class DeveloperController extends Controller {
                 $stmtMap->execute([$adminRoleId, $permId]);
             }
 
-            // 4. Create Default Company Admin User
-            // Password: Admin@1234
+            // 4. Create Default Company Admin User using input Super Admin credentials
             $userModel = new User();
             // Set company scope dynamically for insert
             $originalScope = \App\Core\Model::getActiveCompanyId();
@@ -134,8 +143,9 @@ class DeveloperController extends Controller {
                 'company_id' => $companyId,
                 'role_id' => $adminRoleId,
                 'name' => $name . ' Admin',
-                'email' => "admin@{$subdomain}.mywellgro.online",
-                'password_hash' => password_hash('Admin@1234', PASSWORD_BCRYPT),
+                'email' => $adminEmail,
+                'password_hash' => password_hash($adminPassword, PASSWORD_BCRYPT),
+                'phone' => $adminPhone,
                 'status' => 'active',
                 'email_verified_at' => date('Y-m-d H:i:s'),
                 'created_by' => Session::get('user_id')
@@ -159,7 +169,7 @@ class DeveloperController extends Controller {
             $db->commit();
 
             AuditLog::log(null, Session::get('user_id'), 'onboard_company', 'Company', $companyId, null, null, "Onboarded company: {$name} with subdomain: {$subdomain}");
-            Session::setFlash('success', "Company '{$name}' onboarded successfully. Credentials: admin@{$subdomain}.mywellgro.online / Admin@1234");
+            Session::setFlash('success', "Company '{$name}' onboarded successfully. Admin Email: {$adminEmail}");
 
         } catch (\Exception $e) {
             $db->rollBack();
@@ -183,16 +193,52 @@ class DeveloperController extends Controller {
 
         $status = $request->get('status');
         $planId = (int) $request->get('subscription_plan_id');
+        $tcAgreement = $request->get('tc_agreement') ?: null;
+        $paymentSlip = $request->get('payment_slip') ?: null;
 
         if ($status && in_array($status, ['active', 'inactive', 'suspended'])) {
             $companyModel->update($id, [
                 'status' => $status,
                 'subscription_plan_id' => $planId,
+                'tc_agreement' => $tcAgreement,
+                'payment_slip' => $paymentSlip,
                 'updated_by' => Session::get('user_id')
             ]);
 
-            AuditLog::log(null, Session::get('user_id'), 'update_company', 'Company', $id, null, null, "Updated company status to: {$status}");
+            AuditLog::log(null, Session::get('user_id'), 'update_company', 'Company', $id, null, null, "Updated company parameters");
             Session::setFlash('success', 'Company details updated successfully.');
+        }
+
+        $this->redirect('developer/companies');
+    }
+
+    /**
+     * Hard Delete Tenant Company (Global Admin Only)
+     */
+    public function deleteCompany(Request $request, Response $response, string $id): void {
+        $companyModel = new Company();
+        $company = $companyModel->find($id);
+
+        if (!$company) {
+            Session::setFlash('error', 'Company not found.');
+            $this->redirect('developer/companies');
+        }
+
+        $db = Database::getInstance();
+        try {
+            $db->beginTransaction();
+
+            // Hard delete from database
+            $stmt = $db->prepare("DELETE FROM companies WHERE id = ?");
+            $stmt->execute([$id]);
+
+            $db->commit();
+
+            AuditLog::log(null, Session::get('user_id'), 'hard_delete_company', 'Company', (int)$id, null, null, "Hard deleted company tenant: {$company['name']} ({$company['subdomain']})");
+            Session::setFlash('success', "Tenant company '{$company['name']}' has been permanently deleted from the system.");
+        } catch (\Exception $e) {
+            $db->rollBack();
+            Session::setFlash('error', 'Failed to delete company: ' . $e->getMessage());
         }
 
         $this->redirect('developer/companies');

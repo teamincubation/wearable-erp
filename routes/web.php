@@ -59,6 +59,12 @@ $router->post('/developer/companies/edit/{id}', [DeveloperController::class, 'ed
        ->middleware(PermissionMiddleware::class)
        ->permission('developer.companies');
 
+$router->post('/developer/companies/delete/{id}', [DeveloperController::class, 'deleteCompany'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('developer.companies');
+
 $router->get('/developer/subscriptions', [DeveloperController::class, 'subscriptions'])
        ->middleware(AuthMiddleware::class)
        ->middleware(PermissionMiddleware::class)

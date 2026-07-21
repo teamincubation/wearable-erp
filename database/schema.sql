@@ -51,6 +51,8 @@ CREATE TABLE `companies` (
   `country` VARCHAR(100) DEFAULT 'India',
   `postal_code` VARCHAR(20) DEFAULT NULL,
   `gstin` VARCHAR(15) DEFAULT NULL,
+  `tc_agreement` TEXT DEFAULT NULL,
+  `payment_slip` VARCHAR(255) DEFAULT NULL,
   `status` ENUM('active', 'inactive', 'suspended') NOT NULL DEFAULT 'active',
   `subscription_plan_id` INT DEFAULT NULL,
   `subscription_status` ENUM('trial', 'active', 'expired', 'cancelled') NOT NULL DEFAULT 'trial',
