@@ -80,6 +80,16 @@
                         </div>
                     </div>
 
+                    <h6 class="fw-bold text-primary mb-3"><i class="fa-brands fa-whatsapp me-1"></i> Developer Contact Details</h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Developer WhatsApp Number <span class="text-danger">*</span></label>
+                            <input type="text" name="developer_whatsapp" class="form-control" placeholder="e.g. 919876543210 (include country code)" 
+                                   value="<?= htmlspecialchars($settings['developer_whatsapp'] ?? '919876543210') ?>" required>
+                            <span class="text-muted small">This number will be used by tenants to contact for subscription renewals.</span>
+                        </div>
+                    </div>
+
                     <button type="submit" class="btn btn-pepp-primary">
                         <i class="fa-solid fa-circle-check me-1"></i> Save Platform Configurations
                     </button>

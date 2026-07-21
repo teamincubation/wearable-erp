@@ -21,6 +21,7 @@
                                 <th>Limits</th>
                                 <th>API Access</th>
                                 <th>Status</th>
+                                <th class="text-end">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -49,7 +50,87 @@
                                             <?= htmlspecialchars(ucfirst($p['status'])) ?>
                                         </span>
                                     </td>
+                                    <td class="text-end">
+                                        <button class="btn btn-sm btn-outline-primary border-0" data-bs-toggle="modal" data-bs-target="#editPlanModal-<?= $p['id'] ?>">
+                                            <i class="fa-solid fa-pen-to-square"></i> Edit
+                                        </button>
+                                    </td>
                                 </tr>
+
+                                <!-- Edit Plan Modal -->
+                                <div class="modal fade" id="editPlanModal-<?= $p['id'] ?>" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <form action="<?= base_url('developer/subscriptions/edit/' . $p['id']) ?>" method="POST">
+                                            <?= \App\Core\Session::csrfField() ?>
+                                            <div class="modal-content text-start" style="border-radius: 12px;">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title fw-bold">Edit Subscription Plan: <?= htmlspecialchars($p['name']) ?></h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-semibold">Plan Name</label>
+                                                        <input type="text" name="name" class="form-control" value="<?= htmlspecialchars($p['name']) ?>" required>
+                                                    </div>
+
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-semibold">Unique Plan Code</label>
+                                                        <input type="text" name="code" class="form-control" value="<?= htmlspecialchars($p['code']) ?>" required>
+                                                    </div>
+
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-semibold">Billing Cycle</label>
+                                                        <select name="billing_cycle" class="form-select" required>
+                                                            <option value="trial" <?= ($p['billing_cycle'] === 'trial') ? 'selected' : '' ?>>Trial (No Cost)</option>
+                                                            <option value="monthly" <?= ($p['billing_cycle'] === 'monthly') ? 'selected' : '' ?>>Monthly</option>
+                                                            <option value="quarterly" <?= ($p['billing_cycle'] === 'quarterly') ? 'selected' : '' ?>>Quarterly</option>
+                                                            <option value="yearly" <?= ($p['billing_cycle'] === 'yearly') ? 'selected' : '' ?>>Yearly</option>
+                                                            <option value="lifetime" <?= ($p['billing_cycle'] === 'lifetime') ? 'selected' : '' ?>>Lifetime</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-semibold">Price (INR)</label>
+                                                        <input type="number" name="price" step="0.01" class="form-control" value="<?= htmlspecialchars($p['price']) ?>" required>
+                                                    </div>
+
+                                                    <div class="row g-2 mb-3">
+                                                        <div class="col-6">
+                                                            <label class="form-label fw-semibold">Max Users</label>
+                                                            <input type="number" name="max_users" class="form-control" value="<?= htmlspecialchars($p['max_users']) ?>" required>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <label class="form-label fw-semibold">Max Branches</label>
+                                                            <input type="number" name="max_branches" class="form-control" value="<?= htmlspecialchars($p['max_branches']) ?>" required>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-semibold">Max Storage (MB)</label>
+                                                        <input type="number" name="max_storage_mb" class="form-control" value="<?= htmlspecialchars($p['max_storage_mb']) ?>" required>
+                                                    </div>
+
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-semibold">Status</label>
+                                                        <select name="status" class="form-select">
+                                                            <option value="active" <?= ($p['status'] === 'active') ? 'selected' : '' ?>>Active</option>
+                                                            <option value="inactive" <?= ($p['status'] === 'inactive') ? 'selected' : '' ?>>Inactive</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <div class="mb-3 form-check">
+                                                        <input type="checkbox" name="api_access" id="api_access-<?= $p['id'] ?>" class="form-check-input" value="1" <?= $p['api_access'] ? 'checked' : '' ?>>
+                                                        <label class="form-check-label fw-semibold" for="api_access-<?= $p['id'] ?>">Allow API Integration Access</label>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
+                                                    <button type="submit" class="btn btn-primary px-4">Save Changes</button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
                             <?php endforeach; ?>
                         </tbody>
                     </table>

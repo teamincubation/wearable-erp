@@ -134,10 +134,10 @@
                                                 <div class="row g-3">
                                                     <div class="col-md-6">
                                                         <label class="form-label fw-semibold">Subscription Plan</label>
-                                                        <select name="subscription_plan_id" class="form-select text-dark">
+                                                        <select name="subscription_plan_id" class="form-select text-dark plan-select" data-company-id="<?= $c['id'] ?>">
                                                             <?php foreach ($plans as $p): ?>
-                                                                <option value="<?= $p['id'] ?>" <?= ($p['id'] == $c['subscription_plan_id']) ? 'selected' : '' ?>>
-                                                                    <?= htmlspecialchars($p['name']) ?>
+                                                                <option value="<?= $p['id'] ?>" data-cycle="<?= $p['billing_cycle'] ?>" <?= ($p['id'] == $c['subscription_plan_id']) ? 'selected' : '' ?>>
+                                                                    <?= htmlspecialchars($p['name']) ?> (<?= htmlspecialchars($p['billing_cycle']) ?>)
                                                                 </option>
                                                             <?php endforeach; ?>
                                                         </select>
@@ -158,6 +158,33 @@
                                                         <label class="form-label fw-semibold">Payment Slip Info / Link / Code (Optional)</label>
                                                         <input type="text" name="payment_slip" class="form-control" value="<?= htmlspecialchars($c['payment_slip'] ?? '') ?>" placeholder="e.g. SLIP-TOCCO-901 / Payment Link ID">
                                                     </div>
+                                                </div>
+
+                                                <!-- Section 4: Assign Modules & Pages validity -->
+                                                <h6 class="fw-bold text-primary mb-3 pt-3 border-top"><i class="fa-solid fa-list-check me-1"></i> Assign ERP Modules & Page Validity</h6>
+                                                <p class="text-secondary small mb-3">Check each module/page to grant access, and set their individual expiration dates. Date fields are automatically disabled for Lifetime subscription plans.</p>
+
+                                                <div class="row g-3">
+                                                    <?php if (!empty($allPermissions)): ?>
+                                                        <?php foreach ($allPermissions as $perm): 
+                                                            $hasFlag = isset($companyFlags[$c['id']][$perm['name']]);
+                                                            $expiryVal = $hasFlag ? $companyFlags[$c['id']][$perm['name']]['expiry_date'] : '';
+                                                            $cleanLabel = ucwords(str_replace(['company.', '.', 'view', 'manage'], [' ', ' ', ' (View)', ' (Manage)'], $perm['name']));
+                                                        ?>
+                                                            <div class="col-md-6 border-bottom pb-2">
+                                                                <div class="form-check">
+                                                                    <input class="form-check-input permission-checkbox" type="checkbox" name="permissions[]" value="<?= htmlspecialchars($perm['name']) ?>" id="perm_<?= $c['id'] ?>_<?= $perm['id'] ?>" <?= $hasFlag ? 'checked' : '' ?>>
+                                                                    <label class="form-check-label fw-semibold text-dark" for="perm_<?= $c['id'] ?>_<?= $perm['id'] ?>">
+                                                                        <?= htmlspecialchars($cleanLabel) ?>
+                                                                    </label>
+                                                                </div>
+                                                                <div class="mt-1 ps-4 expiry-input-container">
+                                                                    <label class="small text-muted d-block mb-1">Access Expiration Date</label>
+                                                                    <input type="date" name="expiry_date[<?= htmlspecialchars($perm['name']) ?>]" class="form-control form-control-sm expiry-date-input" value="<?= htmlspecialchars($expiryVal) ?>" style="max-width: 180px;">
+                                                                </div>
+                                                            </div>
+                                                        <?php endforeach; ?>
+                                                    <?php endif; ?>
                                                 </div>
                                             </div>
                                             <div class="modal-footer border-0">
@@ -246,10 +273,10 @@
                         <div class="row g-3">
                             <div class="col-md-12 mb-3">
                                 <label class="form-label fw-semibold">Subscription Plan <span class="text-danger">*</span></label>
-                                <select name="subscription_plan_id" class="form-select text-dark" required>
+                                <select name="subscription_plan_id" class="form-select text-dark plan-select" data-company-id="onboard" required>
                                     <option value="" disabled selected>Select Plan</option>
                                     <?php foreach ($plans as $p): ?>
-                                        <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['name']) ?></option>
+                                        <option value="<?= $p['id'] ?>" data-cycle="<?= $p['billing_cycle'] ?>"><?= htmlspecialchars($p['name']) ?> (<?= htmlspecialchars($p['billing_cycle']) ?>)</option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
@@ -263,6 +290,33 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Step 4: Assign Modules & Pages validity -->
+                    <div id="step-modules" class="mt-4 pt-4 border-top">
+                        <h6 class="fw-bold text-primary mb-3"><i class="fa-solid fa-list-check me-1"></i> Step 4: Assign ERP Modules & Page Validity</h6>
+                        <p class="text-secondary small mb-3">Check each module/page to grant access, and set their individual expiration dates. Date fields are automatically disabled for Lifetime subscription plans.</p>
+
+                        <div class="row g-3">
+                            <?php if (!empty($allPermissions)): ?>
+                                <?php foreach ($allPermissions as $perm): 
+                                    $cleanLabel = ucwords(str_replace(['company.', '.', 'view', 'manage'], [' ', ' ', ' (View)', ' (Manage)'], $perm['name']));
+                                ?>
+                                    <div class="col-md-6 border-bottom pb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input permission-checkbox" type="checkbox" name="permissions[]" value="<?= htmlspecialchars($perm['name']) ?>" id="perm_onboard_<?= $perm['id'] ?>" checked>
+                                            <label class="form-check-label fw-semibold text-dark" for="perm_onboard_<?= $perm['id'] ?>">
+                                                <?= htmlspecialchars($cleanLabel) ?>
+                                            </label>
+                                        </div>
+                                        <div class="mt-1 ps-4 expiry-input-container">
+                                            <label class="small text-muted d-block mb-1">Access Expiration Date</label>
+                                            <input type="date" name="expiry_date[<?= htmlspecialchars($perm['name']) ?>]" class="form-control form-control-sm expiry-date-input" style="max-width: 180px;">
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer border-0">
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
@@ -274,3 +328,44 @@
         </form>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    function checkValidityInputs(selectEl) {
+        const selectedOption = selectEl.options[selectEl.selectedIndex];
+        const cycle = selectedOption ? selectedOption.getAttribute('data-cycle') : '';
+        const modal = selectEl.closest('.modal-body') || selectEl.closest('.modal-content');
+        if (!modal) return;
+        const dateInputs = modal.querySelectorAll('.expiry-date-input');
+        const containers = modal.querySelectorAll('.expiry-input-container');
+
+        if (cycle === 'lifetime') {
+            dateInputs.forEach(function(input) {
+                input.value = '';
+                input.disabled = true;
+                input.removeAttribute('required');
+            });
+            containers.forEach(function(container) {
+                container.style.opacity = '0.5';
+                container.style.pointerEvents = 'none';
+            });
+        } else {
+            dateInputs.forEach(function(input) {
+                input.disabled = false;
+            });
+            containers.forEach(function(container) {
+                container.style.opacity = '1';
+                container.style.pointerEvents = 'auto';
+            });
+        }
+    }
+
+    document.querySelectorAll('.plan-select').forEach(function(selectEl) {
+        selectEl.addEventListener('change', function() {
+            checkValidityInputs(this);
+        });
+        // Run initially
+        checkValidityInputs(selectEl);
+    });
+});
+</script>

@@ -17,6 +17,9 @@ class PermissionMiddleware extends Middleware {
         }
 
         $requiredPermission = $route->getPermission();
+        if ($requiredPermission) {
+            Session::set('current_page_permission', $requiredPermission);
+        }
 
         if ($requiredPermission && !Auth::hasPermission($requiredPermission)) {
             if ($request->isAjax()) {

@@ -63,44 +63,13 @@
 
 <div class="row mb-5">
     <!-- Chart Widget -->
-    <div class="col-md-8">
+    <div class="col-md-12">
         <div class="pepp-card h-100">
             <div class="pepp-card-header">
                 <h5 class="pepp-card-title"><i class="fa-solid fa-chart-simple text-primary me-2"></i> Weekly Garment Production Outputs (pcs)</h5>
             </div>
             <div class="pepp-card-body">
                 <canvas id="productionChart" height="260"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- Active features status -->
-    <div class="col-md-4">
-        <div class="pepp-card h-100">
-            <div class="pepp-card-header">
-                <h5 class="pepp-card-title"><i class="fa-solid fa-toggle-on text-primary me-2"></i> Feature License Modules</h5>
-            </div>
-            <div class="pepp-card-body p-0">
-                <div class="list-group list-group-flush">
-                    <?php if (!empty($features)): ?>
-                        <?php foreach ($features as $f): ?>
-                            <div class="list-group-item d-flex justify-content-between align-items-center p-3 border-0 border-bottom">
-                                <span class="fw-semibold text-dark text-capitalize"><i class="fa-solid fa-circle-check text-success me-2"></i> <?= htmlspecialchars($f['feature_key']) ?></span>
-                                <span class="badge badge-pepp 
-                                    <?php 
-                                        if ($f['status'] === 'enabled') echo 'badge-success';
-                                        elseif ($f['status'] === 'trial') echo 'badge-warning';
-                                        elseif ($f['status'] === 'beta') echo 'badge-info';
-                                        else echo 'badge-danger';
-                                    ?>">
-                                    <?= htmlspecialchars(ucfirst($f['status'])) ?>
-                                </span>
-                            </div>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <div class="p-3 text-secondary text-center">No features allocated to this subscription.</div>
-                    <?php endif; ?>
-                </div>
             </div>
         </div>
     </div>

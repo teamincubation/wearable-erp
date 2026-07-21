@@ -76,6 +76,12 @@ $router->post('/developer/subscriptions/create', [DeveloperController::class, 'c
        ->middleware(PermissionMiddleware::class)
        ->permission('developer.subscriptions');
 
+$router->post('/developer/subscriptions/edit/{id}', [DeveloperController::class, 'editSubscriptionPlan'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('developer.subscriptions');
+
 $router->get('/developer/versions', [DeveloperController::class, 'versions'])
        ->middleware(AuthMiddleware::class)
        ->middleware(PermissionMiddleware::class)

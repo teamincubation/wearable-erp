@@ -1,3 +1,23 @@
+<?php
+$currentPagePermission = \App\Core\Session::get('current_page_permission');
+$isExpired = false;
+$daysLeft = 9999;
+$whatsappUrl = '#';
+
+if ($currentPagePermission) {
+    $validity = \App\Core\Auth::getFeatureValidity($currentPagePermission);
+    if (isset($validity['expired']) && $validity['expired']) {
+        $isExpired = true;
+        
+        $company = \App\Core\Session::get('current_tenant');
+        $subdomain = $company ? $company['subdomain'] : '';
+        $featureLabel = ucwords(str_replace(['company.', '.', 'view', 'manage'], [' ', ' ', '', ''], $currentPagePermission));
+        
+        $whatsappMsg = "Hello WellGro Developers, I want to renew the subscription for the module: '" . trim($featureLabel) . "' on tenant subdomain '{$subdomain}' of Wearable ERP. Please share the renewal steps.";
+        $whatsappUrl = "https://wa.me/" . \App\Core\Auth::getDeveloperWhatsapp() . "?text=" . urlencode($whatsappMsg);
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -147,6 +167,18 @@
 
         <!-- Main Window -->
         <main class="main-content">
+            <!-- Expiry Warning Banner -->
+            <?php
+            $expiringFeature = \App\Core\Auth::getClosestExpiringFeature();
+            if ($expiringFeature):
+                $featureLabel = ucwords(str_replace(['company.', '.', 'view', 'manage'], [' ', ' ', '', ''], $expiringFeature['feature_key']));
+            ?>
+                <div class="bg-warning text-dark text-center py-2 fw-semibold border-bottom" style="font-size: 14px;">
+                    <i class="fa-solid fa-triangle-exclamation text-danger me-2"></i> 
+                    Subscription Warning: The access to <strong><?= htmlspecialchars(trim($featureLabel)) ?></strong> is expiring in <strong><?= $expiringFeature['days_left'] ?> day<?= $expiringFeature['days_left'] == 1 ? '' : 's' ?></strong>. Please renew now to avoid access lock.
+                </div>
+            <?php endif; ?>
+
             <!-- Top Navigation bar -->
             <header class="top-nav">
                 <div>
@@ -192,7 +224,71 @@
             <?php endif; ?>
 
             <!-- Page View Content -->
-            <?= $content ?>
+            <?php if ($isExpired): ?>
+                <style>
+                .expired-feature-lock {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    min-height: 500px;
+                    background: rgba(255, 255, 255, 0.4);
+                    backdrop-filter: blur(10px);
+                    -webkit-backdrop-filter: blur(10px);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 1050;
+                    border-radius: 12px;
+                }
+                .expired-lock-card {
+                    background: #ffffff;
+                    border: 1px solid rgba(0, 0, 0, 0.1);
+                    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+                    border-radius: 16px;
+                    padding: 2.5rem;
+                    text-align: center;
+                    max-width: 480px;
+                    animation: fadeInUp 0.4s ease-out;
+                }
+                @keyframes fadeInUp {
+                    from {
+                        opacity: 0;
+                        transform: translateY(20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+                </style>
+                <div class="position-relative">
+                    <!-- Overlay Lock -->
+                    <div class="expired-feature-lock">
+                        <div class="expired-lock-card">
+                            <div class="mb-4 text-danger">
+                                <i class="fa-solid fa-lock fs-1" style="font-size: 4rem !important;"></i>
+                            </div>
+                            <h4 class="fw-bold text-dark mb-2">Feature Subscription Expired</h4>
+                            <p class="text-secondary mb-4">
+                                The validity period for access to the <strong><?= htmlspecialchars(ucwords(str_replace(['company.', '.', 'view', 'manage'], [' ', ' ', '', ''], $currentPagePermission))) ?></strong> section has ended. 
+                                Please contact WellGro Developers to renew your module access.
+                            </p>
+                            <a href="<?= $whatsappUrl ?>" target="_blank" class="btn btn-success btn-lg rounded-pill px-5">
+                                <i class="fa-brands fa-whatsapp me-2"></i> Renew via WhatsApp
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Original View (Blurred & Disabled behind overlay) -->
+                    <div style="filter: blur(5px); pointer-events: none; user-select: none;">
+                        <?= $content ?>
+                    </div>
+                </div>
+            <?php else: ?>
+                <?= $content ?>
+            <?php endif; ?>
         </main>
     </div>
 

@@ -161,4 +161,135 @@ class Auth {
             // Silently fail if db log fails to prevent auth blockage
         }
     }
+
+    /**
+     * Check if a feature is active and valid (not expired)
+     */
+    public static function getFeatureValidity(string $permission): array {
+        $companyId = Session::get('company_id');
+        if ($companyId === null) {
+            return ['valid' => true, 'expired' => false, 'days_left' => 9999];
+        }
+
+        try {
+            $db = Database::getInstance();
+            $stmt = $db->prepare("
+                SELECT ff.expiry_date, p.billing_cycle 
+                FROM feature_flags ff
+                JOIN companies c ON ff.company_id = c.id
+                LEFT JOIN subscription_plans p ON c.subscription_plan_id = p.id
+                WHERE ff.company_id = ? AND ff.feature_key = ? AND ff.status = 'enabled' AND ff.deleted_at IS NULL
+            ");
+            $stmt->execute([$companyId, $permission]);
+            $flag = $stmt->fetch();
+
+            if (!$flag) {
+                return ['valid' => false, 'expired' => false, 'days_left' => 0];
+            }
+
+            if ($flag['billing_cycle'] === 'lifetime' || empty($flag['expiry_date'])) {
+                return ['valid' => true, 'expired' => false, 'days_left' => 9999];
+            }
+
+            $tz = new \DateTimeZone('Asia/Kolkata');
+            $now = new \DateTime('now', $tz);
+            $expiry = new \DateTime($flag['expiry_date'], $tz);
+            
+            $now->setTime(0, 0, 0);
+            $expiry->setTime(0, 0, 0);
+
+            $diff = $now->diff($expiry);
+            $days = (int)$diff->format('%r%a');
+
+            if ($days < 0) {
+                return [
+                    'valid' => false,
+                    'expired' => true,
+                    'days_left' => $days,
+                    'expiry_date' => $flag['expiry_date']
+                ];
+            }
+
+            return [
+                'valid' => true,
+                'expired' => false,
+                'days_left' => $days,
+                'expiry_date' => $flag['expiry_date']
+            ];
+        } catch (\Exception $e) {
+            return ['valid' => true, 'expired' => false, 'days_left' => 9999];
+        }
+    }
+
+    /**
+     * Get the closest expiring feature within 30 days for warning banner
+     */
+    public static function getClosestExpiringFeature(): ?array {
+        $companyId = Session::get('company_id');
+        if ($companyId === null) {
+            return null;
+        }
+
+        try {
+            $db = Database::getInstance();
+            $stmt = $db->prepare("
+                SELECT ff.feature_key, ff.expiry_date, p.billing_cycle 
+                FROM feature_flags ff
+                JOIN companies c ON ff.company_id = c.id
+                LEFT JOIN subscription_plans p ON c.subscription_plan_id = p.id
+                WHERE ff.company_id = ? AND ff.status = 'enabled' AND ff.deleted_at IS NULL
+            ");
+            $stmt->execute([$companyId]);
+            $flags = $stmt->fetchAll();
+
+            $tz = new \DateTimeZone('Asia/Kolkata');
+            $now = new \DateTime('now', $tz);
+            $now->setTime(0, 0, 0);
+
+            $closest = null;
+            $minDays = 31;
+
+            foreach ($flags as $flag) {
+                if ($flag['billing_cycle'] === 'lifetime' || empty($flag['expiry_date'])) {
+                    continue;
+                }
+
+                $expiry = new \DateTime($flag['expiry_date'], $tz);
+                $expiry->setTime(0, 0, 0);
+
+                $diff = $now->diff($expiry);
+                $days = (int)$diff->format('%r%a');
+
+                if ($days >= 0 && $days <= 30) {
+                    if ($days < $minDays) {
+                        $minDays = $days;
+                        $closest = [
+                            'feature_key' => $flag['feature_key'],
+                            'expiry_date' => $flag['expiry_date'],
+                            'days_left' => $days
+                        ];
+                    }
+                }
+            }
+
+            return $closest;
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Get the developer WhatsApp number
+     */
+    public static function getDeveloperWhatsapp(): string {
+        try {
+            $db = Database::getInstance();
+            $stmt = $db->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'developer_whatsapp' AND company_id IS NULL LIMIT 1");
+            $stmt->execute();
+            $val = $stmt->fetchColumn();
+            return $val ?: '919876543210';
+        } catch (\Exception $e) {
+            return '919876543210';
+        }
+    }
 }

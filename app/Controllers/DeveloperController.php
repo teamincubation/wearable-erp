@@ -67,12 +67,27 @@ class DeveloperController extends Controller {
         ");
         $companies = $stmt->fetchAll() ?: [];
 
-        $plans = $db->query("SELECT id, name FROM subscription_plans WHERE status = 'active' AND deleted_at IS NULL")->fetchAll();
+        $plans = $db->query("SELECT * FROM subscription_plans WHERE deleted_at IS NULL")->fetchAll();
+
+        // Fetch all tenant permissions
+        $tenantPermissions = $db->query("SELECT * FROM permissions WHERE module = 'tenant' ORDER BY name ASC")->fetchAll();
+
+        // Fetch all feature flags for each company
+        $flagsRaw = $db->query("SELECT * FROM feature_flags WHERE deleted_at IS NULL")->fetchAll();
+        $companyFlags = [];
+        foreach ($flagsRaw as $flag) {
+            $companyFlags[$flag['company_id']][$flag['feature_key']] = [
+                'status' => $flag['status'],
+                'expiry_date' => $flag['expiry_date']
+            ];
+        }
 
         $this->renderView('developer/companies', [
             'title' => 'Company Manager | SaaS Admin',
             'companies' => $companies,
-            'plans' => $plans
+            'plans' => $plans,
+            'allPermissions' => $tenantPermissions,
+            'companyFlags' => $companyFlags
         ], 'developer');
     }
 
@@ -170,11 +185,24 @@ class DeveloperController extends Controller {
             // Restore active tenant scope
             \App\Core\Model::setActiveCompanyId($originalScope);
 
-            // 5. Seed default features for company
-            $stmtFeature = $db->prepare("INSERT INTO feature_flags (company_id, feature_key, status) VALUES (?, ?, 'enabled')");
-            $defaultFeatures = ['inventory', 'purchase', 'production', 'hr', 'payroll', 'crm', 'barcode'];
-            foreach ($defaultFeatures as $feat) {
-                $stmtFeature->execute([$companyId, $feat]);
+            // 5. Save dynamic assigned permissions/features for company
+            $stmtPlan = $db->prepare("SELECT billing_cycle FROM subscription_plans WHERE id = ?");
+            $stmtPlan->execute([$planId]);
+            $planCycle = $stmtPlan->fetchColumn() ?: 'monthly';
+
+            $assignedPermissions = $request->get('permissions') ?: [];
+            $expiryDates = $request->get('expiry_date') ?: [];
+
+            // Add company.dashboard as a default permission if not selected
+            if (!in_array('company.dashboard', $assignedPermissions)) {
+                $assignedPermissions[] = 'company.dashboard';
+            }
+
+            // Insert assigned permissions as feature flags
+            $stmtFeature = $db->prepare("INSERT INTO feature_flags (company_id, feature_key, status, expiry_date) VALUES (?, ?, 'enabled', ?)");
+            foreach ($assignedPermissions as $feat) {
+                $expDate = (!empty($expiryDates[$feat]) && $planCycle !== 'lifetime') ? $expiryDates[$feat] : null;
+                $stmtFeature->execute([$companyId, $feat, $expDate]);
             }
 
             // 6. Generate License
@@ -294,6 +322,29 @@ class DeveloperController extends Controller {
                 ]);
             }
 
+            // 3. Save dynamic assigned permissions/features for company
+            $stmtPlan = $db->prepare("SELECT billing_cycle FROM subscription_plans WHERE id = ?");
+            $stmtPlan->execute([$planId]);
+            $planCycle = $stmtPlan->fetchColumn() ?: 'monthly';
+
+            $assignedPermissions = $request->get('permissions') ?: [];
+            $expiryDates = $request->get('expiry_date') ?: [];
+
+            // Add company.dashboard as a default permission if not selected
+            if (!in_array('company.dashboard', $assignedPermissions)) {
+                $assignedPermissions[] = 'company.dashboard';
+            }
+
+            // Remove old permissions/features
+            $db->prepare("DELETE FROM feature_flags WHERE company_id = ?")->execute([$id]);
+
+            // Insert assigned permissions as feature flags
+            $stmtFeature = $db->prepare("INSERT INTO feature_flags (company_id, feature_key, status, expiry_date) VALUES (?, ?, 'enabled', ?)");
+            foreach ($assignedPermissions as $feat) {
+                $expDate = (!empty($expiryDates[$feat]) && $planCycle !== 'lifetime') ? $expiryDates[$feat] : null;
+                $stmtFeature->execute([$id, $feat, $expDate]);
+            }
+
             $db->commit();
 
             AuditLog::log(null, Session::get('user_id'), 'update_company_details', 'Company', (int)$id, null, null, "Updated company tenant details and super admin credentials for {$name}");
@@ -405,6 +456,38 @@ class DeveloperController extends Controller {
     }
 
     /**
+     * Edit Subscription Plan
+     */
+    public function editSubscriptionPlan(Request $request, Response $response, string $id): void {
+        $name = $request->get('name');
+        $code = strtolower(preg_replace('/[^a-z0-9_]/', '', $request->get('code')));
+        $cycle = $request->get('billing_cycle');
+        $price = (float) $request->get('price');
+        $users = (int) $request->get('max_users');
+        $branches = (int) $request->get('max_branches');
+        $storage = (int) $request->get('max_storage_mb');
+        $api = $request->get('api_access') ? 1 : 0;
+        $status = $request->get('status') ?: 'active';
+
+        if (empty($name) || empty($code) || empty($cycle)) {
+            Session::setFlash('error', 'Please fill in all plan details.');
+            $this->redirect('developer/subscriptions');
+        }
+
+        $db = Database::getInstance();
+        $stmt = $db->prepare(
+            "UPDATE subscription_plans 
+             SET name = ?, code = ?, billing_cycle = ?, price = ?, max_users = ?, max_branches = ?, max_storage_mb = ?, api_access = ?, status = ?, updated_by = ?
+             WHERE id = ?"
+        );
+        $stmt->execute([$name, $code, $cycle, $price, $users, $branches, $storage, $api, $status, Session::get('user_id'), $id]);
+
+        AuditLog::log(null, Session::get('user_id'), 'edit_plan', 'SubscriptionPlan', (int)$id, null, null, "Updated plan: {$name}");
+        Session::setFlash('success', 'Subscription plan updated successfully.');
+        $this->redirect('developer/subscriptions');
+    }
+
+    /**
      * Versioning Manager
      */
     public function versions(Request $request, Response $response): void {
@@ -460,7 +543,11 @@ class DeveloperController extends Controller {
      */
     public function settings(Request $request, Response $response): void {
         $db = Database::getInstance();
-        $settings = $db->query("SELECT * FROM system_settings WHERE company_id IS NULL AND deleted_at IS NULL")->fetchAll();
+        $rawSettings = $db->query("SELECT setting_key, setting_value FROM system_settings WHERE company_id IS NULL AND deleted_at IS NULL")->fetchAll();
+        $settings = [];
+        foreach ($rawSettings as $row) {
+            $settings[$row['setting_key']] = $row['setting_value'];
+        }
 
         $this->renderView('developer/settings', [
             'title' => 'SaaS Settings',
