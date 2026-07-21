@@ -41,6 +41,9 @@ use App\Core\Session;
 use App\Middleware\TenantMiddleware;
 
 try {
+    // Run automatic database migrations if any schema updates were pushed
+    \App\Core\Migrator::runAutoMigration();
+
     // 4. Initialize secure session management
     Session::start();
 

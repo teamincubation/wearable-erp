@@ -1,0 +1,13 @@
+# Ignore upload directories to prevent data loss on Git deployments
+/uploads/*
+!/uploads/.gitkeep
+
+# Ignore runtime logs
+/logs/*
+!/logs/.gitkeep
+
+# Ignore auto-migration state tracking hash
+/storage/db_schema.hash
+
+# Ignore development scratch scripts
+/scratch/*

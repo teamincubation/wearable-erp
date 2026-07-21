@@ -59,22 +59,25 @@ class Model {
      * Build dynamic SQL condition for tenant-scoping
      */
     protected function applyTenantScope(string $sql, array &$params): string {
-        if ($this->isMultiTenant && self::$activeCompanyId !== null) {
-            $condition = "company_id = :active_tenant_id";
-            $params['active_tenant_id'] = self::$activeCompanyId;
+        if ($this->isMultiTenant) {
+            $tenantId = self::$activeCompanyId ?? (class_exists('\App\Core\Session') ? \App\Core\Session::get('company_id') : null);
+            if ($tenantId !== null) {
+                $condition = "company_id = :active_tenant_id";
+                $params['active_tenant_id'] = $tenantId;
 
-            // Check if WHERE clause is already in the query
-            if (stripos($sql, ' WHERE ') !== false) {
-                // Find where to inject
-                // Usually we append it at the end of the WHERE section
-                $sql = preg_replace('/(\bwhere\b)/i', '$1 ' . $condition . ' AND ', $sql, 1);
-            } else {
-                // Append WHERE clause before ORDER BY, LIMIT, etc.
-                if (preg_match('/(\border by\b|\blimit\b)/i', $sql, $matches, PREG_OFFSET_CAPTURE)) {
-                    $offset = $matches[0][1];
-                    $sql = substr($sql, 0, $offset) . " WHERE " . $condition . " " . substr($sql, $offset);
+                // Check if WHERE clause is already in the query
+                if (stripos($sql, ' WHERE ') !== false) {
+                    // Find where to inject
+                    // Usually we append it at the end of the WHERE section
+                    $sql = preg_replace('/(\bwhere\b)/i', '$1 ' . $condition . ' AND ', $sql, 1);
                 } else {
-                    $sql .= " WHERE " . $condition;
+                    // Append WHERE clause before ORDER BY, LIMIT, etc.
+                    if (preg_match('/(\border by\b|\blimit\b)/i', $sql, $matches, PREG_OFFSET_CAPTURE)) {
+                        $offset = $matches[0][1];
+                        $sql = substr($sql, 0, $offset) . " WHERE " . $condition . " " . substr($sql, $offset);
+                    } else {
+                        $sql .= " WHERE " . $condition;
+                    }
                 }
             }
         }
@@ -165,8 +168,11 @@ class Model {
      */
     public function insert(array $data): int {
         // Automatically inject company_id if multi-tenant and active tenant context exists
-        if ($this->isMultiTenant && self::$activeCompanyId !== null) {
-            $data['company_id'] = self::$activeCompanyId;
+        if ($this->isMultiTenant) {
+            $tenantId = self::$activeCompanyId ?? (class_exists('\App\Core\Session') ? \App\Core\Session::get('company_id') : null);
+            if ($tenantId !== null) {
+                $data['company_id'] = $tenantId;
+            }
         }
 
         // Set creation audit fields if present in table structure
