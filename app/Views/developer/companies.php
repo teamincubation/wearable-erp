@@ -36,7 +36,12 @@
                                     <div class="text-muted" style="font-size: 12px;"><?= htmlspecialchars($c['city'] ?? 'Tiruppur') ?>, <?= htmlspecialchars($c['state'] ?? 'Tamil Nadu') ?></div>
                                 </td>
                                 <td><span class="badge bg-light text-primary"><?= htmlspecialchars($c['subdomain']) ?></span></td>
-                                <td><?= htmlspecialchars($c['email']) ?></td>
+                                <td>
+                                    <div class="fw-bold text-dark"><?= htmlspecialchars($c['admin_email'] ?? $c['email']) ?></div>
+                                    <?php if (!empty($c['admin_email']) && $c['admin_email'] !== $c['email']): ?>
+                                        <div class="text-secondary small">Contact: <?= htmlspecialchars($c['email']) ?></div>
+                                    <?php endif; ?>
+                                </td>
                                 <td>
                                     <div class="small text-secondary">
                                         <strong>T&C:</strong> <?= $c['tc_agreement'] ? 'Assigned' : 'Pending' ?><br>
@@ -74,12 +79,60 @@
                                         <?= \App\Core\Session::csrfField() ?>
                                         <div class="modal-content text-start" style="border-radius: var(--border-radius-lg);">
                                             <div class="modal-header">
-                                                <h5 class="modal-title fw-bold">Update Tenant Parameters: <?= htmlspecialchars($c['name']) ?></h5>
+                                                <h5 class="modal-title fw-bold"><i class="fa-solid fa-building-user text-primary me-2"></i> Update Tenant Details & Credentials: <?= htmlspecialchars($c['name']) ?></h5>
                                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                             </div>
-                                            <div class="modal-body">
+                                            <div class="modal-body p-4">
+                                                <!-- Section 1: Company Profile -->
+                                                <h6 class="fw-bold text-primary mb-3"><i class="fa-regular fa-id-card me-1"></i> Company Profile Details</h6>
+                                                <div class="row g-3 mb-4">
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-semibold">Company Name</label>
+                                                        <input type="text" name="name" class="form-control" value="<?= htmlspecialchars($c['name']) ?>" required>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-semibold">Subdomain</label>
+                                                        <div class="input-group">
+                                                            <input type="text" name="subdomain" class="form-control" value="<?= htmlspecialchars($c['subdomain']) ?>" required>
+                                                            <span class="input-group-text">.mywellgro.online</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-semibold">Company Email</label>
+                                                        <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($c['email']) ?>" required>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-semibold">Company Phone</label>
+                                                        <input type="text" name="phone" class="form-control" value="<?= htmlspecialchars($c['phone'] ?? '') ?>">
+                                                    </div>
+                                                </div>
+
+                                                <!-- Section 2: Tenant Super Admin Credentials -->
+                                                <h6 class="fw-bold text-primary mb-3 pt-3 border-top"><i class="fa-solid fa-user-shield me-1"></i> Tenant Super Admin Credentials</h6>
+                                                <div class="row g-3 mb-4">
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-semibold">Super Admin Name</label>
+                                                        <input type="text" name="admin_name" class="form-control" value="<?= htmlspecialchars($c['admin_name'] ?? ($c['name'] . ' Admin')) ?>">
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-semibold">Super Admin Email (Login)</label>
+                                                        <input type="email" name="admin_email" class="form-control" value="<?= htmlspecialchars($c['admin_email'] ?? $c['email']) ?>" required>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-semibold">Super Admin Phone</label>
+                                                        <input type="text" name="admin_phone" class="form-control" value="<?= htmlspecialchars($c['admin_phone'] ?? $c['phone'] ?? '') ?>">
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-semibold">Reset Super Admin Password</label>
+                                                        <input type="password" name="admin_password" class="form-control" placeholder="Leave blank to keep unchanged">
+                                                        <div class="form-text">Input new password to reset tenant super admin credentials.</div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Section 3: Subscription & Billing Terms -->
+                                                <h6 class="fw-bold text-primary mb-3 pt-3 border-top"><i class="fa-solid fa-file-contract me-1"></i> Subscription & Billing Terms</h6>
                                                 <div class="row g-3">
-                                                    <div class="col-md-6 mb-3">
+                                                    <div class="col-md-6">
                                                         <label class="form-label fw-semibold">Subscription Plan</label>
                                                         <select name="subscription_plan_id" class="form-select text-dark">
                                                             <?php foreach ($plans as $p): ?>
@@ -89,8 +142,7 @@
                                                             <?php endforeach; ?>
                                                         </select>
                                                     </div>
-
-                                                    <div class="col-md-6 mb-3">
+                                                    <div class="col-md-6">
                                                         <label class="form-label fw-semibold">Account Status</label>
                                                         <select name="status" class="form-select text-dark">
                                                             <option value="active" <?= ($c['status'] === 'active') ? 'selected' : '' ?>>Active</option>
@@ -98,13 +150,11 @@
                                                             <option value="suspended" <?= ($c['status'] === 'suspended') ? 'selected' : '' ?>>Suspended</option>
                                                         </select>
                                                     </div>
-
-                                                    <div class="col-12 mb-3">
-                                                        <label class="form-label fw-semibold">Terms & Conditions Agreement Agreement (Optional)</label>
-                                                        <textarea name="tc_agreement" class="form-control" rows="4" placeholder="Input specific Terms & Conditions agreement text here..."><?= htmlspecialchars($c['tc_agreement'] ?? '') ?></textarea>
+                                                    <div class="col-12">
+                                                        <label class="form-label fw-semibold">Terms & Conditions Agreement (Optional)</label>
+                                                        <textarea name="tc_agreement" class="form-control" rows="3" placeholder="Input specific Terms & Conditions agreement text here..."><?= htmlspecialchars($c['tc_agreement'] ?? '') ?></textarea>
                                                     </div>
-
-                                                    <div class="col-12 mb-3">
+                                                    <div class="col-12">
                                                         <label class="form-label fw-semibold">Payment Slip Info / Link / Code (Optional)</label>
                                                         <input type="text" name="payment_slip" class="form-control" value="<?= htmlspecialchars($c['payment_slip'] ?? '') ?>" placeholder="e.g. SLIP-TOCCO-901 / Payment Link ID">
                                                     </div>
@@ -112,7 +162,9 @@
                                             </div>
                                             <div class="modal-footer border-0">
                                                 <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
-                                                <button type="submit" class="btn btn-pepp-primary">Save Changes</button>
+                                                <button type="submit" class="btn btn-pepp-primary">
+                                                    <i class="fa-solid fa-floppy-disk me-1"></i> Save Changes
+                                                </button>
                                             </div>
                                         </div>
                                     </form>

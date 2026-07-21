@@ -47,10 +47,26 @@ class DeveloperController extends Controller {
      * Manage Onboarded Companies
      */
     public function companies(Request $request, Response $response): void {
-        $companyModel = new Company();
-        $companies = $companyModel->all();
-
         $db = Database::getInstance();
+        $stmt = $db->query("
+            SELECT c.*, 
+                   u.id as admin_id,
+                   u.name as admin_name, 
+                   u.email as admin_email, 
+                   u.phone as admin_phone
+            FROM companies c
+            LEFT JOIN users u ON u.id = (
+                SELECT u2.id FROM users u2 
+                LEFT JOIN roles r ON u2.role_id = r.id 
+                WHERE u2.company_id = c.id AND u2.deleted_at IS NULL 
+                ORDER BY (CASE WHEN r.name LIKE '%Admin%' THEN 1 ELSE 2 END), u2.id ASC 
+                LIMIT 1
+            )
+            WHERE c.deleted_at IS NULL
+            ORDER BY c.id DESC
+        ");
+        $companies = $stmt->fetchAll() ?: [];
+
         $plans = $db->query("SELECT id, name FROM subscription_plans WHERE status = 'active' AND deleted_at IS NULL")->fetchAll();
 
         $this->renderView('developer/companies', [
@@ -180,7 +196,7 @@ class DeveloperController extends Controller {
     }
 
     /**
-     * Edit Company parameters
+     * Edit Company parameters including Super Admin login credentials
      */
     public function editCompany(Request $request, Response $response, string $id): void {
         $companyModel = new Company();
@@ -191,13 +207,32 @@ class DeveloperController extends Controller {
             $this->redirect('developer/companies');
         }
 
-        $status = $request->get('status');
-        $planId = (int) $request->get('subscription_plan_id');
+        $name = trim($request->get('name')) ?: $company['name'];
+        $subdomain = strtolower(preg_replace('/[^a-zA-Z0-9-]/', '', $request->get('subdomain'))) ?: $company['subdomain'];
+        $email = trim($request->get('email')) ?: $company['email'];
+        $phone = trim($request->get('phone')) ?: $company['phone'];
+        $status = $request->get('status') ?: $company['status'];
+        $planId = (int) ($request->get('subscription_plan_id') ?: $company['subscription_plan_id']);
         $tcAgreement = $request->get('tc_agreement') ?: null;
         $paymentSlip = $request->get('payment_slip') ?: null;
 
-        if ($status && in_array($status, ['active', 'inactive', 'suspended'])) {
+        // Admin user fields
+        $adminName = trim($request->get('admin_name'));
+        $adminEmail = trim($request->get('admin_email'));
+        $adminPhone = trim($request->get('admin_phone'));
+        $adminPassword = $request->get('admin_password');
+
+        $db = Database::getInstance();
+
+        try {
+            $db->beginTransaction();
+
+            // 1. Update company record
             $companyModel->update($id, [
+                'name' => $name,
+                'subdomain' => $subdomain,
+                'email' => $email,
+                'phone' => $phone,
                 'status' => $status,
                 'subscription_plan_id' => $planId,
                 'tc_agreement' => $tcAgreement,
@@ -205,8 +240,44 @@ class DeveloperController extends Controller {
                 'updated_by' => Session::get('user_id')
             ]);
 
-            AuditLog::log(null, Session::get('user_id'), 'update_company', 'Company', $id, null, null, "Updated company parameters");
-            Session::setFlash('success', 'Company details updated successfully.');
+            // 2. Find and update tenant super admin user credentials
+            $stmtAdmin = $db->prepare("
+                SELECT u.* FROM users u 
+                LEFT JOIN roles r ON u.role_id = r.id 
+                WHERE u.company_id = ? AND u.deleted_at IS NULL 
+                ORDER BY (CASE WHEN r.name LIKE '%Admin%' THEN 1 ELSE 2 END), u.id ASC LIMIT 1
+            ");
+            $stmtAdmin->execute([$id]);
+            $adminUser = $stmtAdmin->fetch();
+
+            if ($adminUser) {
+                $userUpdates = [];
+                if (!empty($adminName)) $userUpdates['name'] = $adminName;
+                if (!empty($adminEmail)) $userUpdates['email'] = $adminEmail;
+                if ($adminPhone !== '') $userUpdates['phone'] = $adminPhone;
+                if (!empty($adminPassword)) {
+                    $userUpdates['password_hash'] = password_hash($adminPassword, PASSWORD_BCRYPT);
+                }
+                if (!empty($userUpdates)) {
+                    $userUpdates['updated_by'] = Session::get('user_id');
+                    $userModel = new User();
+                    
+                    $origCompanyId = \App\Core\Model::getActiveCompanyId();
+                    \App\Core\Model::setActiveCompanyId((int)$id);
+                    
+                    $userModel->update($adminUser['id'], $userUpdates);
+                    
+                    \App\Core\Model::setActiveCompanyId($origCompanyId);
+                }
+            }
+
+            $db->commit();
+
+            AuditLog::log(null, Session::get('user_id'), 'update_company_details', 'Company', (int)$id, null, null, "Updated company tenant details and super admin credentials for {$name}");
+            Session::setFlash('success', 'Tenant company details and super admin login credentials updated successfully.');
+        } catch (\Exception $e) {
+            $db->rollBack();
+            Session::setFlash('error', 'Failed to update tenant details: ' . $e->getMessage());
         }
 
         $this->redirect('developer/companies');
