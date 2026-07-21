@@ -52,6 +52,7 @@ foreach ($directories as $dir) {
 }
 checkSyntax($baseDir . '/index.php', $failedFiles, $totalFiles);
 checkSyntax($baseDir . '/test_app.php', $failedFiles, $totalFiles);
+checkSyntax($baseDir . '/db_setup.php', $failedFiles, $totalFiles);
 
 echo "\nSummary of Lint Checks:\n";
 echo "--------------------------------------------------------\n";
