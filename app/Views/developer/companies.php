@@ -226,15 +226,15 @@
                                                                     <input type="date" name="expiry_date[<?= htmlspecialchars($perm['name']) ?>]" class="form-control form-control-sm expiry-date-input" value="<?= htmlspecialchars($expiryVal) ?>" style="max-width: 180px;">
                                                                 </div>
                                                                 <div class="mt-2 ps-4 label-input-container">
-                                                                    <label class="small text-muted d-block mb-1">Release Label</label>
-                                                                    <?php $labelVal = $hasFlag ? ($companyFlags[$c['id']][$perm['name']]['label'] ?? 'no_label') : 'no_label'; ?>
-                                                                    <select name="labels[<?= htmlspecialchars($perm['name']) ?>]" class="form-select form-select-sm" style="max-width: 150px;">
-                                                                        <option value="no_label" <?= $labelVal === 'no_label' ? 'selected' : '' ?>>No Label</option>
-                                                                        <option value="draft" <?= $labelVal === 'draft' ? 'selected' : '' ?>>Draft</option>
-                                                                        <option value="beta" <?= $labelVal === 'beta' ? 'selected' : '' ?>>Beta</option>
-                                                                        <option value="new" <?= $labelVal === 'new' ? 'selected' : '' ?>>New</option>
-                                                                    </select>
-                                                                </div>
+                                                                     <label class="small text-muted d-block mb-1">Release Label</label>
+                                                                     <?php $labelVal = $hasFlag ? ($companyFlags[$c['id']][$perm['name']]['label'] ?? 'no_label') : 'no_label'; ?>
+                                                                     <select name="labels[<?= htmlspecialchars($perm['name']) ?>]" class="form-select form-select-sm release-label-select fw-semibold" style="max-width: 150px;">
+                                                                         <option value="no_label" <?= $labelVal === 'no_label' ? 'selected' : '' ?>>No Label</option>
+                                                                         <option value="draft" style="color: #664d03; background-color: #fff3cd;" <?= $labelVal === 'draft' ? 'selected' : '' ?>>⚠️ Draft</option>
+                                                                         <option value="beta" style="color: #087990; background-color: #cff4fc;" <?= $labelVal === 'beta' ? 'selected' : '' ?>>🧪 Beta</option>
+                                                                         <option value="new" style="color: #842029; background-color: #f8d7da;" <?= $labelVal === 'new' ? 'selected' : '' ?>>🔥 New</option>
+                                                                     </select>
+                                                                 </div>
                                                             </div>
                                                         <?php endforeach; ?>
                                                     <?php endif; ?>
@@ -409,14 +409,14 @@
                                             <input type="date" name="expiry_date[<?= htmlspecialchars($perm['name']) ?>]" class="form-control form-control-sm expiry-date-input" style="max-width: 180px;">
                                         </div>
                                         <div class="mt-2 ps-4 label-input-container">
-                                            <label class="small text-muted d-block mb-1">Release Label</label>
-                                            <select name="labels[<?= htmlspecialchars($perm['name']) ?>]" class="form-select form-select-sm" style="max-width: 150px;">
-                                                <option value="no_label" selected>No Label</option>
-                                                <option value="draft">Draft</option>
-                                                <option value="beta">Beta</option>
-                                                <option value="new">New</option>
-                                            </select>
-                                        </div>
+                                             <label class="small text-muted d-block mb-1">Release Label</label>
+                                             <select name="labels[<?= htmlspecialchars($perm['name']) ?>]" class="form-select form-select-sm release-label-select fw-semibold" style="max-width: 150px;">
+                                                 <option value="no_label" selected>No Label</option>
+                                                 <option value="draft" style="color: #664d03; background-color: #fff3cd;">⚠️ Draft</option>
+                                                 <option value="beta" style="color: #087990; background-color: #cff4fc;">🧪 Beta</option>
+                                                 <option value="new" style="color: #842029; background-color: #f8d7da;">🔥 New</option>
+                                             </select>
+                                         </div>
                                     </div>
                                 <?php endforeach; ?>
                             <?php endif; ?>
@@ -504,6 +504,34 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
         });
+    });
+
+    function updateLabelSelectStyle(selectEl) {
+        const val = selectEl.value;
+        if (val === 'draft') {
+            selectEl.style.backgroundColor = '#fff3cd';
+            selectEl.style.color = '#664d03';
+            selectEl.style.borderColor = '#ffc107';
+        } else if (val === 'beta') {
+            selectEl.style.backgroundColor = '#cff4fc';
+            selectEl.style.color = '#087990';
+            selectEl.style.borderColor = '#0dcaf0';
+        } else if (val === 'new') {
+            selectEl.style.backgroundColor = '#f8d7da';
+            selectEl.style.color = '#842029';
+            selectEl.style.borderColor = '#dc3545';
+        } else {
+            selectEl.style.backgroundColor = '';
+            selectEl.style.color = '';
+            selectEl.style.borderColor = '';
+        }
+    }
+
+    document.querySelectorAll('.release-label-select').forEach(function(selectEl) {
+        selectEl.addEventListener('change', function() {
+            updateLabelSelectStyle(this);
+        });
+        updateLabelSelectStyle(selectEl);
     });
 });
 </script>
