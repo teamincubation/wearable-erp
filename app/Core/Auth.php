@@ -139,11 +139,6 @@ class Auth {
             return false;
         }
 
-        // If developer session, bypass all locks and draft filters!
-        if (Session::get('is_developer_session')) {
-            return true;
-        }
-
         $companyId = Session::get('company_id');
         if ($companyId !== null) {
             try {
@@ -152,16 +147,23 @@ class Auth {
                 $stmt->execute([$companyId, $permission]);
                 $flag = $stmt->fetch();
 
+                // If feature is disabled or not assigned, deny access to both developers and admins
                 if (!$flag || $flag['status'] !== 'enabled') {
                     return false;
                 }
 
+                // If feature is in draft, only allow developer session
                 if ($flag['label'] === 'draft') {
-                    return false;
+                    return Session::get('is_developer_session') ? true : false;
                 }
             } catch (\Exception $e) {
                 // Database fallback
             }
+        }
+
+        // Developer session can bypass other user-role level checks for active features
+        if (Session::get('is_developer_session')) {
+            return true;
         }
 
         $permissions = Session::get('permissions', []);

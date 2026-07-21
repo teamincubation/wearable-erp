@@ -174,11 +174,50 @@
                                                             $hasFlag = isset($companyFlags[$c['id']][$perm['name']]);
                                                             $expiryVal = $hasFlag ? $companyFlags[$c['id']][$perm['name']]['expiry_date'] : '';
                                                             $cleanLabel = ucwords(str_replace(['company.', '.', 'view', 'manage'], [' ', ' ', ' (View)', ' (Manage)'], $perm['name']));
+                                                            
+                                                            $moduleName = 'Other';
+                                                            $bgColor = '#6c757d';
+                                                            $textColor = '#ffffff';
+
+                                                            if (strpos($perm['name'], 'company.users') !== false || strpos($perm['name'], 'company.payroll') !== false) {
+                                                                $moduleName = 'HR/Users';
+                                                                $bgColor = '#6f42c1';
+                                                            } elseif (strpos($perm['name'], 'company.roles') !== false) {
+                                                                $moduleName = 'Security';
+                                                                $bgColor = '#343a40';
+                                                            } elseif (strpos($perm['name'], 'company.styles') !== false) {
+                                                                $moduleName = 'Styles/Merch';
+                                                                $bgColor = '#198754';
+                                                            } elseif (strpos($perm['name'], 'company.purchase') !== false) {
+                                                                $moduleName = 'Procure';
+                                                                $bgColor = '#ffc107';
+                                                                $textColor = '#212529';
+                                                            } elseif (strpos($perm['name'], 'company.inventory') !== false) {
+                                                                $moduleName = 'Inventory';
+                                                                $bgColor = '#0dcaf0';
+                                                                $textColor = '#212529';
+                                                            } elseif (strpos($perm['name'], 'company.production') !== false) {
+                                                                $moduleName = 'Production';
+                                                                $bgColor = '#0d6efd';
+                                                            } elseif (strpos($perm['name'], 'company.tally') !== false) {
+                                                                $moduleName = 'Tally';
+                                                                $bgColor = '#6610f2';
+                                                            } elseif (strpos($perm['name'], 'company.logs') !== false) {
+                                                                $moduleName = 'Audit Logs';
+                                                                $bgColor = '#dc3545';
+                                                            } elseif (strpos($perm['name'], 'company.settings') !== false) {
+                                                                $moduleName = 'Settings';
+                                                                $bgColor = '#495057';
+                                                            } elseif (strpos($perm['name'], 'company.dashboard') !== false) {
+                                                                $moduleName = 'Core';
+                                                                $bgColor = '#20c997';
+                                                            }
                                                         ?>
                                                             <div class="col-md-6 border-bottom pb-2">
                                                                 <div class="form-check">
                                                                     <input class="form-check-input permission-checkbox" type="checkbox" name="permissions[]" value="<?= htmlspecialchars($perm['name']) ?>" id="perm_<?= $c['id'] ?>_<?= $perm['id'] ?>" <?= $hasFlag ? 'checked' : '' ?>>
-                                                                    <label class="form-check-label fw-semibold text-dark" for="perm_<?= $c['id'] ?>_<?= $perm['id'] ?>">
+                                                                    <label class="form-check-label fw-semibold text-dark d-inline-flex align-items-center" for="perm_<?= $c['id'] ?>_<?= $perm['id'] ?>">
+                                                                        <span class="badge rounded-pill me-2" style="font-size: 10px; background-color: <?= $bgColor ?>; color: <?= $textColor ?>; padding: 3px 8px;"><?= $moduleName ?></span>
                                                                         <?= htmlspecialchars($cleanLabel) ?>
                                                                     </label>
                                                                 </div>
@@ -318,11 +357,50 @@
                             <?php if (!empty($allPermissions)): ?>
                                 <?php foreach ($allPermissions as $perm): 
                                     $cleanLabel = ucwords(str_replace(['company.', '.', 'view', 'manage'], [' ', ' ', ' (View)', ' (Manage)'], $perm['name']));
+                                    
+                                    $moduleName = 'Other';
+                                    $bgColor = '#6c757d';
+                                    $textColor = '#ffffff';
+
+                                    if (strpos($perm['name'], 'company.users') !== false || strpos($perm['name'], 'company.payroll') !== false) {
+                                        $moduleName = 'HR/Users';
+                                        $bgColor = '#6f42c1';
+                                    } elseif (strpos($perm['name'], 'company.roles') !== false) {
+                                        $moduleName = 'Security';
+                                        $bgColor = '#343a40';
+                                    } elseif (strpos($perm['name'], 'company.styles') !== false) {
+                                        $moduleName = 'Styles/Merch';
+                                        $bgColor = '#198754';
+                                    } elseif (strpos($perm['name'], 'company.purchase') !== false) {
+                                        $moduleName = 'Procure';
+                                        $bgColor = '#ffc107';
+                                        $textColor = '#212529';
+                                    } elseif (strpos($perm['name'], 'company.inventory') !== false) {
+                                        $moduleName = 'Inventory';
+                                        $bgColor = '#0dcaf0';
+                                        $textColor = '#212529';
+                                    } elseif (strpos($perm['name'], 'company.production') !== false) {
+                                        $moduleName = 'Production';
+                                        $bgColor = '#0d6efd';
+                                    } elseif (strpos($perm['name'], 'company.tally') !== false) {
+                                        $moduleName = 'Tally';
+                                        $bgColor = '#6610f2';
+                                    } elseif (strpos($perm['name'], 'company.logs') !== false) {
+                                        $moduleName = 'Audit Logs';
+                                        $bgColor = '#dc3545';
+                                    } elseif (strpos($perm['name'], 'company.settings') !== false) {
+                                        $moduleName = 'Settings';
+                                        $bgColor = '#495057';
+                                    } elseif (strpos($perm['name'], 'company.dashboard') !== false) {
+                                        $moduleName = 'Core';
+                                        $bgColor = '#20c997';
+                                    }
                                 ?>
                                     <div class="col-md-6 border-bottom pb-2">
                                         <div class="form-check">
                                             <input class="form-check-input permission-checkbox" type="checkbox" name="permissions[]" value="<?= htmlspecialchars($perm['name']) ?>" id="perm_onboard_<?= $perm['id'] ?>" checked>
-                                            <label class="form-check-label fw-semibold text-dark" for="perm_onboard_<?= $perm['id'] ?>">
+                                            <label class="form-check-label fw-semibold text-dark d-inline-flex align-items-center" for="perm_onboard_<?= $perm['id'] ?>">
+                                                <span class="badge rounded-pill me-2" style="font-size: 10px; background-color: <?= $bgColor ?>; color: <?= $textColor ?>; padding: 3px 8px;"><?= $moduleName ?></span>
                                                 <?= htmlspecialchars($cleanLabel) ?>
                                             </label>
                                         </div>

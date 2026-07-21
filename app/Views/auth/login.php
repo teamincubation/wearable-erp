@@ -15,10 +15,10 @@
     <?= \App\Core\Session::csrfField() ?>
 
     <div class="mb-3">
-        <label for="email" class="form-label fw-semibold">Email Address</label>
+        <label for="email" class="form-label fw-semibold">Email Address / Username</label>
         <div class="input-group">
             <span class="input-group-text bg-light"><i class="fa-regular fa-envelope text-secondary"></i></span>
-            <input type="email" name="email" id="email" class="form-control" placeholder="name@company.com" required 
+            <input type="text" name="email" id="email" class="form-control" placeholder="name@company.com or Username" required 
                    value="<?php 
                         if (!empty($tenant) && $tenant === 'erp') echo 'admin@mywellgro.online';
                         elseif (!empty($tenant) && $tenant === 'tocco') echo 'adnan@toccoexports.com';
