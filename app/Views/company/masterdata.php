@@ -57,12 +57,44 @@
                                         <td><strong class="text-dark"><?= htmlspecialchars($cat['name']) ?></strong></td>
                                         <td><?= date('d M Y H:i', strtotime($cat['created_at'])) ?></td>
                                         <td class="text-end">
-                                            <form action="<?= base_url('company/masterdata/bomcategories/delete/' . $cat['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete this BOM category?');">
-                                                <?= \App\Core\Session::csrfField() ?>
-                                                <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
-                                            </form>
+                                            <?php if (\App\Core\Auth::hasPermission('company.styles.manage')): ?>
+                                                <button class="btn btn-sm btn-light border me-1" data-bs-toggle="modal" data-bs-target="#editBomCatModal-<?= $cat['id'] ?>"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
+                                                <form action="<?= base_url('company/masterdata/bomcategories/delete/' . $cat['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete this BOM category?');">
+                                                    <?= \App\Core\Session::csrfField() ?>
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                                                </form>
+                                            <?php endif; ?>
                                         </td>
                                     </tr>
+
+                                    <!-- Edit BOM Category Modal -->
+                                    <div class="modal fade" id="editBomCatModal-<?= $cat['id'] ?>" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <form action="<?= base_url('company/masterdata/bomcategories/edit/' . $cat['id']) ?>" method="POST">
+                                                <?= \App\Core\Session::csrfField() ?>
+                                                <div class="modal-content text-start" style="border-radius: 12px;">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title fw-bold">Edit BOM Category</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body text-start">
+                                                        <div class="mb-3">
+                                                            <label class="form-label small fw-bold">Category Name <span class="text-danger">*</span></label>
+                                                            <input type="text" name="name" class="form-control" value="<?= htmlspecialchars($cat['name']) ?>" required>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label small fw-bold">Category Code <span class="text-danger">*</span></label>
+                                                            <input type="text" name="code" class="form-control font-monospace" value="<?= htmlspecialchars($cat['code']) ?>" required>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
+                                                        <button type="submit" class="btn btn-primary px-4">Save Changes</button>
+                                                    </div>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>

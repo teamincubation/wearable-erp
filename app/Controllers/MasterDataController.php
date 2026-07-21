@@ -5,6 +5,7 @@ use App\Core\Controller;
 use App\Core\Request;
 use App\Core\Response;
 use App\Core\Session;
+use App\Core\Database;
 use App\Models\Contact;
 use App\Models\BomCategory;
 use App\Models\Warehouse;
@@ -100,6 +101,32 @@ class MasterDataController extends Controller {
 
         AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'create_bom_category', 'BomCategory', $id, null, null, "Created BOM category: {$name}");
         Session::setFlash('success', "BOM Category '{$name}' added successfully.");
+        $this->redirect('company/masterdata');
+    }
+
+    /**
+     * Edit BOM Category
+     */
+    public function editBomCategory(Request $request, Response $response, string $id): void {
+        $bomCatModel = new BomCategory();
+        $cat = $bomCatModel->find($id);
+
+        if (!$cat) {
+            Session::setFlash('error', 'BOM Category not found.');
+            $this->redirect('company/masterdata');
+        }
+
+        $name = trim($request->get('name')) ?: $cat['name'];
+        $code = trim($request->get('code')) ?: $cat['code'];
+
+        $bomCatModel->update($id, [
+            'name' => $name,
+            'code' => $code,
+            'updated_by' => Session::get('user_id')
+        ]);
+
+        AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'edit_bom_category', 'BomCategory', (int)$id, null, null, "Updated BOM category: {$name}");
+        Session::setFlash('success', "BOM Category '{$name}' updated successfully.");
         $this->redirect('company/masterdata');
     }
 

@@ -13,6 +13,7 @@ use App\Models\Style;
 use App\Models\BuyerPo;
 use App\Models\Contact;
 use App\Models\Warehouse;
+use App\Models\BomCategory;
 use App\Services\InventoryService;
 use App\Models\AuditLog;
 
@@ -109,10 +110,14 @@ class PurchaseController extends Controller {
         $contactModel = new Contact();
         $suppliers = $contactModel->findBy(['type' => 'supplier', 'status' => 'active']);
 
+        $bomCatModel = new BomCategory();
+        $categories = $bomCatModel->all();
+
         $this->renderView('company/purchaseorders', [
             'title' => 'Supplier Purchase Orders | Procurement',
             'orders' => $orders,
-            'suppliers' => $suppliers
+            'suppliers' => $suppliers,
+            'categories' => $categories
         ]);
     }
 

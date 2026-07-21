@@ -108,35 +108,45 @@
 
                         <!-- Dynamic Items Addition -->
                         <h6 class="fw-bold mb-3 border-bottom pb-2 text-primary"><i class="fa-solid fa-list me-1"></i> Order Items list</h6>
-                        <table class="table table-bordered table-sm" id="poItemsTable">
-                            <thead>
-                                <tr class="table-light">
-                                    <th>Item Type</th>
-                                    <th>Item / Description Name</th>
-                                    <th style="width: 100px;">Qty</th>
-                                    <th style="width: 120px;">Unit Price (₹)</th>
-                                    <th class="text-center" style="width: 40px;">X</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>
-                                        <select name="item_type[]" class="form-select form-select-sm">
-                                            <option value="fabric">Fabric</option>
-                                            <option value="yarn">Yarn</option>
-                                            <option value="accessories" selected>Accessories</option>
-                                            <option value="chemical">Chemicals</option>
-                                            <option value="packing">Packing Materials</option>
-                                        </select>
-                                    </td>
-                                    <td><input type="text" name="item_name[]" class="form-control form-control-sm" placeholder="e.g. Grey Jersey Knit, Tags, Buttons" required></td>
-                                    <td><input type="number" step="0.01" name="quantity[]" class="form-control form-control-sm" value="0.00" required></td>
-                                    <td><input type="number" step="0.01" name="unit_price[]" class="form-control form-control-sm" value="0.00" required></td>
-                                    <td class="text-center"><button type="button" class="btn btn-sm btn-link text-danger remove-item-btn p-0"><i class="fa-solid fa-circle-xmark"></i></button></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" id="addPoItemRowBtn"><i class="fa-solid fa-plus me-1"></i> Add Item Line</button>
+                      <?php 
+$catOptions = '';
+if (!empty($categories)) {
+    foreach ($categories as $cat) {
+        $catOptions .= '<option value="' . htmlspecialchars($cat['name']) . '">' . htmlspecialchars($cat['name']) . ' (' . htmlspecialchars($cat['code']) . ')</option>';
+    }
+} else {
+    $catOptions = '<option value="Fabric">Fabric</option><option value="Yarn">Yarn</option><option value="Accessories">Accessories</option><option value="Chemicals">Chemicals</option><option value="Packing">Packing Materials</option>';
+}
+?>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Line Items & Procurement Specifications <span class="text-danger">*</span></label>
+                            <table class="table table-bordered table-sm align-middle" id="poItemsTable">
+                                <thead>
+                                    <tr class="bg-light">
+                                        <th style="width: 28%;">Category</th>
+                                        <th style="width: 38%;">Item Name / Spec</th>
+                                        <th style="width: 15%;">Quantity</th>
+                                        <th style="width: 15%;">Unit Rate</th>
+                                        <th style="width: 4%;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>
+                                            <select name="item_type[]" class="form-select form-select-sm">
+                                                <?= $catOptions ?>
+                                            </select>
+                                        </td>
+                                        <td><input type="text" name="item_name[]" class="form-control form-control-sm" placeholder="e.g. Grey Jersey Knit, Tags, Buttons" required></td>
+                                        <td><input type="number" step="0.01" name="quantity[]" class="form-control form-control-sm" value="0.00" required></td>
+                                        <td><input type="number" step="0.01" name="unit_price[]" class="form-control form-control-sm" value="0.00" required></td>
+                                        <td class="text-center"><button type="button" class="btn btn-sm btn-link text-danger remove-item-btn p-0"><i class="fa-solid fa-circle-xmark"></i></button></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="addPoItemRowBtn"><i class="fa-solid fa-plus me-1"></i> Add Item Line</button>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
@@ -151,17 +161,14 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const itemsTable = document.getElementById('poItemsTable').querySelector('tbody');
+    const catOptionsHtml = `<?= str_replace(["\r", "\n"], '', $catOptions) ?>`;
     
     document.getElementById('addPoItemRowBtn').addEventListener('click', function() {
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>
                 <select name="item_type[]" class="form-select form-select-sm">
-                    <option value="fabric">Fabric</option>
-                    <option value="yarn">Yarn</option>
-                    <option value="accessories" selected>Accessories</option>
-                    <option value="chemical">Chemicals</option>
-                    <option value="packing">Packing Materials</option>
+                    ${catOptionsHtml}
                 </select>
             </td>
             <td><input type="text" name="item_name[]" class="form-control form-control-sm" placeholder="Item name" required></td>

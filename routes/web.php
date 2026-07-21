@@ -221,6 +221,12 @@ $router->post('/company/masterdata/bomcategories/create', [\App\Controllers\Mast
        ->middleware(PermissionMiddleware::class)
        ->permission('company.styles.manage');
 
+$router->post('/company/masterdata/bomcategories/edit/{id}', [\App\Controllers\MasterDataController::class, 'editBomCategory'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
 $router->post('/company/masterdata/warehouses/create', [\App\Controllers\MasterDataController::class, 'createWarehouse'])
        ->middleware(AuthMiddleware::class)
        ->middleware(CsrfMiddleware::class)
