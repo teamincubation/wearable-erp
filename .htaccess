@@ -1,0 +1,29 @@
+# ==========================================================
+# Hostinger Shared Hosting Deployment Configuration
+# DevOps & Security Architect - Antigravity
+# ==========================================================
+
+# 1. Disable Directory Browsing
+Options -Indexes
+
+# 2. Block Direct Web Access to Sensitive Directories and Files
+RewriteEngine On
+RewriteRule ^(app|config|database|routes|modules|storage|logs|vendor)/ - [F,L]
+RewriteRule ^(README\.md|test_app\.php) - [F,L]
+
+# Block all hidden files (starting with dot, e.g. .git, .env)
+RedirectMatch 403 /\..*$
+
+# 3. URL Rewriting for Front Controller (index.php)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]
+
+# 4. Inject Production Security Headers
+<IfModule mod_headers.c>
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header set Content-Security-Policy "default-src 'self' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self';"
+</IfModule>

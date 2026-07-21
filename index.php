@@ -5,12 +5,12 @@
  */
 
 // 1. Load general configurations
-require_once dirname(__DIR__) . '/config/config.php';
+require_once __DIR__ . '/config/config.php';
 
 // 2. Register Autoloader for App namespace (PSR-4 compliant)
 spl_autoload_register(function (string $class) {
     $prefix = 'App\\';
-    $baseDir = dirname(__DIR__) . '/app/';
+    $baseDir = __DIR__ . '/app/';
 
     $len = strlen($prefix);
     if (strncmp($prefix, $class, $len) !== 0) {
@@ -56,7 +56,7 @@ try {
     $router = new Router($request, $response);
     
     // Load route configurations
-    require_once dirname(__DIR__) . '/routes/web.php';
+    require_once __DIR__ . '/routes/web.php';
 
     // 8. Resolve request
     $router->resolve();
@@ -69,7 +69,7 @@ try {
         echo "<p><strong>Trace:</strong> <pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre></p>";
     } else {
         http_response_code(500);
-        include_once dirname(__DIR__) . '/app/Views/errors/500.php';
+        include_once __DIR__ . '/app/Views/errors/500.php';
     }
     exit;
 }

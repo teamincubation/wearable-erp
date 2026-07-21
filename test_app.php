@@ -9,12 +9,11 @@ echo "========================================================\n";
 echo "WEARABLE ERP SAAS - SYNTAX & COMPILATION CHECKS\n";
 echo "========================================================\n\n";
 
-$baseDir = dirname(__DIR__);
+$baseDir = __DIR__;
 $directories = [
     $baseDir . '/app',
     $baseDir . '/config',
-    $baseDir . '/routes',
-    $baseDir . '/public_html'
+    $baseDir . '/routes'
 ];
 
 $failedFiles = [];
@@ -51,6 +50,8 @@ foreach ($directories as $dir) {
         checkSyntax($dir, $failedFiles, $totalFiles);
     }
 }
+checkSyntax($baseDir . '/index.php', $failedFiles, $totalFiles);
+checkSyntax($baseDir . '/test_app.php', $failedFiles, $totalFiles);
 
 echo "\nSummary of Lint Checks:\n";
 echo "--------------------------------------------------------\n";
