@@ -14,7 +14,7 @@
     </li>
     <li class="nav-item" role="presentation">
         <button class="nav-link fw-bold px-4 py-2.5" id="contacts-tab" data-bs-toggle="tab" data-bs-target="#contacts-pane" type="button" role="tab" aria-selected="false">
-            <i class="fa-solid fa-users-viewfinder me-2 text-success"></i> Vendors & Clients (Contacts)
+            <i class="fa-solid fa-truck-field me-2 text-success"></i> Vendors & Logistics
         </button>
     </li>
     <li class="nav-item" role="presentation">
@@ -83,10 +83,10 @@
     <div class="tab-pane fade" id="contacts-pane" role="tabpanel" tabindex="0">
         <div class="pepp-card">
             <div class="pepp-card-header d-flex justify-content-between align-items-center">
-                <h5 class="pepp-card-title m-0"><i class="fa-solid fa-address-book text-success me-2"></i> Party Contacts Ledger</h5>
+                <h5 class="pepp-card-title m-0"><i class="fa-solid fa-truck-ramp-box text-success me-2"></i> Vendors & Logistics Ledger</h5>
                 <?php if (\App\Core\Auth::hasPermission('company.styles.manage')): ?>
                     <button class="btn btn-sm btn-success rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#addContactModal">
-                        <i class="fa-solid fa-user-plus me-1"></i> Register Party Contact
+                        <i class="fa-solid fa-user-plus me-1"></i> Register Vendor / Transporter
                     </button>
                 <?php endif; ?>
             </div>
@@ -295,7 +295,7 @@
             <?= \App\Core\Session::csrfField() ?>
             <div class="modal-content" style="border-radius: 12px;">
                 <div class="modal-header">
-                    <h5 class="modal-title fw-bold">Register Client or Vendor Contact</h5>
+                    <h5 class="modal-title fw-bold">Register Vendor or Transporter</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body text-start">
@@ -304,8 +304,6 @@
                             <label class="form-label small fw-bold">Contact Classification <span class="text-danger">*</span></label>
                             <select name="type" class="form-select text-dark" required>
                                 <option value="supplier">Supplier / Material Vendor</option>
-                                <option value="buyer">Buyer (Brand Client)</option>
-                                <option value="customer">Retail Customer</option>
                                 <option value="transporter">Logistics Transporter</option>
                                 <option value="agent">Broker Agent</option>
                             </select>

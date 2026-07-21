@@ -38,8 +38,15 @@ class ProductionController extends Controller {
         $stmt->execute([$companyId]);
         $orders = $stmt->fetchAll() ?: [];
 
-        // Fetch active buyer POs
-        $stmt = $db->prepare("SELECT id, po_no FROM buyer_pos WHERE company_id = ? AND status = 'approved' AND deleted_at IS NULL");
+        // Fetch active buyer POs joined with active buyer details
+        $stmt = $db->prepare("
+            SELECT po.id, po.po_no, po.style_id, s.style_no, c.name as buyer_name, c.code as buyer_code, c.brand_name
+            FROM buyer_pos po
+            JOIN contacts c ON po.buyer_id = c.id
+            JOIN styles s ON po.style_id = s.id
+            WHERE po.company_id = ? AND po.status IN ('approved', 'active') AND c.status = 'active' AND po.deleted_at IS NULL AND c.deleted_at IS NULL
+            ORDER BY po.id DESC
+        ");
         $stmt->execute([$companyId]);
         $buyerPOs = $stmt->fetchAll() ?: [];
 

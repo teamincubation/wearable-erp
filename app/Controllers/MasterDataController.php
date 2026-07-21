@@ -20,8 +20,11 @@ class MasterDataController extends Controller {
      * Master Data dashboard index page
      */
     public function index(Request $request, Response $response): void {
-        $contactModel = new Contact();
-        $contacts = $contactModel->all();
+        $db = Database::getInstance();
+        $companyId = Session::get('company_id');
+        $stmt = $db->prepare("SELECT * FROM contacts WHERE company_id = ? AND type IN ('supplier', 'transporter', 'agent') AND deleted_at IS NULL ORDER BY id DESC");
+        $stmt->execute([$companyId]);
+        $contacts = $stmt->fetchAll() ?: [];
 
         $bomCatModel = new BomCategory();
         $categories = $bomCatModel->all();

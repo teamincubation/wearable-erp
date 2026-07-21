@@ -104,7 +104,9 @@
                             <select name="po_id" class="form-select text-dark">
                                 <option value="">-- Choose Active PO (WIP) --</option>
                                 <?php foreach ($buyer_pos as $bp): ?>
-                                    <option value="<?= $bp['id'] ?>"><?= htmlspecialchars($bp['po_no']) ?></option>
+                                    <option value="<?= $bp['id'] ?>">
+                                        <?= htmlspecialchars($bp['po_no']) ?> | Buyer: <?= htmlspecialchars($bp['buyer_name']) ?> (<?= htmlspecialchars($bp['buyer_code']) ?>)<?= !empty($bp['brand_name']) ? ' - Brand: ' . htmlspecialchars($bp['brand_name']) : '' ?>
+                                    </option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
