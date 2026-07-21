@@ -142,6 +142,10 @@
                                                             <?php endforeach; ?>
                                                         </select>
                                                     </div>
+                                                    <div class="col-md-6 expiry-main-container">
+                                                        <label class="form-label fw-semibold">Subscription Expiry Date</label>
+                                                        <input type="date" name="subscription_expires_at" class="form-control text-dark subscription-expiry-date-main" value="<?= $c['subscription_expires_at'] ? date('Y-m-d', strtotime($c['subscription_expires_at'])) : '' ?>">
+                                                    </div>
                                                     <div class="col-md-6">
                                                         <label class="form-label fw-semibold">Account Status</label>
                                                         <select name="status" class="form-select text-dark">
@@ -271,7 +275,7 @@
                     <div id="step-documents" class="mt-4 pt-4 border-top">
                         <h6 class="fw-bold text-primary mb-3"><i class="fa-solid fa-file-contract me-1"></i> Step 3: Billing & Licensing Terms</h6>
                         <div class="row g-3">
-                            <div class="col-md-12 mb-3">
+                            <div class="col-md-6 mb-3">
                                 <label class="form-label fw-semibold">Subscription Plan <span class="text-danger">*</span></label>
                                 <select name="subscription_plan_id" class="form-select text-dark plan-select" data-company-id="onboard" required>
                                     <option value="" disabled selected>Select Plan</option>
@@ -279,6 +283,10 @@
                                         <option value="<?= $p['id'] ?>" data-cycle="<?= $p['billing_cycle'] ?>"><?= htmlspecialchars($p['name']) ?> (<?= htmlspecialchars($p['billing_cycle']) ?>)</option>
                                     <?php endforeach; ?>
                                 </select>
+                            </div>
+                            <div class="col-md-6 mb-3 expiry-main-container">
+                                <label class="form-label fw-semibold">Subscription Expiry Date</label>
+                                <input type="date" name="subscription_expires_at" class="form-control text-dark subscription-expiry-date-main" data-target-company="onboard">
                             </div>
                             <div class="col-md-12 mb-3">
                                 <label class="form-label fw-semibold">Terms & Conditions Agreement (Optional)</label>
@@ -336,20 +344,39 @@ document.addEventListener('DOMContentLoaded', function() {
         const cycle = selectedOption ? selectedOption.getAttribute('data-cycle') : '';
         const modal = selectEl.closest('.modal-body') || selectEl.closest('.modal-content');
         if (!modal) return;
+
+        const mainExpiryInput = modal.querySelector('.subscription-expiry-date-main');
+        const mainExpiryContainer = modal.querySelector('.expiry-main-container');
         const dateInputs = modal.querySelectorAll('.expiry-date-input');
         const containers = modal.querySelectorAll('.expiry-input-container');
 
         if (cycle === 'lifetime') {
+            if (mainExpiryInput) {
+                mainExpiryInput.value = '';
+                mainExpiryInput.disabled = true;
+            }
+            if (mainExpiryContainer) {
+                mainExpiryContainer.style.opacity = '0.5';
+                mainExpiryContainer.style.pointerEvents = 'none';
+            }
+
             dateInputs.forEach(function(input) {
                 input.value = '';
                 input.disabled = true;
-                input.removeAttribute('required');
             });
             containers.forEach(function(container) {
                 container.style.opacity = '0.5';
                 container.style.pointerEvents = 'none';
             });
         } else {
+            if (mainExpiryInput) {
+                mainExpiryInput.disabled = false;
+            }
+            if (mainExpiryContainer) {
+                mainExpiryContainer.style.opacity = '1';
+                mainExpiryContainer.style.pointerEvents = 'auto';
+            }
+
             dateInputs.forEach(function(input) {
                 input.disabled = false;
             });
@@ -366,6 +393,20 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         // Run initially
         checkValidityInputs(selectEl);
+    });
+
+    document.querySelectorAll('.subscription-expiry-date-main').forEach(function(mainInput) {
+        mainInput.addEventListener('change', function() {
+            const chosenDate = this.value;
+            const modal = this.closest('.modal-body') || this.closest('.modal-content');
+            if (modal && chosenDate) {
+                modal.querySelectorAll('.expiry-date-input').forEach(function(featureInput) {
+                    if (!featureInput.disabled) {
+                        featureInput.value = chosenDate;
+                    }
+                });
+            }
+        });
     });
 });
 </script>

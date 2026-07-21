@@ -1,17 +1,49 @@
 <?php
 $currentPagePermission = \App\Core\Session::get('current_page_permission');
 $isExpired = false;
+$isCompanyExpired = false;
 $daysLeft = 9999;
 $whatsappUrl = '#';
+$lockMessage = '';
 
-if ($currentPagePermission) {
+$company = \App\Core\Session::get('current_tenant');
+$subdomain = $company ? $company['subdomain'] : '';
+
+// 1. Check Company-Wide Subscription Expiry
+if ($company) {
+    $db = \App\Core\Database::getInstance();
+    $stmtComp = $db->prepare("
+        SELECT c.subscription_expires_at, p.billing_cycle 
+        FROM companies c 
+        LEFT JOIN subscription_plans p ON c.subscription_plan_id = p.id 
+        WHERE c.id = ? AND c.deleted_at IS NULL
+    ");
+    $stmtComp->execute([$company['id']]);
+    $compInfo = $stmtComp->fetch();
+    if ($compInfo && $compInfo['billing_cycle'] !== 'lifetime' && !empty($compInfo['subscription_expires_at'])) {
+        $tzComp = new \DateTimeZone('Asia/Kolkata');
+        $nowComp = new \DateTime('now', $tzComp);
+        $expiryComp = new \DateTime($compInfo['subscription_expires_at'], $tzComp);
+        $nowComp->setTime(0, 0, 0);
+        $expiryComp->setTime(0, 0, 0);
+        if ($nowComp > $expiryComp) {
+            $isCompanyExpired = true;
+            $isExpired = true;
+            $lockMessage = "Your entire Wearable ERP subscription has expired! Access to all modules, pages, and sections has been restricted. Please contact WellGro Developers to renew your enterprise subscription.";
+            
+            $whatsappMsg = "Hello WellGro Developers, our Wearable ERP subscription on tenant subdomain '{$subdomain}' has expired. We want to renew our entire subscription plan. Please guide us on the renewal steps.";
+            $whatsappUrl = "https://wa.me/" . \App\Core\Auth::getDeveloperWhatsapp() . "?text=" . urlencode($whatsappMsg);
+        }
+    }
+}
+
+// 2. Check Individual Feature Expiry (if company-wide is not expired)
+if (!$isCompanyExpired && $currentPagePermission) {
     $validity = \App\Core\Auth::getFeatureValidity($currentPagePermission);
     if (isset($validity['expired']) && $validity['expired']) {
         $isExpired = true;
-        
-        $company = \App\Core\Session::get('current_tenant');
-        $subdomain = $company ? $company['subdomain'] : '';
         $featureLabel = ucwords(str_replace(['company.', '.', 'view', 'manage'], [' ', ' ', '', ''], $currentPagePermission));
+        $lockMessage = "The validity period for access to the <strong>" . htmlspecialchars(trim($featureLabel)) . "</strong> section has ended. Please contact WellGro Developers to renew your module access.";
         
         $whatsappMsg = "Hello WellGro Developers, I want to renew the subscription for the module: '" . trim($featureLabel) . "' on tenant subdomain '{$subdomain}' of Wearable ERP. Please share the renewal steps.";
         $whatsappUrl = "https://wa.me/" . \App\Core\Auth::getDeveloperWhatsapp() . "?text=" . urlencode($whatsappMsg);
@@ -172,10 +204,17 @@ if ($currentPagePermission) {
             $expiringFeature = \App\Core\Auth::getClosestExpiringFeature();
             if ($expiringFeature):
                 $featureLabel = ucwords(str_replace(['company.', '.', 'view', 'manage'], [' ', ' ', '', ''], $expiringFeature['feature_key']));
+                $whatsappWarningMsg = "Hello WellGro Developers, our subscription validity for the module: '" . trim($featureLabel) . "' on tenant subdomain '{$subdomain}' is expiring in {$expiringFeature['days_left']} days. We want to renew it. Please share the renewal steps.";
+                $whatsappWarningUrl = "https://wa.me/" . \App\Core\Auth::getDeveloperWhatsapp() . "?text=" . urlencode($whatsappWarningMsg);
             ?>
-                <div class="bg-warning text-dark text-center py-2 fw-semibold border-bottom" style="font-size: 14px;">
-                    <i class="fa-solid fa-triangle-exclamation text-danger me-2"></i> 
-                    Subscription Warning: The access to <strong><?= htmlspecialchars(trim($featureLabel)) ?></strong> is expiring in <strong><?= $expiringFeature['days_left'] ?> day<?= $expiringFeature['days_left'] == 1 ? '' : 's' ?></strong>. Please renew now to avoid access lock.
+                <div class="bg-warning text-dark text-center py-2 fw-semibold border-bottom d-flex align-items-center justify-content-center" style="font-size: 14px; gap: 10px;">
+                    <span>
+                        <i class="fa-solid fa-triangle-exclamation text-danger me-2"></i> 
+                        Subscription Warning: The access to <strong><?= htmlspecialchars(trim($featureLabel)) ?></strong> is expiring in <strong><?= $expiringFeature['days_left'] ?> day<?= $expiringFeature['days_left'] == 1 ? '' : 's' ?></strong>.
+                    </span>
+                    <a href="<?= $whatsappWarningUrl ?>" target="_blank" class="btn btn-sm btn-dark rounded-pill px-3 py-1 fw-bold text-white border-0" style="background-color: #0b1528;">
+                        <i class="fa-brands fa-whatsapp text-success me-1"></i> Renew Now
+                    </a>
                 </div>
             <?php endif; ?>
 
@@ -270,10 +309,9 @@ if ($currentPagePermission) {
                             <div class="mb-4 text-danger">
                                 <i class="fa-solid fa-lock fs-1" style="font-size: 4rem !important;"></i>
                             </div>
-                            <h4 class="fw-bold text-dark mb-2">Feature Subscription Expired</h4>
+                            <h4 class="fw-bold text-dark mb-2">Subscription Expired</h4>
                             <p class="text-secondary mb-4">
-                                The validity period for access to the <strong><?= htmlspecialchars(ucwords(str_replace(['company.', '.', 'view', 'manage'], [' ', ' ', '', ''], $currentPagePermission))) ?></strong> section has ended. 
-                                Please contact WellGro Developers to renew your module access.
+                                <?= $lockMessage ?>
                             </p>
                             <a href="<?= $whatsappUrl ?>" target="_blank" class="btn btn-success btn-lg rounded-pill px-5">
                                 <i class="fa-brands fa-whatsapp me-2"></i> Renew via WhatsApp

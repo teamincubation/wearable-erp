@@ -128,6 +128,12 @@ class DeveloperController extends Controller {
             $db->beginTransaction();
 
             // 1. Insert Company
+            $stmtPlanCycle = $db->prepare("SELECT billing_cycle FROM subscription_plans WHERE id = ?");
+            $stmtPlanCycle->execute([$planId]);
+            $planCycle = $stmtPlanCycle->fetchColumn() ?: 'monthly';
+
+            $expiresAt = ($planCycle === 'lifetime') ? null : ($request->get('subscription_expires_at') ?: null);
+
             $companyModel = new Company();
             $companyId = $companyModel->insert([
                 'name' => $name,
@@ -136,7 +142,7 @@ class DeveloperController extends Controller {
                 'phone' => $phone,
                 'subscription_plan_id' => $planId,
                 'subscription_status' => 'trial',
-                'subscription_expires_at' => date('Y-m-d H:i:s', strtotime('+14 days')),
+                'subscription_expires_at' => $expiresAt,
                 'status' => 'active',
                 'tc_agreement' => $tcAgreement,
                 'payment_slip' => $paymentSlip,
@@ -256,6 +262,12 @@ class DeveloperController extends Controller {
             $db->beginTransaction();
 
             // 1. Update company record
+            $stmtPlanCycle = $db->prepare("SELECT billing_cycle FROM subscription_plans WHERE id = ?");
+            $stmtPlanCycle->execute([$planId]);
+            $planCycle = $stmtPlanCycle->fetchColumn() ?: 'monthly';
+
+            $expiresAt = ($planCycle === 'lifetime') ? null : ($request->get('subscription_expires_at') ?: null);
+
             $companyModel->update($id, [
                 'name' => $name,
                 'subdomain' => $subdomain,
@@ -263,6 +275,7 @@ class DeveloperController extends Controller {
                 'phone' => $phone,
                 'status' => $status,
                 'subscription_plan_id' => $planId,
+                'subscription_expires_at' => $expiresAt,
                 'tc_agreement' => $tcAgreement,
                 'payment_slip' => $paymentSlip,
                 'updated_by' => Session::get('user_id')
