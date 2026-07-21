@@ -89,6 +89,22 @@
                 </li>
                 <?php endif; ?>
 
+                <?php if (\App\Core\Auth::hasPermission('company.users.view')): ?>
+                <li class="sidebar-item">
+                    <a href="<?= base_url('company/hr/attendance') ?>" class="sidebar-link <?= $isActive('company/hr') ?>">
+                        <i class="fa-solid fa-user-clock"></i> HR & Attendance
+                    </a>
+                </li>
+                <?php endif; ?>
+
+                <?php if (\App\Core\Auth::hasPermission('company.tally.export')): ?>
+                <li class="sidebar-item">
+                    <a href="<?= base_url('company/tally/vouchers') ?>" class="sidebar-link <?= $isActive('company/tally') ?>">
+                        <i class="fa-solid fa-file-excel"></i> Tally Integration
+                    </a>
+                </li>
+                <?php endif; ?>
+
                 <?php if (\App\Core\Auth::hasPermission('company.logs')): ?>
                 <li class="sidebar-item">
                     <a href="<?= base_url('company/logs') ?>" class="sidebar-link <?= $isActive('company/logs') ?>">

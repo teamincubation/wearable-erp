@@ -301,6 +301,51 @@ $router->post('/company/production/quality/create', [\App\Controllers\Production
        ->middleware(PermissionMiddleware::class)
        ->permission('company.production.manage');
 
+// HR & Payroll management
+$router->get('/company/hr/attendance', [\App\Controllers\HrPayrollController::class, 'attendance'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.users.view');
+
+$router->post('/company/hr/attendance/clock', [\App\Controllers\HrPayrollController::class, 'clock'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.users.create');
+
+$router->get('/company/hr/payroll', [\App\Controllers\HrPayrollController::class, 'payroll'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.users.view');
+
+$router->post('/company/hr/payroll/process', [\App\Controllers\HrPayrollController::class, 'processPayroll'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.users.create');
+
+// Tally Voucher Exports
+$router->get('/company/tally/vouchers', [\App\Controllers\TallyController::class, 'vouchers'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.tally.export');
+
+$router->post('/company/tally/vouchers/create', [\App\Controllers\TallyController::class, 'generateVoucher'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.tally.export');
+
+$router->get('/company/tally/vouchers/download/{id}', [\App\Controllers\TallyController::class, 'downloadXml'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.tally.export');
+
+$router->get('/company/tally/vouchers/csv', [\App\Controllers\TallyController::class, 'exportCsv'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.tally.export');
+
 // Settings
 $router->get('/company/settings', [CompanyController::class, 'settings'])
        ->middleware(AuthMiddleware::class)
