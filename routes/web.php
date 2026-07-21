@@ -245,6 +245,28 @@ $router->post('/company/purchase/grns/create', [\App\Controllers\PurchaseControl
        ->middleware(PermissionMiddleware::class)
        ->permission('company.styles.manage');
 
+// Inventory Ledger & Stock Management
+$router->get('/company/inventory/ledger', [\App\Controllers\InventoryController::class, 'ledger'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.inventory.view');
+
+$router->get('/company/inventory/balances', [\App\Controllers\InventoryController::class, 'balances'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.inventory.view');
+
+$router->post('/company/inventory/transfer', [\App\Controllers\InventoryController::class, 'transfer'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.inventory.manage');
+
+$router->get('/company/inventory/barcode', [\App\Controllers\InventoryController::class, 'barcode'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.inventory.view');
+
 // Settings
 $router->get('/company/settings', [CompanyController::class, 'settings'])
        ->middleware(AuthMiddleware::class)

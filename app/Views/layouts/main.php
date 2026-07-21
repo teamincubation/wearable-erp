@@ -73,6 +73,14 @@
                 </li>
                 <?php endif; ?>
 
+                <?php if (\App\Core\Auth::hasPermission('company.inventory.view')): ?>
+                <li class="sidebar-item">
+                    <a href="<?= base_url('company/inventory/ledger') ?>" class="sidebar-link <?= $isActive('company/inventory') ?>">
+                        <i class="fa-solid fa-boxes-stacked"></i> Inventory Ledger
+                    </a>
+                </li>
+                <?php endif; ?>
+
                 <?php if (\App\Core\Auth::hasPermission('company.logs')): ?>
                 <li class="sidebar-item">
                     <a href="<?= base_url('company/logs') ?>" class="sidebar-link <?= $isActive('company/logs') ?>">
