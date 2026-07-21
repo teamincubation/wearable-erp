@@ -98,11 +98,18 @@ try {
     echo "<p>Please verify your portal. <strong>For safety, you should delete the <code>db_setup.php</code> file from your server root folder now.</strong></p>";
 
 } catch (Exception $e) {
-    if (isset($db) && $db->inTransaction()) {
-        $db->rollBack();
+    $originalMessage = $e->getMessage();
+    if (isset($db)) {
+        try {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+        } catch (Exception $rollbackEx) {
+            // Silence rollback error so it doesn't mask original exception
+        }
     }
     echo "<br><h4 class='error'>❌ Migration Failed!</h4>";
-    echo "<pre>" . htmlspecialchars($e->getMessage()) . "</pre>";
+    echo "<pre>" . htmlspecialchars($originalMessage) . "</pre>";
     echo "<p>Please check your database configurations in <code>config/database.php</code>.</p>";
 }
 
