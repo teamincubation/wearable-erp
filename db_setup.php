@@ -53,46 +53,54 @@ try {
     $db = Database::getInstance();
     echo "<span class='success'>CONNECTED</span><br>";
 
-    $schemaPath = __DIR__ . '/database/schema.sql';
-    if (!file_exists($schemaPath)) {
-        throw new Exception("Schema script not found at path: " . $schemaPath);
-    }
+    $schemaFiles = [
+        __DIR__ . '/database/schema.sql',
+        __DIR__ . '/database/schema_v2.sql'
+    ];
 
-    echo "Reading schema SQL file... ";
-    $sqlContent = file_get_contents($schemaPath);
-    echo "<span class='success'>READ SUCCESS</span><br>";
-
-    // Parse SQL commands separated by semicolons
-    $queries = [];
-    $tempQuery = '';
-    $lines = file($schemaPath);
-
-    foreach ($lines as $line) {
-        $trimmed = trim($line);
-        // Skip comment lines and empty lines
-        if ($trimmed === '' || substr($trimmed, 0, 2) === '--' || substr($trimmed, 0, 1) === '#') {
-            continue;
+    foreach ($schemaFiles as $schemaPath) {
+        $basename = basename($schemaPath);
+        if (!file_exists($schemaPath)) {
+            throw new Exception("Schema script not found at path: " . $schemaPath);
         }
 
-        $tempQuery .= $line;
+        echo "Reading schema SQL file ($basename)... ";
+        $sqlContent = file_get_contents($schemaPath);
+        echo "<span class='success'>READ SUCCESS</span><br>";
 
-        // If statement ends with semicolon, add it to list
-        if (substr($trimmed, -1) === ';') {
-            $queries[] = $tempQuery;
-            $tempQuery = '';
+        // Parse SQL commands separated by semicolons
+        $queries = [];
+        $tempQuery = '';
+        $lines = file($schemaPath);
+
+        foreach ($lines as $line) {
+            $trimmed = trim($line);
+            // Skip comment lines and empty lines
+            if ($trimmed === '' || substr($trimmed, 0, 2) === '--' || substr($trimmed, 0, 1) === '#') {
+                continue;
+            }
+
+            $tempQuery .= $line;
+
+            // If statement ends with semicolon, add it to list
+            if (substr($trimmed, -1) === ';') {
+                $queries[] = $tempQuery;
+                $tempQuery = '';
+            }
         }
+
+        echo "Executing migrations for $basename (" . count($queries) . " SQL statements)...<br>";
+
+        foreach ($queries as $index => $query) {
+            $db->exec($query);
+            // Extract statement type for clean log
+            $type = preg_match('/^\s*([a-zA-Z]+)/i', $query, $matches) ? strtoupper($matches[1]) : 'SQL';
+            echo "   [$basename - Statement " . ($index + 1) . "] Executing $type... <span class='success'>OK</span><br>";
+        }
+        echo "<br>";
     }
 
-    echo "Executing migrations (" . count($queries) . " SQL statements)...<br><br>";
-
-    foreach ($queries as $index => $query) {
-        $db->exec($query);
-        // Extract statement type for clean log
-        $type = preg_match('/^\s*([a-zA-Z]+)/i', $query, $matches) ? strtoupper($matches[1]) : 'SQL';
-        echo "   [Statement " . ($index + 1) . "] Executing $type... <span class='success'>OK</span><br>";
-    }
-
-    echo "<br><h4 class='success'>🎉 DATABASE SEEDED & INITIALIZED SUCCESSFULLY!</h4>";
+    echo "<br><h4 class='success'>🎉 ALL DATABASE SCHEMAS SEEDED & INITIALIZED SUCCESSFULLY!</h4>";
     echo "<p>Please verify your portal. <strong>For safety, you should delete the <code>db_setup.php</code> file from your server root folder now.</strong></p>";
 
 } catch (Exception $e) {
