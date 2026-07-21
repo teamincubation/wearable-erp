@@ -15,7 +15,7 @@ class Auth {
      */
     public static function attempt(string $email, string $password): ?array {
         $userModel = new User();
-        $user = $userModel->findOneBy(['email' => $email]);
+        $user = $userModel->findGlobalByEmail(trim($email));
 
         if (!$user) {
             self::logAuthActivity(null, 'login_failed_email', "Failed login attempt for email: {$email}");
@@ -37,12 +37,23 @@ class Auth {
         // If the user belongs to a company, verify company status is active
         if ($user['company_id'] !== null) {
             $db = Database::getInstance();
-            $stmt = $db->prepare("SELECT status, subscription_expires_at FROM companies WHERE id = ? AND deleted_at IS NULL");
+            $stmt = $db->prepare("SELECT id, status, subscription_expires_at FROM companies WHERE id = ? AND deleted_at IS NULL");
             $stmt->execute([$user['company_id']]);
             $company = $stmt->fetch();
 
-            if (!$company || $company['status'] !== 'active') {
-                self::logAuthActivity($user['id'], 'login_company_suspended', "Login blocked: Tenant company is {$company['status']}", $user['company_id']);
+            if (!$company) {
+                // Self-healing fallback: If company_id does not exist, point to first active company
+                $stmt2 = $db->prepare("SELECT id, status FROM companies WHERE deleted_at IS NULL ORDER BY id ASC LIMIT 1");
+                $stmt2->execute();
+                $company = $stmt2->fetch();
+                if ($company) {
+                    $db->prepare("UPDATE users SET company_id = ? WHERE id = ?")->execute([$company['id'], $user['id']]);
+                    $user['company_id'] = $company['id'];
+                }
+            }
+
+            if (!$company || ($company['status'] !== 'active' && $company['status'] !== null)) {
+                self::logAuthActivity($user['id'], 'login_company_suspended', "Login blocked: Tenant company is not active", $user['company_id']);
                 return null;
             }
         }
