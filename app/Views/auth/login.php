@@ -38,6 +38,9 @@
                         if (!empty($tenant) && $tenant === 'erp') echo 'Admin@1234';
                         elseif (!empty($tenant) && $tenant === 'tocco') echo 'Tocco@1234';
                    ?>">
+            <button type="button" class="btn btn-light border" id="togglePasswordBtn" style="cursor: pointer;" title="Toggle Password Visibility">
+                <i class="fa-regular fa-eye text-secondary" id="togglePasswordIcon"></i>
+            </button>
         </div>
     </div>
 
@@ -51,6 +54,22 @@
         </a>
     </div>
 </form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const passwordInput = document.getElementById('password');
+    const toggleBtn = document.getElementById('togglePasswordBtn');
+    const toggleIcon = document.getElementById('togglePasswordIcon');
+
+    if (passwordInput && toggleBtn && toggleIcon) {
+        toggleBtn.addEventListener('click', function() {
+            const isPassword = passwordInput.type === 'password';
+            passwordInput.type = isPassword ? 'text' : 'password';
+            toggleIcon.className = isPassword ? 'fa-regular fa-eye-slash text-primary' : 'fa-regular fa-eye text-secondary';
+        });
+    }
+});
+</script>
 
 <div class="mt-4 p-3 bg-light rounded text-secondary" style="font-size: 12px; border: 1px dashed var(--border-color);">
     <strong><i class="fa-solid fa-circle-info text-primary"></i> Review & Test Credentials:</strong>
