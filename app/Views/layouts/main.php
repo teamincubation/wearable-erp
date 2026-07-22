@@ -102,14 +102,22 @@ $orderedMenuKeys = array_merge($savedOrder, array_diff(array_keys($defaultMenu),
 
     <div class="app-layout">
         <!-- Sidebar Navigation -->
-        <aside class="sidebar">
-            <a href="<?= base_url('company/dashboard') ?>" class="sidebar-brand d-flex align-items-center">
-                <?php if ($company && !empty($company['logo'])): ?>
-                    <img src="<?= base_url($company['logo']) ?>" alt="Logo" class="rounded me-2" style="max-height: 28px; width: auto; object-fit: contain; background: white; padding: 2px;">
-                <?php else: ?>
-                    <i class="fa-solid fa-shirt me-2"></i>
-                <?php endif; ?>
-                <span class="text-truncate" style="max-width: 140px;"><?= $company ? htmlspecialchars($company['name']) : 'Wearable ERP' ?></span>
+        <aside class="sidebar" id="app-sidebar">
+            <!-- Sidebar Drag-to-Resize Handle -->
+            <div class="sidebar-resize-handle" id="sidebar-resize-handle"></div>
+
+            <a href="<?= base_url('company/dashboard') ?>" class="sidebar-brand d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center text-truncate">
+                    <?php if ($company && !empty($company['logo'])): ?>
+                        <img src="<?= base_url($company['logo']) ?>" alt="Logo" class="rounded me-2" style="max-height: 28px; width: auto; object-fit: contain; background: white; padding: 2px;">
+                    <?php else: ?>
+                        <i class="fa-solid fa-shirt me-2"></i>
+                    <?php endif; ?>
+                    <span class="text-truncate" style="max-width: 120px;"><?= $company ? htmlspecialchars($company['name']) : 'Wearable ERP' ?></span>
+                </div>
+                <button id="sidebar-toggle-btn" class="btn text-white p-0 border-0" style="box-shadow: none; background: transparent;" type="button" title="Toggle Sidebar">
+                    <i class="fa-solid fa-circle-chevron-left fs-5" id="sidebar-toggle-icon"></i>
+                </button>
             </a>
             
             <ul class="sidebar-menu">
@@ -133,7 +141,9 @@ $orderedMenuKeys = array_merge($savedOrder, array_diff(array_keys($defaultMenu),
                 ?>
                     <li class="sidebar-item">
                         <a href="<?= base_url($item['url']) ?>" class="sidebar-link <?= $activeClass ?>">
-                            <i class="<?= $item['icon'] ?>"></i> <?= htmlspecialchars($item['name']) ?> <?= \App\Core\Auth::getFeatureLabelBadge($item['permission']) ?>
+                            <i class="<?= $item['icon'] ?>"></i> 
+                            <span class="sidebar-text"><?= htmlspecialchars($item['name']) ?></span> 
+                            <span class="sidebar-badge-container"><?= \App\Core\Auth::getFeatureLabelBadge($item['permission']) ?></span>
                         </a>
                     </li>
                 <?php endforeach; ?>
@@ -141,7 +151,7 @@ $orderedMenuKeys = array_merge($savedOrder, array_diff(array_keys($defaultMenu),
 
             <div class="sidebar-footer">
                 <a href="<?= base_url('logout') ?>" class="sidebar-link text-danger">
-                    <i class="fa-solid fa-power-off"></i> Sign Out
+                    <i class="fa-solid fa-power-off"></i> <span class="sidebar-text">Sign Out</span>
                 </a>
             </div>
         </aside>
@@ -347,5 +357,108 @@ $orderedMenuKeys = array_merge($savedOrder, array_diff(array_keys($defaultMenu),
 
     <!-- Bootstrap 5 Bundle JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const sidebar = document.getElementById('app-sidebar');
+        const resizeHandle = document.getElementById('sidebar-resize-handle');
+        const toggleBtn = document.getElementById('sidebar-toggle-btn');
+        const toggleIcon = document.getElementById('sidebar-toggle-icon');
+
+        // 1. Initial State Loading from LocalStorage
+        const savedWidth = localStorage.getItem('sidebar-width');
+        if (savedWidth) {
+            document.documentElement.style.setProperty('--sidebar-width', savedWidth);
+        }
+
+        const isCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
+        if (isCollapsed) {
+            document.body.classList.add('sidebar-collapsed');
+            if (toggleIcon) {
+                toggleIcon.classList.remove('fa-circle-chevron-left');
+                toggleIcon.classList.add('fa-circle-chevron-right');
+            }
+        }
+
+        // 2. Collapse / Expand Action
+        function toggleSidebar() {
+            const currentlyCollapsed = document.body.classList.toggle('sidebar-collapsed');
+            localStorage.setItem('sidebar-collapsed', currentlyCollapsed ? 'true' : 'false');
+            
+            if (toggleIcon) {
+                if (currentlyCollapsed) {
+                    toggleIcon.classList.remove('fa-circle-chevron-left');
+                    toggleIcon.classList.add('fa-circle-chevron-right');
+                } else {
+                    toggleIcon.classList.remove('fa-circle-chevron-right');
+                    toggleIcon.classList.add('fa-circle-chevron-left');
+                }
+            }
+        }
+
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleSidebar();
+            });
+        }
+
+        const sidebarBrand = document.querySelector('.sidebar-brand');
+        if (sidebarBrand) {
+            sidebarBrand.addEventListener('click', function(e) {
+                if (document.body.classList.contains('sidebar-collapsed')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleSidebar();
+                }
+            });
+        }
+
+        // 3. Drag to Resize Logic
+        if (resizeHandle && sidebar) {
+            let isResizing = false;
+
+            resizeHandle.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                isResizing = true;
+                resizeHandle.classList.add('active');
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (!isResizing) return;
+                
+                let newWidth = e.clientX;
+                // Constraints
+                if (newWidth < 180) newWidth = 180;
+                if (newWidth > 450) newWidth = 450;
+
+                document.documentElement.style.setProperty('--sidebar-width', newWidth + 'px');
+                localStorage.setItem('sidebar-width', newWidth + 'px');
+                
+                // If dragged to resize, ensure it is not collapsed
+                if (document.body.classList.contains('sidebar-collapsed')) {
+                    document.body.classList.remove('sidebar-collapsed');
+                    localStorage.setItem('sidebar-collapsed', 'false');
+                    if (toggleIcon) {
+                        toggleIcon.classList.remove('fa-circle-chevron-right');
+                        toggleIcon.classList.add('fa-circle-chevron-left');
+                    }
+                }
+            });
+
+            document.addEventListener('mouseup', function() {
+                if (isResizing) {
+                    isResizing = false;
+                    resizeHandle.classList.remove('active');
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                }
+            });
+        }
+    });
+    </script>
 </body>
 </html>

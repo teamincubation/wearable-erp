@@ -121,6 +121,11 @@
                         </li>
                     <?php endforeach; ?>
                 </ul>
+                <div class="text-end mt-3">
+                    <button type="button" id="save-menu-order-btn" class="btn btn-pepp-primary" style="display: none;">
+                        <i class="fa-solid fa-circle-check me-1"></i> Save Sidebar Navigation Order
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -388,14 +393,47 @@ document.addEventListener('DOMContentLoaded', function() {
                 hiddenInput.value = JSON.stringify(order);
             }
             
-            // 2. AJAX Save
-            const formData = new FormData();
-            formData.append('sidebar_menu_order', JSON.stringify(order));
-            formData.append('csrf_token', '<?= \App\Core\Session::csrfToken() ?>');
-            
-            fetch('<?= base_url("company/settings/menu-order") ?>', {
-                method: 'POST',
-                body: formData
+            // 2. Show the "Save Changes" button
+            const saveBtn = document.getElementById('save-menu-order-btn');
+            if (saveBtn) {
+                saveBtn.style.display = 'inline-block';
+            }
+        }
+
+        // 3. Save Button click action
+        const saveBtn = document.getElementById('save-menu-order-btn');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', function() {
+                const hiddenInput = document.getElementById('sidebar_menu_order_input');
+                if (!hiddenInput || !hiddenInput.value) return;
+
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Saving...';
+
+                const formData = new FormData();
+                formData.append('sidebar_menu_order', hiddenInput.value);
+                formData.append('csrf_token', '<?= \App\Core\Session::csrfToken() ?>');
+
+                fetch('<?= base_url("company/settings/menu-order") ?>', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.reload();
+                    } else {
+                        alert('Failed to save sidebar menu order.');
+                        saveBtn.disabled = false;
+                        saveBtn.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i> Save Sidebar Navigation Order';
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('An error occurred while saving.');
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i> Save Sidebar Navigation Order';
+                });
             });
         }
     }
