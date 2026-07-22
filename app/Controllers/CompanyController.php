@@ -488,7 +488,7 @@ class CompanyController extends Controller {
 
         $menuOrder = $request->get('sidebar_menu_order');
         if (!empty($menuOrder)) {
-            $settings['sidebar_menu_order'] = $menuOrder;
+            $settings['sidebar_menu_order'] = html_entity_decode($menuOrder);
         }
 
         foreach ($settings as $key => $val) {
@@ -597,7 +597,7 @@ class CompanyController extends Controller {
      * Save custom sidebar menu layout order
      */
     public function saveMenuOrder(Request $request, Response $response): void {
-        $orderJson = $request->get('sidebar_menu_order');
+        $orderJson = html_entity_decode($request->get('sidebar_menu_order'));
         if (empty($orderJson)) {
             $response->json(['success' => false, 'error' => 'Invalid order content.'], 400);
             return;

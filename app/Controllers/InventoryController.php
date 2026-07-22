@@ -59,9 +59,30 @@ class InventoryController extends Controller {
         // Get summaries
         $summary = $inventoryService->getInventorySummary($companyId);
 
+        // Fetch GRN Completed Purchase Orders from Procurement
+        $db = Database::getInstance();
+        $stmtPO = $db->prepare(
+            "SELECT po.*, c.name as supplier_name, acc.name as account_name
+             FROM purchase_orders po
+             JOIN contacts c ON po.supplier_id = c.id
+             LEFT JOIN payment_accounts acc ON po.payment_account_id = acc.id
+             WHERE po.company_id = ? AND po.status = 'grn_completed' AND po.deleted_at IS NULL
+             ORDER BY po.payment_date DESC, po.id DESC"
+        );
+        $stmtPO->execute([$companyId]);
+        $grnCompletedPOs = $stmtPO->fetchAll() ?: [];
+
+        // Load items for each PO
+        foreach ($grnCompletedPOs as &$po) {
+            $stmtItems = $db->prepare("SELECT item_name, item_type, quantity, unit_price FROM purchase_order_items WHERE po_id = ?");
+            $stmtItems->execute([$po['id']]);
+            $po['items'] = $stmtItems->fetchAll() ?: [];
+        }
+
         $this->renderView('company/inventory_balances', [
             'title' => 'Inventory Balances | ERP',
-            'summary' => $summary
+            'summary' => $summary,
+            'grnCompletedPOs' => $grnCompletedPOs
         ]);
     }
 

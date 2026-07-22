@@ -105,13 +105,22 @@
                         <div class="mb-3">
                             <label class="form-label small fw-bold">Link Approved Buyer PO <span class="text-danger">*</span></label>
                             <select name="po_id" class="form-select text-dark" required>
-                                <option value="">-- Select Approved PO Contract --</option>
-                                <?php foreach ($buyer_pos as $bp): ?>
-                                    <option value="<?= $bp['id'] ?>">
-                                        <?= htmlspecialchars($bp['po_no']) ?> | Buyer: <?= htmlspecialchars($bp['buyer_name']) ?> (<?= htmlspecialchars($bp['buyer_code']) ?>)<?= !empty($bp['brand_name']) ? ' - Brand: ' . htmlspecialchars($bp['brand_name']) : '' ?> | Style: <?= htmlspecialchars($bp['style_no']) ?>
-                                    </option>
-                                <?php endforeach; ?>
+                                <?php if (empty($buyer_pos)): ?>
+                                    <option value="">-- No Approved Buyer POs Available --</option>
+                                <?php else: ?>
+                                    <option value="">-- Select Approved PO Contract --</option>
+                                    <?php foreach ($buyer_pos as $bp): ?>
+                                        <option value="<?= $bp['id'] ?>">
+                                            <?= htmlspecialchars($bp['po_no']) ?> | Buyer: <?= htmlspecialchars($bp['buyer_name']) ?> (<?= htmlspecialchars($bp['buyer_code']) ?>)<?= !empty($bp['brand_name']) ? ' - Brand: ' . htmlspecialchars($bp['brand_name']) : '' ?> | Style: <?= htmlspecialchars($bp['style_no']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
                             </select>
+                            <?php if (empty($buyer_pos)): ?>
+                                <div class="form-text text-danger mt-1 small">
+                                    <i class="fa-solid fa-triangle-exclamation me-1"></i> You must first create and approve a Buyer Purchase Order contract under <a href="<?= base_url('company/merchandising/buyerpos') ?>" class="text-danger fw-semibold text-decoration-underline">Merchandising > Buyer POs (Contracts)</a>.
+                                </div>
+                            <?php endif; ?>
                         </div>
                         <div class="mb-3">
                             <label class="form-label small fw-bold">Production Batch Number <span class="text-danger">*</span></label>

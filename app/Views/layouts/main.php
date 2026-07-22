@@ -58,7 +58,7 @@ if ($company) {
     $stmtMenu->execute([$company['id']]);
     $savedOrderRaw = $stmtMenu->fetchColumn();
 }
-$savedOrder = $savedOrderRaw ? json_decode($savedOrderRaw, true) : [];
+$savedOrder = $savedOrderRaw ? json_decode(html_entity_decode($savedOrderRaw), true) : [];
 if (!is_array($savedOrder)) {
     $savedOrder = [];
 }
@@ -72,7 +72,7 @@ $defaultMenu = [
     'styles' => ['name' => 'Style Master', 'icon' => 'fa-solid fa-shirt', 'url' => 'company/styles', 'permission' => 'company.styles.view', 'active_check' => 'company/styles'],
     'merchandising' => ['name' => 'Merchandising', 'icon' => 'fa-solid fa-calculator', 'url' => 'company/merchandising/costsheets', 'permission' => 'company.styles.view', 'active_check' => 'company/merchandising'],
     'procurement' => ['name' => 'Procurement', 'icon' => 'fa-solid fa-cart-shopping', 'url' => 'company/purchase/orders', 'permission' => 'company.styles.view', 'active_check' => 'company/purchase'],
-    'inventory' => ['name' => 'Inventory Ledger', 'icon' => 'fa-solid fa-boxes-stacked', 'url' => 'company/inventory/ledger', 'permission' => 'company.inventory.view', 'active_check' => 'company/inventory'],
+    'inventory' => ['name' => 'Inventory Ledger', 'icon' => 'fa-solid fa-boxes-stacked', 'url' => 'company/inventory/balances', 'permission' => 'company.inventory.view', 'active_check' => 'company/inventory'],
     'production' => ['name' => 'Production & Quality', 'icon' => 'fa-solid fa-industry', 'url' => 'company/production/orders', 'permission' => 'company.production.view', 'active_check' => 'company/production'],
     'hr' => ['name' => 'HR & Attendance', 'icon' => 'fa-solid fa-user-clock', 'url' => 'company/hr/attendance', 'permission' => 'company.users.view', 'active_check' => 'company/hr'],
     'tally' => ['name' => 'Tally Integration', 'icon' => 'fa-solid fa-file-excel', 'url' => 'company/tally/vouchers', 'permission' => 'company.tally.export', 'active_check' => 'company/tally'],
