@@ -480,6 +480,7 @@
                                     <span class="input-group-text bg-light text-secondary">%</span>
                                 </div>
                                 <div class="form-text small">Deduction rate of standard daily pay for a half-day working session (default 50%).</div>
+                            </div>
                             <div class="mb-3">
                                 <label class="form-label small fw-bold">Overtime Pay/Hour Charge (<?= get_currency_symbol() ?>)</label>
                                 <div class="input-group">
