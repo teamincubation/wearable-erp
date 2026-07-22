@@ -1,3 +1,4 @@
+<!-- DEBUG ROLES VIEW: roles.php is executing! -->
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h3 class="fw-bold">Roles & Privileges</h3>
@@ -249,3 +250,4 @@ function submitSingleDeleteRole(roleId) {
     }
 }
 </script>
+<!-- DEBUG ROLES VIEW: roles.php finished executing successfully! -->
