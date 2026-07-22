@@ -537,6 +537,12 @@ $router->post('/company/production/rfid-tracking/log', [\App\Controllers\Product
        ->middleware(PermissionMiddleware::class)
        ->permission('company.production.rfid_tracking');
 
+$router->post('/company/production/rfid-tracking/verify', [\App\Controllers\ProductionController::class, 'verifyRfidCode'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.production.rfid_tracking');
+
 // HR & Payroll management
 $router->get('/company/hr/attendance', [\App\Controllers\HrPayrollController::class, 'attendance'])
        ->middleware(AuthMiddleware::class)

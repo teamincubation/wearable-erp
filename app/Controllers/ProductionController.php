@@ -581,4 +581,81 @@ class ProductionController extends Controller {
         }
         exit;
     }
+
+    /**
+     * AJAX Endpoint to verify scanned RFID QR Code and retrieve product details
+     */
+    public function verifyRfidCode(Request $request, Response $response): void {
+        header('Content-Type: application/json');
+        
+        $db = Database::getInstance();
+        $companyId = Session::get('company_id');
+        $qrCode = trim($request->get('qr_code'));
+
+        if (empty($qrCode)) {
+            echo json_encode(['success' => false, 'message' => 'Scanned QR code is empty.']);
+            exit;
+        }
+
+        // Parse QR Code e.g. BATCH-TOCCO-001-S-0005
+        $parts = explode('-', $qrCode);
+        if (count($parts) < 3) {
+            echo json_encode(['success' => false, 'message' => 'Invalid tag format. QR code must match: [BATCH_CODE]-[SIZE]-[SERIAL].']);
+            exit;
+        }
+        $serial = (int)array_pop($parts);
+        $size = array_pop($parts);
+        $batchNo = implode('-', $parts);
+
+        // Fetch production order with style details
+        $stmt = $db->prepare("
+            SELECT pro.*, 
+                   s.style_no, s.name as style_name, s.category as style_category, s.composition as fabric_composition, s.brand as style_brand,
+                   po.po_no as buyer_po_no, po.quantity as target_qty, po.sizes_json
+            FROM production_orders pro
+            JOIN buyer_pos po ON pro.po_id = po.id
+            JOIN styles s ON po.style_id = s.id
+            WHERE pro.production_no = ? AND pro.company_id = ? AND pro.deleted_at IS NULL
+            LIMIT 1
+        ");
+        $stmt->execute([$batchNo, $companyId]);
+        $batch = $stmt->fetch();
+
+        if (!$batch) {
+            echo json_encode(['success' => false, 'message' => "Production batch '{$batchNo}' is not registered or active in this ERP."]);
+            exit;
+        }
+
+        // Validate serial range
+        if ($serial < 1 || $serial > $batch['target_qty']) {
+            echo json_encode(['success' => false, 'message' => "Serial number #{$serial} exceeds target quantity limit of " . number_format($batch['target_qty']) . " pieces."]);
+            exit;
+        }
+
+        // Validate size breakdown exists
+        $sizes = json_decode($batch['sizes_json'] ?? '[]', true) ?: [];
+        if (!empty($sizes) && !isset($sizes[$size])) {
+            echo json_encode(['success' => false, 'message' => "Size '{$size}' is not configured for production batch '{$batchNo}'."]);
+            exit;
+        }
+
+        // QR Code is active and verified! Return details.
+        echo json_encode([
+            'success' => true,
+            'message' => 'RFID tag verified successfully.',
+            'product' => [
+                'batch_no' => $batchNo,
+                'style_no' => $batch['style_no'],
+                'style_name' => $batch['style_name'],
+                'category' => $batch['style_category'],
+                'brand' => $batch['style_brand'] ?: 'N/A',
+                'composition' => $batch['fabric_composition'] ?: '100% Premium Cotton',
+                'buyer_po' => $batch['buyer_po_no'],
+                'size' => $size,
+                'serial' => $serial,
+                'target_qty' => $batch['target_qty']
+            ]
+        ]);
+        exit;
+    }
 }

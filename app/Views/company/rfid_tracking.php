@@ -44,6 +44,14 @@
     #reader__dashboard {
         display: none !important; /* Hide html5-qrcode controls */
     }
+    .animate-pulse {
+        animation: pulse-animation 2s infinite;
+    }
+    @keyframes pulse-animation {
+        0% { opacity: 1; }
+        50% { opacity: 0.6; }
+        100% { opacity: 1; }
+    }
 </style>
 
 <!-- Mobile Application Container Wrapper -->
@@ -127,16 +135,41 @@
                 <!-- Scanned Result Card -->
                 <div id="scan-result-card" class="card border-2 border-primary mb-3 bg-light" style="display: none; border-radius: 16px;">
                     <div class="card-body p-3 text-center">
-                        <div class="small text-secondary fw-bold">SCANNED RFID ITEM</div>
-                        <h5 id="scanned-code-display" class="fw-bold font-monospace text-primary my-2"></h5>
+                        <div class="badge bg-success text-white text-uppercase mb-2" style="font-size: 10px; letter-spacing: 0.5px;"><i class="fa-solid fa-shield-check me-1"></i> Verified Active Item</div>
+                        <h5 id="scanned-code-display" class="fw-bold font-monospace text-primary my-1"></h5>
+                        
+                        <!-- Dynamic Product Details from Style Master -->
+                        <div class="border rounded p-2 mb-3 bg-white text-start" style="font-size: 11.5px; line-height: 1.5; color: #334155;">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-secondary small">Style No:</span>
+                                <strong id="scanned-style-no-display" class="text-dark"></strong>
+                            </div>
+                            <div class="mb-1">
+                                <span class="text-secondary small">Style Name:</span>
+                                <span id="scanned-style-name-display" class="text-dark fw-bold"></span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-secondary small">Category:</span>
+                                <span id="scanned-category-display" class="text-dark text-capitalize fw-semibold"></span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-secondary small">Fabric Composition:</span>
+                                <span id="scanned-fabric-display" class="text-dark"></span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="text-secondary small">Buyer PO Ref:</span>
+                                <span id="scanned-po-display" class="badge bg-dark font-monospace text-uppercase" style="padding: 3px 6px;"></span>
+                            </div>
+                        </div>
+
                         <div class="row g-2 mb-3">
                             <div class="col-6 text-start">
                                 <span class="text-secondary small d-block">SIZE</span>
-                                <strong id="scanned-size-display" class="text-dark fs-5 font-monospace"></strong>
+                                <strong id="scanned-size-display" class="text-primary fs-4 font-monospace fw-bold"></strong>
                             </div>
                             <div class="col-6 text-end">
                                 <span class="text-secondary small d-block">SERIAL NO</span>
-                                <strong id="scanned-serial-display" class="text-dark fs-5 font-monospace"></strong>
+                                <strong id="scanned-serial-display" class="text-primary fs-4 font-monospace fw-bold"></strong>
                             </div>
                         </div>
 
@@ -313,27 +346,68 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function onScanSuccess(decodedText) {
-        // Pause camera scanning during pass/fail log interaction
+        // Pause camera scanning during verification
         if (html5QrCode) {
             html5QrCode.pause(true);
         }
 
-        currentScannedCode = decodedText;
-        codeDisplay.innerText = decodedText;
+        // Hide result card and show verification loader
+        scanResultCard.style.display = 'none';
+        
+        const loader = document.createElement('div');
+        loader.className = 'alert alert-info text-center py-2.5 mb-2 fw-semibold animate-pulse';
+        loader.id = 'rfid-verifying-loader';
+        loader.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span> Verifying Tag Authenticity...';
+        scanResultCard.parentNode.insertBefore(loader, scanResultCard);
 
-        // Parse decoded text (format: BATCH_NO-SIZE-SERIAL)
-        const parts = decodedText.split('-');
-        if (parts.length >= 3) {
-            const serial = parts.pop();
-            const size = parts.pop();
-            sizeDisplay.innerText = size;
-            serialDisplay.innerText = '#' + parseInt(serial);
-        } else {
-            sizeDisplay.innerText = 'N/A';
-            serialDisplay.innerText = 'N/A';
-        }
+        const formData = new FormData();
+        formData.append('qr_code', decodedText);
+        formData.append('csrf_token', "<?= \App\Core\Session::getCsrfToken() ?>");
 
-        scanResultCard.style.display = 'block';
+        fetch("<?= base_url('company/production/rfid-tracking/verify') ?>", {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            loader.remove();
+            if (data.success) {
+                currentScannedCode = decodedText;
+                
+                // Populate elements dynamically
+                codeDisplay.innerText = data.product.batch_no;
+                document.getElementById('scanned-style-no-display').innerText = data.product.style_no;
+                document.getElementById('scanned-style-name-display').innerText = data.product.style_name;
+                document.getElementById('scanned-category-display').innerText = data.product.category + ' | ' + data.product.brand;
+                document.getElementById('scanned-fabric-display').innerText = data.product.composition;
+                document.getElementById('scanned-po-display').innerText = data.product.buyer_po;
+                sizeDisplay.innerText = data.product.size;
+                serialDisplay.innerText = '#' + String(data.product.serial).padStart(4, '0') + ' / ' + String(data.product.target_qty).padStart(4, '0');
+
+                // Show result card
+                scanResultCard.style.display = 'block';
+            } else {
+                // Show verification failure toast
+                const toast = document.createElement('div');
+                toast.className = 'alert alert-danger text-center py-2.5 mb-2 fw-bold';
+                toast.innerText = 'Verification Failed: ' + data.message;
+                scanResultCard.parentNode.insertBefore(toast, scanResultCard);
+                setTimeout(() => toast.remove(), 4000);
+
+                // Auto-resume scanner if in camera mode
+                if (manualContainer.style.display === 'none' && html5QrCode) {
+                    setTimeout(() => html5QrCode.resume(), 2500);
+                }
+            }
+        })
+        .catch(err => {
+            loader.remove();
+            console.error(err);
+            alert('Verification connection failure.');
+            if (manualContainer.style.display === 'none' && html5QrCode) {
+                html5QrCode.resume();
+            }
+        });
     }
 
     // Pass and Fail action triggers
@@ -373,7 +447,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 scanCount++;
                 piecesCountEl.innerText = scanCount;
                 
-                // Show a brief alert
+                // Show a brief success alert
                 const alertClass = status === 'pass' ? 'alert-success' : 'alert-danger';
                 const toast = document.createElement('div');
                 toast.className = `alert ${alertClass} text-center py-2 mb-2 font-monospace fw-bold`;
