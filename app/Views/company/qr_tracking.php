@@ -75,53 +75,29 @@
         
         <!-- Header Brand -->
         <div class="mobile-app-header bg-dark text-white p-3 text-center position-relative">
-            <h5 class="m-0 fw-bold"><i class="fa-solid fa-qrcode text-primary me-2"></i> QR Tracking Hub</h5>
-            <small class="text-secondary">Garment Floor Scan Unit</small>
-            
-            <!-- Exit button in scanner screen (hidden on selection screen) -->
-            <button type="button" id="complete-btn" class="btn btn-sm btn-outline-danger rounded-pill px-3 position-absolute end-0 top-50 translate-middle-y me-3" style="display: none; font-size: 11px;">
-                <i class="fa-solid fa-circle-check me-1"></i> Complete
-            </button>
+            <h5 class="m-0 fw-bold"><i class="fa-solid fa-qrcode text-primary me-2"></i> QR Code Scanner Hub</h5>
+            <small class="text-secondary" style="font-size: 11px;">Garment Floor Scan Unit</small>
         </div>
 
         <div class="mobile-app-body p-4 flex-grow-1">
-            <!-- Stage selection view -->
-            <div id="selection-view">
-                <div class="text-center mb-4">
-                    <div class="app-icon-circle bg-light-primary mb-3">
-                        <i class="fa-solid fa-industry fs-1 text-primary"></i>
-                    </div>
-                    <h4 class="fw-bold text-dark">Stage Setup</h4>
-                    <p class="text-secondary small">Select your operational line and click Start to launch the camera scanner.</p>
+            <!-- Unified Active Scanning Screen -->
+            <div id="unified-scanner-view">
+                
+                <!-- Active User Banner -->
+                <div class="text-center mb-3">
+                    <span class="badge bg-light text-secondary rounded-pill px-3 py-1.5 font-monospace" style="font-size: 11.5px;">
+                        <i class="fa-solid fa-circle-user me-1 text-primary"></i> Operator: <strong><?= htmlspecialchars(\App\Core\Session::get('user_name')) ?></strong>
+                    </span>
                 </div>
 
-                <div class="mb-4">
-                    <label class="form-label small fw-bold text-secondary">SELECT WIP STAGE</label>
-                    <select id="stage-select" class="form-select form-select-lg text-dark fw-bold border-2" style="border-radius: 12px;">
-                        <option value="">-- Choose Stage --</option>
+                <!-- WIP Stage Selection Dropdown -->
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-secondary mb-1">SELECT WIP OPERATION STAGE</label>
+                    <select id="stage-select" class="form-select form-select-lg text-dark fw-bold border-2" style="border-radius: 12px; background-color: #f8fafc;">
                         <?php foreach ($stages as $stg): ?>
-                            <option value="<?= $stg ?>"><?= str_replace('_', ' ', strtoupper($stg)) ?></option>
+                            <option value="<?= $stg ?>" <?= ($stg === 'sewing') ? 'selected' : '' ?>><?= str_replace('_', ' ', strtoupper($stg)) ?></option>
                         <?php endforeach; ?>
                     </select>
-                </div>
-
-                <button type="button" id="start-work-btn" class="btn btn-primary btn-lg w-100 py-3 rounded-pill fw-bold shadow">
-                    <i class="fa-solid fa-play me-2"></i> Start Work / Scan
-                </button>
-                
-                <div class="mt-4 text-center">
-                    <span class="badge bg-light text-secondary rounded-pill px-3 py-2">
-                        Logged User: <strong><?= htmlspecialchars(\App\Core\Session::get('user_name')) ?></strong>
-                    </span>
-                </div>
-            </div>
-
-            <!-- Active scanning viewport screen -->
-            <div id="scanner-view" style="display: none;">
-                <div class="text-center mb-3">
-                    <span class="badge bg-danger-subtle text-danger px-3 py-1.5 rounded-pill fw-bold" style="font-size: 12px; letter-spacing: 0.5px;">
-                        <span class="spinner-grow spinner-grow-sm me-1" role="status" aria-hidden="true"></span> SCANNING ACTIVE: <span id="active-stage-label" class="text-uppercase"></span>
-                    </span>
                 </div>
 
                 <!-- Video Scanner Viewport -->
@@ -137,10 +113,10 @@
                     <input type="file" id="qr-file-input" accept="image/*" capture="environment" style="display: none;">
                 </div>
 
-                <!-- Manual Barcode Input Fallback (Hidden by default, shown if camera fails or clicked) -->
+                <!-- Manual Barcode Input Fallback (Hidden by default, toggled by switch button) -->
                 <div id="manual-input-container" class="card border border-2 p-3 mb-3 bg-light" style="display: none; border-radius: 16px;">
                     <div class="text-center">
-                        <label class="form-label small fw-bold text-secondary mb-2"><i class="fa-solid fa-keyboard me-1"></i> MANUAL QR TAG INPUT</label>
+                        <label class="form-label small fw-bold text-secondary mb-2"><i class="fa-solid fa-keyboard me-1"></i> MANUAL QR CODE INPUT</label>
                         <input type="text" id="manual-code-input" class="form-control form-control-lg text-center font-monospace mb-2" placeholder="e.g. BATCH-001-S-0005" style="border-radius: 10px; border: 2px solid #cbd5e1;">
                         <button type="button" id="manual-submit-btn" class="btn btn-primary w-100 py-2.5 rounded-pill fw-bold">
                             <i class="fa-solid fa-circle-check me-1"></i> Submit Scanned Code
@@ -227,12 +203,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const selectionView = document.getElementById('selection-view');
-    const scannerView = document.getElementById('scanner-view');
     const stageSelect = document.getElementById('stage-select');
-    const startWorkBtn = document.getElementById('start-work-btn');
-    const completeBtn = document.getElementById('complete-btn');
-    const activeStageLabel = document.getElementById('active-stage-label');
     const scanResultCard = document.getElementById('scan-result-card');
     const codeDisplay = document.getElementById('scanned-code-display');
     const sizeDisplay = document.getElementById('scanned-size-display');
@@ -256,48 +227,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let html5QrCode = null;
     let scanCount = 0;
-    let sessionStartTime = null;
-    let pieceStartTime = null;
+    let sessionStartTime = new Date();
+    let pieceStartTime = new Date();
     let timerInterval = null;
     let currentScannedCode = null;
 
-    // Start scanning session
-    startWorkBtn.addEventListener('click', function() {
-        const stage = stageSelect.value;
-        if (!stage) {
-            alert('Please select a production stage first.');
-            return;
-        }
+    // Start timer automatically
+    timerInterval = setInterval(updateTimer, 1000);
 
-        activeStageLabel.innerText = stage.replace('_', ' ');
-        selectionView.style.display = 'none';
-        scannerView.style.display = 'block';
-        completeBtn.style.display = 'block';
-
-        sessionStartTime = new Date();
-        pieceStartTime = new Date();
-        scanCount = 0;
-        piecesCountEl.innerText = '0';
-        scanResultCard.style.display = 'none';
-
-        // Start timer
-        clearInterval(timerInterval);
-        timerInterval = setInterval(updateTimer, 1000);
-
-        initScanner();
-    });
-
-    // Complete session
-    completeBtn.addEventListener('click', function() {
-        stopScanner();
-        clearInterval(timerInterval);
-
-        alert(`Session Completed! Total logged pieces: ${scanCount}. Returning to stage selection.`);
-
-        scannerView.style.display = 'none';
-        completeBtn.style.display = 'none';
-        selectionView.style.display = 'block';
-    });
+    // Initialize scanner automatically on load
+    initScanner();
 
     function initScanner() {
         // Reset manual UI visibility
@@ -598,11 +537,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateTimer() {
-        if (!sessionStartTime) return;
-        const diff = Math.round((new Date() - sessionStartTime) / 1000);
-        const mins = Math.floor(diff / 60);
-        const secs = diff % 60;
-        timerEl.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        const diff = new Date() - sessionStartTime;
+        const totalSecs = Math.floor(diff / 1000);
+        const mins = Math.floor(totalSecs / 60);
+        const secs = totalSecs % 60;
+        
+        timerEl.innerText = 
+            String(mins).padStart(2, '0') + ':' + 
+            String(secs).padStart(2, '0');
     }
 });
 </script>
