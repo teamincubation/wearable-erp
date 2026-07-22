@@ -90,7 +90,7 @@ if (!empty($orders)) {
                                             <i class="fa-solid fa-list-check me-1"></i> Stage Tracker / WIP
                                         </a>
                                         <a href="<?= base_url('company/production/barcode?id=' . $o['id']) ?>" class="btn btn-sm btn-outline-success px-3 rounded-pill me-1">
-                                            <i class="fa-solid fa-qrcode me-1"></i> RFID QR Cards
+                                            <i class="fa-solid fa-qrcode me-1"></i> Print QR Codes
                                         </a>
                                         <form action="<?= base_url('company/production/orders/delete/' . $o['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete this production order?');">
                                             <?= \App\Core\Session::csrfField() ?>
@@ -164,7 +164,7 @@ if (!empty($orders)) {
                                             <i class="fa-solid fa-list-check me-1"></i> Stage Tracker / WIP
                                         </a>
                                         <a href="<?= base_url('company/production/barcode?id=' . $o['id']) ?>" class="btn btn-sm btn-outline-success px-3 rounded-pill me-1">
-                                            <i class="fa-solid fa-qrcode me-1"></i> RFID QR Cards
+                                            <i class="fa-solid fa-qrcode me-1"></i> Print QR Codes
                                         </a>
                                         <form action="<?= base_url('company/production/orders/delete/' . $o['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete this production order?');">
                                             <?= \App\Core\Session::csrfField() ?>

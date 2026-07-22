@@ -75,7 +75,7 @@
         
         <!-- Header Brand -->
         <div class="mobile-app-header bg-dark text-white p-3 text-center position-relative">
-            <h5 class="m-0 fw-bold"><i class="fa-solid fa-qrcode text-primary me-2"></i> RFID Tracking Hub</h5>
+            <h5 class="m-0 fw-bold"><i class="fa-solid fa-qrcode text-primary me-2"></i> QR Tracking Hub</h5>
             <small class="text-secondary">Garment Floor Scan Unit</small>
             
             <!-- Exit button in scanner screen (hidden on selection screen) -->
@@ -140,7 +140,7 @@
                 <!-- Manual Barcode Input Fallback (Hidden by default, shown if camera fails or clicked) -->
                 <div id="manual-input-container" class="card border border-2 p-3 mb-3 bg-light" style="display: none; border-radius: 16px;">
                     <div class="text-center">
-                        <label class="form-label small fw-bold text-secondary mb-2"><i class="fa-solid fa-keyboard me-1"></i> MANUAL RFID TAG INPUT</label>
+                        <label class="form-label small fw-bold text-secondary mb-2"><i class="fa-solid fa-keyboard me-1"></i> MANUAL QR TAG INPUT</label>
                         <input type="text" id="manual-code-input" class="form-control form-control-lg text-center font-monospace mb-2" placeholder="e.g. BATCH-001-S-0005" style="border-radius: 10px; border: 2px solid #cbd5e1;">
                         <button type="button" id="manual-submit-btn" class="btn btn-primary w-100 py-2.5 rounded-pill fw-bold">
                             <i class="fa-solid fa-circle-check me-1"></i> Submit Scanned Code
@@ -467,7 +467,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const loader = document.createElement('div');
         loader.className = 'alert alert-info text-center py-2.5 mb-2 fw-semibold animate-pulse';
-        loader.id = 'rfid-verifying-loader';
+        loader.id = 'qr-verifying-loader';
         loader.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span> Verifying Tag Authenticity...';
         scanResultCard.parentNode.insertBefore(loader, scanResultCard);
 
@@ -475,7 +475,7 @@ document.addEventListener('DOMContentLoaded', function() {
         formData.append('qr_code', decodedText);
         formData.append('csrf_token', "<?= \App\Core\Session::csrfToken() ?>");
 
-        fetch("<?= base_url('company/production/rfid-tracking/verify') ?>", {
+        fetch("<?= base_url('company/production/qr-tracking/verify') ?>", {
             method: 'POST',
             body: formData
         })
@@ -548,7 +548,7 @@ document.addEventListener('DOMContentLoaded', function() {
         passBtn.disabled = true;
         failBtn.disabled = true;
 
-        fetch("<?= base_url('company/production/rfid-tracking/log') ?>", {
+        fetch("<?= base_url('company/production/qr-tracking/log') ?>", {
             method: 'POST',
             body: formData
         })

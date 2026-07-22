@@ -456,18 +456,18 @@ class ProductionController extends Controller {
         $startSerial = $request->get('start') !== null ? (int)$request->get('start') : 1;
         $endSerial = $request->get('end') !== null ? (int)$request->get('end') : min(100, $batch['target_qty']);
 
-        $this->renderView('company/batch_barcodes', [
-            'title' => "RFID Barcodes: {$batch['production_no']} | ERP",
-            'batch' => $batch,
-            'start' => $startSerial,
-            'end' => $endSerial
-        ]);
+            $this->renderView('company/batch_barcodes', [
+                'title' => "QR Code Cards: {$batch['production_no']} | ERP",
+                'batch' => $batch,
+                'start' => $startSerial,
+                'end' => $endSerial
+            ]);
     }
 
     /**
      * Mobile RFID QR Code production tracking scanner page
      */
-    public function rfidTracking(Request $request, Response $response): void {
+    public function qrTracking(Request $request, Response $response): void {
         $db = Database::getInstance();
         $companyId = Session::get('company_id');
 
@@ -494,16 +494,16 @@ class ProductionController extends Controller {
             $activeWipStages = ['cutting', 'embellishment', 'sewing', 'washing', 'finishing', 'packing'];
         }
 
-        $this->renderView('company/rfid_tracking', [
-            'title' => 'Mobile RFID Tracking | ERP',
+        $this->renderView('company/qr_tracking', [
+            'title' => 'Mobile QR Code Scanner | ERP',
             'stages' => $activeWipStages
         ], 'mobile');
     }
 
     /**
-     * AJAX Endpoint to log scanned RFID QR Code activity
+     * AJAX Endpoint to log scanned QR Code activity
      */
-    public function logRfidActivity(Request $request, Response $response): void {
+    public function logQrActivity(Request $request, Response $response): void {
         header('Content-Type: application/json');
         
         $db = Database::getInstance();
@@ -596,9 +596,9 @@ class ProductionController extends Controller {
     }
 
     /**
-     * AJAX Endpoint to verify scanned RFID QR Code and retrieve product details
+     * AJAX Endpoint to verify scanned QR Code and retrieve product details
      */
-    public function verifyRfidCode(Request $request, Response $response): void {
+    public function verifyQrCode(Request $request, Response $response): void {
         header('Content-Type: application/json');
         
         $db = Database::getInstance();
@@ -655,7 +655,7 @@ class ProductionController extends Controller {
         // QR Code is active and verified! Return details.
         echo json_encode([
             'success' => true,
-            'message' => 'RFID tag verified successfully.',
+            'message' => 'QR Code verified successfully.',
             'product' => [
                 'batch_no' => $batchNo,
                 'style_no' => $batch['style_no'],

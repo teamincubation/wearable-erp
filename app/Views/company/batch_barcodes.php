@@ -1,12 +1,12 @@
 <div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
     <div>
         <a href="<?= base_url('company/production/orders') ?>" class="btn btn-sm btn-light border mb-2"><i class="fa-solid fa-arrow-left me-1"></i> Back to Batches</a>
-        <h3 class="fw-bold"><i class="fa-solid fa-qrcode text-success me-2"></i> Batch RFID QR Code Generator</h3>
+        <h3 class="fw-bold"><i class="fa-solid fa-qrcode text-success me-2"></i> Batch QR Code Generator</h3>
         <p class="text-secondary m-0">Generate and print serial-numbered identity cards with double backup QR codes</p>
     </div>
     <div class="d-flex">
         <button type="button" class="btn btn-success px-4 me-2" onclick="window.print();">
-            <i class="fa-solid fa-print me-1"></i> Print RFID QR Cards
+            <i class="fa-solid fa-print me-1"></i> Print QR Code Cards
         </button>
     </div>
 </div>
@@ -18,10 +18,10 @@
         <div>
             <h6 class="fw-bold text-warning-emphasis mb-1">Standard Operating Guidelines for Cutting Department</h6>
             <p class="m-0 text-secondary small">
-                1. <strong>Print and Cut:</strong> Click the "Print RFID QR Cards" button above. The print view automatically hides sidebars and navigation panels for full-screen sticker optimization. Cut each card cleanly along the dotted cutting marks.<br>
+                1. <strong>Print and Cut:</strong> Click the "Print QR Code Cards" button above. The print view automatically hides sidebars and navigation panels for full-screen sticker optimization. Cut each card cleanly along the dotted cutting marks.<br>
                 2. <strong>Hanging Price Tag:</strong> Insert the cut QR card into a hanging price tag sleeve or clip.<br>
                 3. <strong>Clip to Cut Pieces:</strong> Pin/clip each tag securely to the corresponding fabric cut piece.<br>
-                4. <strong>RFID Retention:</strong> Keep this RFID QR tag linked with the piece until the final packaging stage to maintain accurate WIP tracing.
+                4. <strong>QR Code Tracking:</strong> Keep this QR code tag linked with the piece until the final packaging stage to maintain accurate WIP tracing.
             </p>
         </div>
     </div>
@@ -95,17 +95,17 @@ function resolveSizeForSerialNum($serial, $sizes) {
 }
 ?>
 
-<!-- Printable RFID QR Cards Grid -->
-<div class="rfid-cards-grid">
+<!-- Printable QR Code Cards Grid -->
+<div class="qr-cards-grid">
     <?php for ($s = $start; $s <= $end; $s++): 
         $size = resolveSizeForSerialNum($s, $sizes);
         $uniqueCode = "{$batch['production_no']}-{$size}-" . sprintf("%04d", $s);
     ?>
-        <div class="rfid-card-wrapper">
-            <div class="rfid-card-content">
+        <div class="qr-card-wrapper">
+            <div class="qr-card-content">
                 <!-- Header -->
-                <div class="rfid-card-header d-flex justify-content-between align-items-center pb-1 mb-2 border-bottom">
-                    <span class="fw-bold" style="font-size: 11px; letter-spacing: 0.5px; color: #000;">TOCCO RFID TAG</span>
+                <div class="qr-card-header d-flex justify-content-between align-items-center pb-1 mb-2 border-bottom">
+                    <span class="fw-bold" style="font-size: 11px; letter-spacing: 0.5px; color: #000;">TOCCO QR CODE</span>
                     <span class="font-monospace text-secondary" style="font-size: 9px;">Sl: <?= $s ?> / <?= $batch['target_qty'] ?></span>
                 </div>
                 
@@ -138,7 +138,7 @@ function resolveSizeForSerialNum($serial, $sizes) {
                 </div>
 
                 <!-- Footer Timestamp -->
-                <div class="rfid-card-footer mt-2 pt-1 border-top text-center text-muted" style="font-size: 8px;">
+                <div class="qr-card-footer mt-2 pt-1 border-top text-center text-muted" style="font-size: 8px;">
                     Issued: <?= date('d-M-Y H:i') ?> | Keep tag with garment piece
                 </div>
             </div>
@@ -148,14 +148,14 @@ function resolveSizeForSerialNum($serial, $sizes) {
 
 <!-- Styles for Card & Cutting Layout -->
 <style>
-.rfid-cards-grid {
+.qr-cards-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 15px;
     background: transparent;
 }
 
-.rfid-card-wrapper {
+.qr-card-wrapper {
     background: #ffffff;
     border: 1px dashed #94a3b8; /* Cutting mark */
     padding: 12px;
@@ -165,7 +165,7 @@ function resolveSizeForSerialNum($serial, $sizes) {
 }
 
 /* Pseudo indicators for cutting marks */
-.rfid-card-wrapper::before {
+.qr-card-wrapper::before {
     content: '✂';
     position: absolute;
     top: -8px;
@@ -175,7 +175,7 @@ function resolveSizeForSerialNum($serial, $sizes) {
     z-index: 10;
 }
 
-.rfid-card-content {
+.qr-card-content {
     border: 1px solid #e2e8f0;
     padding: 10px;
     border-radius: 4px;
@@ -224,7 +224,7 @@ function resolveSizeForSerialNum($serial, $sizes) {
         background: transparent !important;
     }
     
-    .rfid-cards-grid {
+    .qr-cards-grid {
         display: grid !important;
         grid-template-columns: repeat(3, 1fr) !important; /* 3 cards per row on sticker page */
         gap: 12px !important;
@@ -233,7 +233,7 @@ function resolveSizeForSerialNum($serial, $sizes) {
         padding: 10px !important;
     }
     
-    .rfid-card-wrapper {
+    .qr-card-wrapper {
         border: 1.5px dotted #000000 !important; /* Prominent cutting lines */
         page-break-inside: avoid;
         margin: 0 !important;
@@ -242,7 +242,7 @@ function resolveSizeForSerialNum($serial, $sizes) {
         border-radius: 0 !important;
     }
     
-    .rfid-card-content {
+    .qr-card-content {
         border: 1px solid #000000 !important;
     }
 }

@@ -535,19 +535,19 @@ $router->post('/company/production/quality/create', [\App\Controllers\Production
        ->middleware(PermissionMiddleware::class)
        ->permission('company.production.manage');
 
-// RFID Mobile Tracking
-$router->get('/company/production/rfid-tracking', [\App\Controllers\ProductionController::class, 'rfidTracking'])
+// QR Code Mobile Tracking
+$router->get('/company/production/qr-tracking', [\App\Controllers\ProductionController::class, 'qrTracking'])
        ->middleware(AuthMiddleware::class)
        ->middleware(PermissionMiddleware::class)
        ->permission('company.production.rfid_tracking');
 
-$router->post('/company/production/rfid-tracking/log', [\App\Controllers\ProductionController::class, 'logRfidActivity'])
+$router->post('/company/production/qr-tracking/log', [\App\Controllers\ProductionController::class, 'logQrActivity'])
        ->middleware(AuthMiddleware::class)
        ->middleware(CsrfMiddleware::class)
        ->middleware(PermissionMiddleware::class)
        ->permission('company.production.rfid_tracking');
 
-$router->post('/company/production/rfid-tracking/verify', [\App\Controllers\ProductionController::class, 'verifyRfidCode'])
+$router->post('/company/production/qr-tracking/verify', [\App\Controllers\ProductionController::class, 'verifyQrCode'])
        ->middleware(AuthMiddleware::class)
        ->middleware(CsrfMiddleware::class)
        ->middleware(PermissionMiddleware::class)
