@@ -114,6 +114,7 @@ $orderedMenuKeys = array_merge($savedOrder, array_diff(array_keys($defaultMenu),
             
             <ul class="sidebar-menu">
                 <?php 
+                    $currentUri = $_SERVER['REQUEST_URI'] ?? '';
                     foreach ($orderedMenuKeys as $key):
                         if (!isset($defaultMenu[$key])) continue;
                         $item = $defaultMenu[$key];
@@ -125,7 +126,7 @@ $orderedMenuKeys = array_merge($savedOrder, array_diff(array_keys($defaultMenu),
                                 $activeClass = 'active';
                             }
                         } else {
-                            if (strpos($currentUri, $item['active_check']) !== false) {
+                            if ($currentUri !== null && !empty($item['active_check']) && strpos($currentUri, $item['active_check']) !== false) {
                                 $activeClass = 'active';
                             }
                         }
