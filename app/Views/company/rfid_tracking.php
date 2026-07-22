@@ -129,6 +129,14 @@
                     <div id="reader"></div>
                 </div>
 
+                <!-- Snap Photo of QR fallback (Visible in camera mode) -->
+                <div id="photo-snap-container" class="mb-3 text-center">
+                    <button type="button" id="snap-photo-btn" class="btn btn-outline-dark w-100 py-2.5 rounded-pill fw-bold" style="font-size: 13px; border: 2px dashed #475569;">
+                        <i class="fa-solid fa-camera me-1"></i> Camera Blank? Snap Photo of QR
+                    </button>
+                    <input type="file" id="qr-file-input" accept="image/*" capture="environment" style="display: none;">
+                </div>
+
                 <!-- Manual Barcode Input Fallback (Hidden by default, shown if camera fails or clicked) -->
                 <div id="manual-input-container" class="card border border-2 p-3 mb-3 bg-light" style="display: none; border-radius: 16px;">
                     <div class="text-center">
@@ -240,6 +248,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const scannerContainer = document.getElementById('scanner-container');
     const manualCodeInput = document.getElementById('manual-code-input');
     const manualSubmitBtn = document.getElementById('manual-submit-btn');
+
+    // Snap Photo Fallback Elements
+    const snapPhotoBtn = document.getElementById('snap-photo-btn');
+    const qrFileInput = document.getElementById('qr-file-input');
+    const photoSnapContainer = document.getElementById('photo-snap-container');
 
     let html5QrCode = null;
     let scanCount = 0;
@@ -356,6 +369,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             manualContainer.style.display = 'none';
             scannerContainer.style.display = 'block';
+            photoSnapContainer.style.display = 'block';
             toggleModeBtn.innerHTML = '<i class="fa-solid fa-keyboard me-1"></i> Switch to Manual Entry Mode';
             initScanner();
         }
@@ -364,6 +378,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function switchToManualMode(reason = null) {
         stopScanner();
         scannerContainer.style.display = 'none';
+        photoSnapContainer.style.display = 'none';
         manualContainer.style.display = 'block';
         toggleModeBtn.innerHTML = '<i class="fa-solid fa-camera me-1"></i> Switch to Camera Mode';
 
@@ -391,6 +406,53 @@ document.addEventListener('DOMContentLoaded', function() {
     manualCodeInput.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             manualSubmitBtn.click();
+        }
+    });
+
+    // Snap Photo Fallback Listeners
+    snapPhotoBtn.addEventListener('click', function() {
+        qrFileInput.click();
+    });
+
+    qrFileInput.addEventListener('change', function(e) {
+        if (e.target.files && e.target.files.length > 0) {
+            const file = e.target.files[0];
+            
+            // Show loading indicator
+            const originalBtnHtml = snapPhotoBtn.innerHTML;
+            snapPhotoBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Decoding QR...';
+            snapPhotoBtn.disabled = true;
+
+            // Stop active video stream before scanning local image
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().then(runFileScan).catch(runFileScan);
+            } else {
+                runFileScan();
+            }
+
+            function runFileScan() {
+                if (!html5QrCode) {
+                    html5QrCode = new Html5Qrcode("reader");
+                }
+
+                html5QrCode.scanFile(file, true)
+                    .then(decodedText => {
+                        snapPhotoBtn.innerHTML = originalBtnHtml;
+                        snapPhotoBtn.disabled = false;
+                        qrFileInput.value = '';
+                        onScanSuccess(decodedText);
+                    })
+                    .catch(err => {
+                        console.error("Local file scan failed: ", err);
+                        snapPhotoBtn.innerHTML = originalBtnHtml;
+                        snapPhotoBtn.disabled = false;
+                        qrFileInput.value = '';
+                        alert("No valid QR code detected in the photo. Please snap a closer and clearer photo of the QR sticker.");
+                        
+                        // Restart camera feed
+                        initScanner();
+                    });
+            }
         }
     });
 
