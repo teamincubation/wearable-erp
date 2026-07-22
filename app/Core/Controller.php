@@ -36,8 +36,10 @@ class Controller {
         // Render Layout View if layout exists, else output raw content
         $layoutFile = dirname(__DIR__) . "/Views/layouts/{$layout}.php";
         if (file_exists($layoutFile)) {
+            echo "<!-- DEBUG: Including layout file " . htmlspecialchars($layoutFile) . " -->";
             include_once $layoutFile;
         } else {
+            echo "<!-- DEBUG: Layout file NOT found at " . htmlspecialchars($layoutFile) . " -->";
             echo $content;
         }
         exit;
