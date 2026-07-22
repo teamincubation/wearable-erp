@@ -155,7 +155,9 @@
         const shiftSelect = document.querySelector('select[name="shift_id"]');
         const clockInInput = document.querySelector('input[name="clock_in"]');
         const clockOutInput = document.querySelector('input[name="clock_out"]');
+        const dateInput = document.querySelector('input[name="date"]');
         const gwh = <?= (int)($gwh ?? 8) ?>;
+        const blockedDates = <?= json_encode($blocked_dates ?? []) ?>;
 
         if (shiftSelect && clockInInput && clockOutInput) {
             function updateClockTimes() {
@@ -182,6 +184,20 @@
             
             // Set initial value on setup
             updateClockTimes();
+        }
+
+        if (dateInput) {
+            dateInput.addEventListener('change', function() {
+                const selectedDate = this.value;
+                if (blockedDates.includes(selectedDate)) {
+                    alert("This date is configured as a Holiday or Weekend. Attendance cannot be logged on holidays or weekends.");
+                    this.value = "";
+                }
+            });
+            // Initial check on load
+            if (blockedDates.includes(dateInput.value)) {
+                dateInput.value = "";
+            }
         }
     });
     </script>

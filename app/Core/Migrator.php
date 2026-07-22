@@ -161,6 +161,60 @@ class Migrator {
                 }
             } catch (\PDOException $e) {}
 
+            // Auto-heal companies table for timezone and currency settings
+            try {
+                $checkTz = $db->query("SHOW COLUMNS FROM `companies` LIKE 'timezone'");
+                if (!$checkTz || $checkTz->rowCount() === 0) {
+                    $db->exec("ALTER TABLE `companies` ADD COLUMN `timezone` VARCHAR(100) DEFAULT 'Asia/Kolkata'");
+                }
+                $checkCurr = $db->query("SHOW COLUMNS FROM `companies` LIKE 'currency'");
+                if (!$checkCurr || $checkCurr->rowCount() === 0) {
+                    $db->exec("ALTER TABLE `companies` ADD COLUMN `currency` VARCHAR(10) DEFAULT 'INR'");
+                }
+            } catch (\PDOException $e) {}
+
+            // Auto-heal users table for base salary packages
+            try {
+                $checkSal = $db->query("SHOW COLUMNS FROM `users` LIKE 'base_salary'");
+                if (!$checkSal || $checkSal->rowCount() === 0) {
+                    $db->exec("ALTER TABLE `users` ADD COLUMN `base_salary` DECIMAL(12, 2) NOT NULL DEFAULT 0.00");
+                }
+            } catch (\PDOException $e) {}
+
+            // Auto-heal payroll_records table for statistics
+            $payrollColumns = [
+                'present_days' => "INT DEFAULT 0",
+                'absent_days' => "INT DEFAULT 0",
+                'leave_days' => "INT DEFAULT 0",
+                'holiday_days' => "INT DEFAULT 0",
+                'overtime_hours' => "DECIMAL(8, 2) DEFAULT 0.00"
+            ];
+            foreach ($payrollColumns as $col => $type) {
+                try {
+                    $check = $db->query("SHOW COLUMNS FROM `payroll_records` LIKE '{$col}'");
+                    if (!$check || $check->rowCount() === 0) {
+                        $db->exec("ALTER TABLE `payroll_records` ADD COLUMN `{$col}` {$type}");
+                    }
+                } catch (\PDOException $e) {}
+            }
+
+            // Auto-heal company_holidays table creation
+            try {
+                $db->exec("
+                    CREATE TABLE IF NOT EXISTS `company_holidays` (
+                      `id` INT AUTO_INCREMENT PRIMARY KEY,
+                      `company_id` INT NOT NULL,
+                      `date` DATE NOT NULL,
+                      `name` VARCHAR(150) NOT NULL,
+                      `type` ENUM('holiday', 'weekend') NOT NULL DEFAULT 'holiday',
+                      `created_by` INT DEFAULT NULL,
+                      `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                      CONSTRAINT `fk_holiday_company` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE,
+                      UNIQUE KEY `uq_company_holiday_date` (`company_id`, `date`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                ");
+            } catch (\PDOException $e) {}
+
             // Run database self-healing check: Repair any user whose company_id does not exist in companies table
             try {
                 $db->exec("

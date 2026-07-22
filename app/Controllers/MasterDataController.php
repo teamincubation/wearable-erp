@@ -45,6 +45,28 @@ class MasterDataController extends Controller {
         $shiftModel = new \App\Models\Shift();
         $shifts = $shiftModel->all();
 
+        // Fetch Leave & Cut policies
+        $settingsKeys = [
+            'leave_allocation_cl' => '12',
+            'leave_allocation_sl' => '10',
+            'leave_allocation_el' => '15',
+            'cut_policy_absent' => '100',
+            'cut_policy_lop' => '100',
+            'cut_policy_halfday' => '50'
+        ];
+        $policySettings = [];
+        foreach ($settingsKeys as $key => $default) {
+            $stmtSet = $db->prepare("SELECT setting_value FROM system_settings WHERE company_id = ? AND setting_key = ? AND deleted_at IS NULL LIMIT 1");
+            $stmtSet->execute([$companyId, $key]);
+            $val = $stmtSet->fetchColumn();
+            $policySettings[$key] = $val !== false ? $val : $default;
+        }
+
+        // Fetch Holidays list
+        $stmtHolidays = $db->prepare("SELECT * FROM company_holidays WHERE company_id = ? ORDER BY date DESC");
+        $stmtHolidays->execute([$companyId]);
+        $holidays = $stmtHolidays->fetchAll() ?: [];
+
         $this->renderView('company/masterdata', [
             'title' => 'Master Data Hub | Wearable ERP',
             'contacts' => $contacts,
@@ -52,7 +74,9 @@ class MasterDataController extends Controller {
             'warehouses' => $warehouses,
             'branches' => $branches,
             'general_working_hours' => $gwh,
-            'shifts' => $shifts
+            'shifts' => $shifts,
+            'policySettings' => $policySettings,
+            'holidays' => $holidays
         ]);
     }
 
@@ -326,6 +350,200 @@ class MasterDataController extends Controller {
         $shiftModel = new \App\Models\Shift();
         $shiftModel->delete($id, Session::get('user_id'));
         Session::setFlash('success', 'Shift schedule deleted successfully.');
+        $this->redirect('company/masterdata');
+    }
+
+    /**
+     * Update HR Leaves Allocation and Salary Cut Policies
+     */
+    public function updateHrPolicies(Request $request, Response $response): void {
+        $db = Database::getInstance();
+        $companyId = Session::get('company_id');
+        $userId = Session::get('user_id');
+
+        $keys = [
+            'leave_allocation_cl',
+            'leave_allocation_sl',
+            'leave_allocation_el',
+            'cut_policy_absent',
+            'cut_policy_lop',
+            'cut_policy_halfday'
+        ];
+
+        try {
+            foreach ($keys as $key) {
+                $value = trim($request->get($key));
+                
+                $stmtCheck = $db->prepare("SELECT id FROM system_settings WHERE company_id = ? AND setting_key = ? AND deleted_at IS NULL LIMIT 1");
+                $stmtCheck->execute([$companyId, $key]);
+                $settingId = $stmtCheck->fetchColumn();
+
+                if ($settingId) {
+                    $stmtUpdate = $db->prepare("UPDATE system_settings SET setting_value = ?, updated_by = ?, updated_at = NOW() WHERE id = ?");
+                    $stmtUpdate->execute([$value, $userId, $settingId]);
+                } else {
+                    $stmtInsert = $db->prepare("INSERT INTO system_settings (company_id, setting_key, setting_value, created_by, updated_by) VALUES (?, ?, ?, ?, ?)");
+                    $stmtInsert->execute([$companyId, $key, $value, $userId, $userId]);
+                }
+            }
+
+            AuditLog::log($companyId, $userId, 'update_hr_policies', 'SystemSetting', null, null, null, "Updated HR leave allocation and salary cut policy values");
+            Session::setFlash('success', 'HR leave allocations and salary cut policies saved successfully.');
+        } catch (\Exception $e) {
+            Session::setFlash('error', 'Failed to update HR policies: ' . $e->getMessage());
+        }
+
+        $this->redirect('company/masterdata');
+    }
+
+    /**
+     * Create Single Holiday / Weekend Date
+     */
+    public function createHoliday(Request $request, Response $response): void {
+        $name = trim($request->get('name'));
+        $date = trim($request->get('date'));
+        $type = $request->get('type') ?: 'holiday';
+
+        if (empty($name) || empty($date)) {
+            Session::setFlash('error', 'Holiday Title and Date are required.');
+            $this->redirect('company/masterdata');
+        }
+
+        $db = Database::getInstance();
+        $companyId = Session::get('company_id');
+
+        try {
+            $stmt = $db->prepare("INSERT INTO company_holidays (company_id, date, name, type, created_by) VALUES (?, ?, ?, ?, ?)");
+            $stmt->execute([$companyId, $date, $name, $type, Session::get('user_id')]);
+            
+            AuditLog::log($companyId, Session::get('user_id'), 'create_holiday', 'Holiday', $db->lastInsertId(), null, null, "Added {$type}: {$name} on {$date}");
+            Session::setFlash('success', "{$type} registered successfully.");
+        } catch (\Exception $e) {
+            Session::setFlash('error', 'Date already has a registered holiday/weekend.');
+        }
+
+        $this->redirect('company/masterdata');
+    }
+
+    /**
+     * Delete Holiday
+     */
+    public function deleteHoliday(Request $request, Response $response, string $id): void {
+        $db = Database::getInstance();
+        $companyId = Session::get('company_id');
+
+        try {
+            $stmt = $db->prepare("DELETE FROM company_holidays WHERE id = ? AND company_id = ?");
+            $stmt->execute([$id, $companyId]);
+            Session::setFlash('success', 'Holiday/Weekend deleted successfully.');
+        } catch (\Exception $e) {
+            Session::setFlash('error', 'Failed to delete holiday.');
+        }
+
+        $this->redirect('company/masterdata');
+    }
+
+    /**
+     * Auto-Generate Weekly Weekends for a Specific Year
+     */
+    public function generateWeekends(Request $request, Response $response): void {
+        $year = (int)$request->get('year');
+        if ($year < 2000 || $year > 2100) {
+            Session::setFlash('error', 'Please enter a valid calendar year.');
+            $this->redirect('company/masterdata');
+        }
+
+        $db = Database::getInstance();
+        $companyId = Session::get('company_id');
+        $userId = Session::get('user_id');
+
+        try {
+            $db->beginTransaction();
+            $count = 0;
+            
+            // Loop through all days of the year and find Saturdays and Sundays
+            $start = new \DateTime("{$year}-01-01");
+            $end = new \DateTime("{$year}-12-31 23:59:59");
+            $interval = new \DateInterval('P1D');
+            $period = new \DatePeriod($start, $interval, $end);
+
+            $stmtCheck = $db->prepare("SELECT id FROM company_holidays WHERE company_id = ? AND date = ? LIMIT 1");
+            $stmtInsert = $db->prepare("INSERT INTO company_holidays (company_id, date, name, type, created_by) VALUES (?, ?, ?, 'weekend', ?)");
+
+            foreach ($period as $dateObj) {
+                $dayOfWeek = (int)$dateObj->format('w'); // 0 = Sunday, 6 = Saturday
+                if ($dayOfWeek === 0 || $dayOfWeek === 6) {
+                    $formattedDate = $dateObj->format('Y-m-d');
+                    $dayName = $dateObj->format('l');
+
+                    // Check if already registered
+                    $stmtCheck->execute([$companyId, $formattedDate]);
+                    if (!$stmtCheck->fetch()) {
+                        $stmtInsert->execute([$companyId, $formattedDate, "Weekly Weekend ({$dayName})", $userId]);
+                        $count++;
+                    }
+                }
+            }
+
+            $db->commit();
+            AuditLog::log($companyId, $userId, 'generate_weekends', 'Holiday', null, null, null, "Auto-generated {$count} weekends for the year {$year}");
+            Session::setFlash('success', "Successfully generated {$count} weekends for the year {$year}.");
+        } catch (\Exception $e) {
+            $db->rollBack();
+            Session::setFlash('error', 'Failed to generate weekends: ' . $e->getMessage());
+        }
+
+        $this->redirect('company/masterdata');
+    }
+
+    /**
+     * Clone Holidays from Source Year to Target Year
+     */
+    public function cloneHolidays(Request $request, Response $response): void {
+        $sourceYear = (int)$request->get('source_year');
+        $targetYear = (int)$request->get('target_year');
+
+        if ($sourceYear < 2000 || $targetYear < 2000 || $sourceYear === $targetYear) {
+            Session::setFlash('error', 'Please specify different valid calendar years.');
+            $this->redirect('company/masterdata');
+        }
+
+        $db = Database::getInstance();
+        $companyId = Session::get('company_id');
+        $userId = Session::get('user_id');
+
+        try {
+            $db->beginTransaction();
+            
+            // Get all holidays of type='holiday' from source year
+            $stmtSource = $db->prepare("SELECT name, date, type FROM company_holidays WHERE company_id = ? AND YEAR(date) = ?");
+            $stmtSource->execute([$companyId, $sourceYear]);
+            $sourceHolidays = $stmtSource->fetchAll();
+
+            $count = 0;
+            $stmtCheck = $db->prepare("SELECT id FROM company_holidays WHERE company_id = ? AND date = ? LIMIT 1");
+            $stmtInsert = $db->prepare("INSERT INTO company_holidays (company_id, date, name, type, created_by) VALUES (?, ?, ?, ?, ?)");
+
+            foreach ($sourceHolidays as $sh) {
+                // Map the date to target year keeping month and day
+                $dateObj = new \DateTime($sh['date']);
+                $newDate = sprintf('%04d-%02d-%02d', $targetYear, $dateObj->format('m'), $dateObj->format('d'));
+
+                $stmtCheck->execute([$companyId, $newDate]);
+                if (!$stmtCheck->fetch()) {
+                    $stmtInsert->execute([$companyId, $newDate, $sh['name'], $sh['type'], $userId]);
+                    $count++;
+                }
+            }
+
+            $db->commit();
+            AuditLog::log($companyId, $userId, 'clone_holidays', 'Holiday', null, null, null, "Cloned {$count} holidays from {$sourceYear} to {$targetYear}");
+            Session::setFlash('success', "Successfully cloned {$count} holidays from {$sourceYear} to {$targetYear}.");
+        } catch (\Exception $e) {
+            $db->rollBack();
+            Session::setFlash('error', 'Failed to clone calendar holidays: ' . $e->getMessage());
+        }
+
         $this->redirect('company/masterdata');
     }
 }

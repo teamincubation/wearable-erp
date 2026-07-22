@@ -154,6 +154,30 @@
                                                             <option value="suspended" <?= ($c['status'] === 'suspended') ? 'selected' : '' ?>>Suspended</option>
                                                         </select>
                                                     </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-semibold">Timezone <span class="text-danger">*</span></label>
+                                                        <select name="timezone" class="form-select text-dark" required>
+                                                            <option value="Asia/Kolkata" <?= ($c['timezone'] ?? 'Asia/Kolkata') === 'Asia/Kolkata' ? 'selected' : '' ?>>IST Kolkata (Asia/Kolkata)</option>
+                                                            <option value="UTC" <?= ($c['timezone'] ?? '') === 'UTC' ? 'selected' : '' ?>>UTC (GMT+0)</option>
+                                                            <option value="America/New_York" <?= ($c['timezone'] ?? '') === 'America/New_York' ? 'selected' : '' ?>>EST New York (America/New_York)</option>
+                                                            <option value="Europe/London" <?= ($c['timezone'] ?? '') === 'Europe/London' ? 'selected' : '' ?>>GMT London (Europe/London)</option>
+                                                            <option value="Asia/Singapore" <?= ($c['timezone'] ?? '') === 'Asia/Singapore' ? 'selected' : '' ?>>SGT Singapore (Asia/Singapore)</option>
+                                                            <option value="Asia/Dubai" <?= ($c['timezone'] ?? '') === 'Asia/Dubai' ? 'selected' : '' ?>>GST Dubai (Asia/Dubai)</option>
+                                                            <option value="Australia/Sydney" <?= ($c['timezone'] ?? '') === 'Australia/Sydney' ? 'selected' : '' ?>>AEST Sydney (Australia/Sydney)</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-semibold">Currency <span class="text-danger">*</span></label>
+                                                        <select name="currency" class="form-select text-dark" required>
+                                                            <option value="INR" <?= ($c['currency'] ?? 'INR') === 'INR' ? 'selected' : '' ?>>₹INR (Indian Rupee)</option>
+                                                            <option value="USD" <?= ($c['currency'] ?? '') === 'USD' ? 'selected' : '' ?>>$USD (US Dollar)</option>
+                                                            <option value="EUR" <?= ($c['currency'] ?? '') === 'EUR' ? 'selected' : '' ?>>€EUR (Euro)</option>
+                                                            <option value="GBP" <?= ($c['currency'] ?? '') === 'GBP' ? 'selected' : '' ?>>£GBP (British Pound)</option>
+                                                            <option value="AED" <?= ($c['currency'] ?? '') === 'AED' ? 'selected' : '' ?>>AED (UAE Dirham)</option>
+                                                            <option value="SGD" <?= ($c['currency'] ?? '') === 'SGD' ? 'selected' : '' ?>>S$SGD (Singapore Dollar)</option>
+                                                            <option value="AUD" <?= ($c['currency'] ?? '') === 'AUD' ? 'selected' : '' ?>>A$AUD (Australian Dollar)</option>
+                                                        </select>
+                                                    </div>
                                                     <div class="col-12">
                                                         <label class="form-label fw-semibold">Terms & Conditions Agreement (Optional)</label>
                                                         <textarea name="tc_agreement" class="form-control" rows="3" placeholder="Input specific Terms & Conditions agreement text here..."><?= htmlspecialchars($c['tc_agreement'] ?? '') ?></textarea>
@@ -336,6 +360,30 @@
                             <div class="col-md-6 mb-3 expiry-main-container">
                                 <label class="form-label fw-semibold">Subscription Expiry Date</label>
                                 <input type="date" name="subscription_expires_at" class="form-control text-dark subscription-expiry-date-main" data-target-company="onboard">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Timezone <span class="text-danger">*</span></label>
+                                <select name="timezone" class="form-select text-dark" required>
+                                    <option value="Asia/Kolkata" selected>IST Kolkata (Asia/Kolkata)</option>
+                                    <option value="UTC">UTC (GMT+0)</option>
+                                    <option value="America/New_York">EST New York (America/New_York)</option>
+                                    <option value="Europe/London">GMT London (Europe/London)</option>
+                                    <option value="Asia/Singapore">SGT Singapore (Asia/Singapore)</option>
+                                    <option value="Asia/Dubai">GST Dubai (Asia/Dubai)</option>
+                                    <option value="Australia/Sydney">AEST Sydney (Australia/Sydney)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Currency <span class="text-danger">*</span></label>
+                                <select name="currency" class="form-select text-dark" required>
+                                    <option value="INR" selected>₹INR (Indian Rupee)</option>
+                                    <option value="USD">$USD (US Dollar)</option>
+                                    <option value="EUR">€EUR (Euro)</option>
+                                    <option value="GBP">£GBP (British Pound)</option>
+                                    <option value="AED">AED (UAE Dirham)</option>
+                                    <option value="SGD">S$SGD (Singapore Dollar)</option>
+                                    <option value="AUD">A$AUD (Australian Dollar)</option>
+                                </select>
                             </div>
                             <div class="col-md-12 mb-3">
                                 <label class="form-label fw-semibold">Terms & Conditions Agreement (Optional)</label>

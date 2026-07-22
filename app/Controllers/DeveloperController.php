@@ -101,6 +101,8 @@ class DeveloperController extends Controller {
         $email = $request->get('email');
         $phone = $request->get('phone');
         $planId = (int) $request->get('subscription_plan_id');
+        $timezone = $request->get('timezone') ?: 'Asia/Kolkata';
+        $currency = $request->get('currency') ?: 'INR';
 
         // Added parameters: Super Admin credentials and optional documents
         $adminEmail = $request->get('admin_email') ?: "admin@{$subdomain}.mywellgro.online";
@@ -153,6 +155,8 @@ class DeveloperController extends Controller {
                 'dev_password' => $devPassword,
                 'tc_agreement' => $tcAgreement,
                 'payment_slip' => $paymentSlip,
+                'timezone' => $timezone,
+                'currency' => $currency,
                 'created_by' => Session::get('user_id')
             ]);
 
@@ -258,6 +262,8 @@ class DeveloperController extends Controller {
         $planId = (int) ($request->get('subscription_plan_id') ?: $company['subscription_plan_id']);
         $tcAgreement = $request->get('tc_agreement') ?: null;
         $paymentSlip = $request->get('payment_slip') ?: null;
+        $timezone = $request->get('timezone') ?: $company['timezone'];
+        $currency = $request->get('currency') ?: $company['currency'];
 
         // Admin user fields
         $adminName = trim($request->get('admin_name'));
@@ -287,6 +293,8 @@ class DeveloperController extends Controller {
                 'subscription_expires_at' => $expiresAt,
                 'tc_agreement' => $tcAgreement,
                 'payment_slip' => $paymentSlip,
+                'timezone' => $timezone,
+                'currency' => $currency,
                 'updated_by' => Session::get('user_id')
             ]);
 

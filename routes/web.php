@@ -275,6 +275,36 @@ $router->post('/company/masterdata/shifts/delete/{id}', [\App\Controllers\Master
        ->middleware(PermissionMiddleware::class)
        ->permission('company.styles.manage');
 
+$router->post('/company/masterdata/hrpolicies', [\App\Controllers\MasterDataController::class, 'updateHrPolicies'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
+$router->post('/company/masterdata/holidays/create', [\App\Controllers\MasterDataController::class, 'createHoliday'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
+$router->post('/company/masterdata/holidays/delete/{id}', [\App\Controllers\MasterDataController::class, 'deleteHoliday'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
+$router->post('/company/masterdata/holidays/generate', [\App\Controllers\MasterDataController::class, 'generateWeekends'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
+$router->post('/company/masterdata/holidays/clone', [\App\Controllers\MasterDataController::class, 'cloneHolidays'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
 // Buyer & Client Master Management
 $router->get('/company/buyers', [\App\Controllers\BuyerController::class, 'index'])
        ->middleware(AuthMiddleware::class)
@@ -450,6 +480,11 @@ $router->get('/company/hr/payroll', [\App\Controllers\HrPayrollController::class
 $router->post('/company/hr/payroll/process', [\App\Controllers\HrPayrollController::class, 'processPayroll'])
        ->middleware(AuthMiddleware::class)
        ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.users.create');
+
+$router->get('/company/hr/payroll/calculate', [\App\Controllers\HrPayrollController::class, 'calculatePayrollStats'])
+       ->middleware(AuthMiddleware::class)
        ->middleware(PermissionMiddleware::class)
        ->permission('company.users.create');
 

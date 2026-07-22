@@ -29,3 +29,19 @@ function base_url($path = '') {
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost:8000';
     return $protocol . $host . '/' . ltrim($path, '/');
 }
+
+// Global currency symbol mapping resolver helper
+function get_currency_symbol() {
+    $tenant = \App\Core\Session::get('current_tenant');
+    $currency = $tenant['currency'] ?? 'INR';
+    $symbols = [
+        'INR' => '₹',
+        'USD' => '$',
+        'EUR' => '€',
+        'GBP' => '£',
+        'AED' => 'AED',
+        'SGD' => 'S$',
+        'AUD' => 'A$'
+    ];
+    return $symbols[$currency] ?? $currency;
+}

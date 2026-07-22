@@ -43,6 +43,7 @@ class CompanyController extends Controller {
         $phone = $request->get('phone');
         $password = $request->get('password');
         $roleId = (int) $request->get('role_id');
+        $baseSalary = (float)$request->get('base_salary');
 
         if (empty($name) || empty($email) || empty($employeeCode) || empty($password) || empty($roleId)) {
             Session::setFlash('error', 'All fields are required, including Employee ID.');
@@ -75,6 +76,7 @@ class CompanyController extends Controller {
             'password_hash' => password_hash($password, PASSWORD_BCRYPT),
             'role_id' => $roleId,
             'status' => 'active',
+            'base_salary' => $baseSalary,
             'email_verified_at' => date('Y-m-d H:i:s'),
             'created_by' => Session::get('user_id')
         ]);
@@ -103,6 +105,7 @@ class CompanyController extends Controller {
         $roleId = (int) $request->get('role_id');
         $status = $request->get('status');
         $password = $request->get('password');
+        $baseSalary = (float)$request->get('base_salary');
 
         if (empty($name) || empty($email) || empty($employeeCode) || empty($roleId)) {
             Session::setFlash('error', 'Name, Email/Username, Employee ID, and Role are required.');
@@ -134,6 +137,7 @@ class CompanyController extends Controller {
             'phone' => $phone,
             'role_id' => $roleId,
             'status' => $status,
+            'base_salary' => $baseSalary,
             'updated_by' => Session::get('user_id')
         ];
 

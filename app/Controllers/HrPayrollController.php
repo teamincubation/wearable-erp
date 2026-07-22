@@ -46,12 +46,18 @@ class HrPayrollController extends Controller {
         $stmtGwh->execute([$companyId]);
         $gwh = (int)($stmtGwh->fetchColumn() ?: 8);
 
+        // Fetch company holidays
+        $stmtH = $db->prepare("SELECT date FROM company_holidays WHERE company_id = ?");
+        $stmtH->execute([$companyId]);
+        $blockedDates = $stmtH->fetchAll(\PDO::FETCH_COLUMN) ?: [];
+
         $this->renderView('company/attendance', [
             'title' => 'Attendance Register | ERP',
             'attendance' => $attendance,
             'employees' => $employees,
             'shifts' => $shifts,
-            'gwh' => $gwh
+            'gwh' => $gwh,
+            'blocked_dates' => $blockedDates
         ]);
     }
 
@@ -73,6 +79,14 @@ class HrPayrollController extends Controller {
 
         $db = Database::getInstance();
         $companyId = Session::get('company_id');
+
+        // Block holiday and weekend dates
+        $stmtH = $db->prepare("SELECT id FROM company_holidays WHERE company_id = ? AND date = ? LIMIT 1");
+        $stmtH->execute([$companyId, $date]);
+        if ($stmtH->fetch()) {
+            Session::setFlash('error', 'Attendance cannot be logged on a pre-configured Holiday or Weekend.');
+            $this->redirect('company/hr/attendance');
+        }
 
         // Fetch General Working Hours setting
         $stmtGwh = $db->prepare("SELECT setting_value FROM system_settings WHERE company_id = ? AND setting_key = 'general_working_hours' AND deleted_at IS NULL LIMIT 1");
@@ -166,30 +180,20 @@ class HrPayrollController extends Controller {
         $loan = (float)$request->get('loan_deduction');
         $tax = (float)$request->get('tax_deduction');
 
+        $presentDays = (int)$request->get('present_days');
+        $absentDays = (int)$request->get('absent_days');
+        $leaveDays = (int)$request->get('leave_days');
+        $holidayDays = (int)$request->get('holiday_days');
+        $otHours = (float)$request->get('overtime_hours');
+        $otPay = (float)$request->get('overtime_pay');
+        $netSalary = (float)$request->get('net_salary');
+
         if (empty($employeeId) || empty($month) || empty($year) || $baseSalary <= 0) {
             Session::setFlash('error', 'Employee, Month, Year, and Base Salary are required.');
             $this->redirect('company/hr/payroll');
         }
 
         $companyId = Session::get('company_id');
-        $db = Database::getInstance();
-
-        // Calculate total overtime hours worked in this month
-        $stmt = $db->prepare("SELECT SUM(overtime_hours) as total_ot 
-                             FROM employee_attendance 
-                             WHERE company_id = ? AND employee_id = ? 
-                               AND MONTH(date) = ? AND YEAR(date) = ? AND status = 'present' AND deleted_at IS NULL");
-        $stmt->execute([$companyId, $employeeId, $month, $year]);
-        $result = $stmt->fetch();
-        $otHours = (float)($result['total_ot'] ?? 0.00);
-
-        // Standard hourly rate is: baseSalary / (26 days * 8 hours)
-        $hourlyRate = $baseSalary / (26 * 8);
-        $otPay = $otHours * $hourlyRate * 1.5; // OT at 1.5x standard rate
-
-        // Compute net salary
-        $netSalary = $baseSalary + $otPay + $bonus - $loan - $tax;
-
         $payrollModel = new PayrollRecord();
         $existing = $payrollModel->findOneBy([
             'company_id' => $companyId,
@@ -198,37 +202,111 @@ class HrPayrollController extends Controller {
             'year' => $year
         ]);
 
+        $payrollData = [
+            'base_salary' => $baseSalary,
+            'overtime_pay' => $otPay,
+            'bonus' => $bonus,
+            'loan_deduction' => $loan,
+            'tax_deduction' => $tax,
+            'net_salary' => $netSalary,
+            'present_days' => $presentDays,
+            'absent_days' => $absentDays,
+            'leave_days' => $leaveDays,
+            'holiday_days' => $holidayDays,
+            'overtime_hours' => $otHours,
+            'status' => 'paid',
+            'updated_by' => Session::get('user_id')
+        ];
+
         if ($existing) {
-            $payrollModel->update($existing['id'], [
-                'base_salary' => $baseSalary,
-                'overtime_pay' => $otPay,
-                'bonus' => $bonus,
-                'loan_deduction' => $loan,
-                'tax_deduction' => $tax,
-                'net_salary' => $netSalary,
-                'status' => 'draft',
-                'updated_by' => Session::get('user_id')
-            ]);
+            $payrollModel->update($existing['id'], $payrollData);
             $payrollId = $existing['id'];
         } else {
-            $payrollId = $payrollModel->insert([
-                'employee_id' => $employeeId,
-                'month' => $month,
-                'year' => $year,
-                'base_salary' => $baseSalary,
-                'overtime_pay' => $otPay,
-                'bonus' => $bonus,
-                'loan_deduction' => $loan,
-                'tax_deduction' => $tax,
-                'net_salary' => $netSalary,
-                'status' => 'draft',
-                'created_by' => Session::get('user_id')
-            ]);
+            $payrollData['company_id'] = $companyId;
+            $payrollData['employee_id'] = $employeeId;
+            $payrollData['month'] = $month;
+            $payrollData['year'] = $year;
+            $payrollData['created_by'] = Session::get('user_id');
+            $payrollId = $payrollModel->insert($payrollData);
         }
 
         AuditLog::log($companyId, Session::get('user_id'), 'process_payroll', 'PayrollRecord', $payrollId, null, null, "Processed payroll for employee {$employeeId} for {$month}/{$year}");
         Session::setFlash('success', 'Payroll salary record processed successfully.');
         $this->redirect('company/hr/payroll');
+    }
+
+    /**
+     * AJAX Endpoint: Calculate default attendance statistics & parameters for an employee
+     */
+    public function calculatePayrollStats(Request $request, Response $response): void {
+        $employeeId = (int)$request->get('employee_id');
+        $month = (int)$request->get('month');
+        $year = (int)$request->get('year');
+
+        $db = Database::getInstance();
+        $companyId = Session::get('company_id');
+
+        // Fetch employee base salary
+        $stmtEmp = $db->prepare("SELECT base_salary FROM users WHERE id = ? AND company_id = ? AND deleted_at IS NULL LIMIT 1");
+        $stmtEmp->execute([$employeeId, $companyId]);
+        $baseSalary = (float)($stmtEmp->fetchColumn() ?: 0.00);
+
+        // Fetch counts from attendance
+        // Present
+        $stmtP = $db->prepare("SELECT COUNT(*) FROM employee_attendance WHERE company_id = ? AND employee_id = ? AND MONTH(date) = ? AND YEAR(date) = ? AND status = 'present' AND deleted_at IS NULL");
+        $stmtP->execute([$companyId, $employeeId, $month, $year]);
+        $present = (int)$stmtP->fetchColumn();
+
+        // Absent
+        $stmtA = $db->prepare("SELECT COUNT(*) FROM employee_attendance WHERE company_id = ? AND employee_id = ? AND MONTH(date) = ? AND YEAR(date) = ? AND status = 'absent' AND deleted_at IS NULL");
+        $stmtA->execute([$companyId, $employeeId, $month, $year]);
+        $absent = (int)$stmtA->fetchColumn();
+
+        // Leave
+        $stmtL = $db->prepare("SELECT COUNT(*) FROM employee_attendance WHERE company_id = ? AND employee_id = ? AND MONTH(date) = ? AND YEAR(date) = ? AND status = 'leave' AND deleted_at IS NULL");
+        $stmtL->execute([$companyId, $employeeId, $month, $year]);
+        $leave = (int)$stmtL->fetchColumn();
+
+        // Holiday (official holiday)
+        $stmtH = $db->prepare("SELECT COUNT(*) FROM employee_attendance WHERE company_id = ? AND employee_id = ? AND MONTH(date) = ? AND YEAR(date) = ? AND status = 'holiday' AND deleted_at IS NULL");
+        $stmtH->execute([$companyId, $employeeId, $month, $year]);
+        $holiday = (int)$stmtH->fetchColumn();
+
+        // Total Overtime Hours
+        $stmtOt = $db->prepare("SELECT SUM(overtime_hours) FROM employee_attendance WHERE company_id = ? AND employee_id = ? AND MONTH(date) = ? AND YEAR(date) = ? AND status = 'present' AND deleted_at IS NULL");
+        $stmtOt->execute([$companyId, $employeeId, $month, $year]);
+        $otHours = (float)($stmtOt->fetchColumn() ?: 0.00);
+
+        // Fetch Leave & Cut policies
+        $settingsKeys = [
+            'leave_allocation_cl' => '12',
+            'leave_allocation_sl' => '10',
+            'leave_allocation_el' => '15',
+            'cut_policy_absent' => '100',
+            'cut_policy_lop' => '100',
+            'cut_policy_halfday' => '50'
+        ];
+        $policies = [];
+        foreach ($settingsKeys as $key => $default) {
+            $stmtSet = $db->prepare("SELECT setting_value FROM system_settings WHERE company_id = ? AND setting_key = ? AND deleted_at IS NULL LIMIT 1");
+            $stmtSet->execute([$companyId, $key]);
+            $val = $stmtSet->fetchColumn();
+            $policies[$key] = $val !== false ? (float)$val : (float)$default;
+        }
+
+        // Return JSON
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => true,
+            'base_salary' => $baseSalary,
+            'present_days' => $present,
+            'absent_days' => $absent,
+            'leave_days' => $leave,
+            'holiday_days' => $holiday,
+            'overtime_hours' => $otHours,
+            'policies' => $policies
+        ]);
+        exit;
     }
 
     public function deleteAttendance(Request $request, Response $response, string $id): void {

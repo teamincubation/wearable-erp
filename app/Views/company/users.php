@@ -24,6 +24,7 @@
                         <th>Email / Username</th>
                         <th>Phone</th>
                         <th>Role Privileges</th>
+                        <th>Salary Package</th>
                         <th>Verification</th>
                         <th>Status</th>
                         <th>Actions</th>
@@ -59,6 +60,9 @@
                                         }
                                     ?>
                                     <span class="badge bg-light text-secondary"><?= htmlspecialchars($roleName) ?></span>
+                                </td>
+                                <td>
+                                    <span class="fw-bold text-dark font-monospace"><?= get_currency_symbol() ?><?= number_format($u['base_salary'] ?? 0, 2) ?></span>
                                 </td>
                                 <td>
                                     <span class="badge badge-pepp <?= $u['email_verified_at'] ? 'badge-success' : 'badge-warning' ?>">
@@ -116,15 +120,19 @@
                                                     <input type="text" name="phone" class="form-control" value="<?= htmlspecialchars($u['phone'] ?? '') ?>">
                                                 </div>
                                                 <div class="mb-3">
-                                                    <label class="form-label fw-semibold">Assigned Role <span class="text-danger">*</span></label>
-                                                    <select name="role_id" class="form-select" required>
-                                                        <?php foreach ($roles as $role): ?>
-                                                            <option value="<?= $role['id'] ?>" <?= ($role['id'] == $u['role_id']) ? 'selected' : '' ?>>
-                                                                <?= htmlspecialchars($role['name']) ?>
-                                                            </option>
-                                                        <?php endforeach; ?>
-                                                    </select>
-                                                </div>
+                                                     <label class="form-label fw-semibold">Assigned Role <span class="text-danger">*</span></label>
+                                                     <select name="role_id" class="form-select" required>
+                                                         <?php foreach ($roles as $role): ?>
+                                                             <option value="<?= $role['id'] ?>" <?= ($role['id'] == $u['role_id']) ? 'selected' : '' ?>>
+                                                                 <?= htmlspecialchars($role['name']) ?>
+                                                             </option>
+                                                         <?php endforeach; ?>
+                                                     </select>
+                                                 </div>
+                                                 <div class="mb-3">
+                                                     <label class="form-label fw-semibold">Salary Package (Base Monthly Salary - <?= get_currency_symbol() ?>) <span class="text-danger">*</span></label>
+                                                     <input type="number" step="0.01" name="base_salary" class="form-control" value="<?= htmlspecialchars($u['base_salary'] ?? '0.00') ?>" required>
+                                                 </div>
                                                 <div class="mb-3">
                                                     <label class="form-label fw-semibold">Reset Password (Leave blank to keep current)</label>
                                                     <input type="password" name="password" class="form-control" placeholder="••••••••">
@@ -196,6 +204,10 @@
                                 <option value="<?= $role['id'] ?>"><?= htmlspecialchars($role['name']) ?></option>
                             <?php endforeach; ?>
                         </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Salary Package (Base Monthly Salary - <?= get_currency_symbol() ?>) <span class="text-danger">*</span></label>
+                        <input type="number" step="0.01" name="base_salary" class="form-control" placeholder="e.g. 20000.00" required>
                     </div>
                 </div>
                 <div class="modal-footer border-0">

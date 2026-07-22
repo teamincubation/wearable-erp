@@ -45,6 +45,9 @@ class TenantMiddleware extends Middleware {
                 if ($companyId !== null) {
                     Model::setActiveCompanyId($companyId);
                     \App\Core\Session::set('current_tenant', $company);
+                    if (!empty($company['timezone'])) {
+                        date_default_timezone_set($company['timezone']);
+                    }
                     return true;
                 }
             } catch (\Exception $e) {
@@ -97,6 +100,9 @@ class TenantMiddleware extends Middleware {
                     
                     // Share current tenant data
                     \App\Core\Session::set('current_tenant', $company);
+                    if (!empty($company['timezone'])) {
+                        date_default_timezone_set($company['timezone']);
+                    }
                     return true;
                 }
             } catch (\Exception $e) {

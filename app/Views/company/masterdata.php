@@ -27,6 +27,11 @@
             <i class="fa-solid fa-clock me-2 text-info"></i> Shifts & Hours
         </button>
     </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold px-4 py-2.5" id="hrpolicies-tab" data-bs-toggle="tab" data-bs-target="#hrpolicies-pane" type="button" role="tab" aria-selected="false">
+            <i class="fa-solid fa-calendar-days me-2 text-danger"></i> HR Policies & Calendar
+        </button>
+    </li>
 </ul>
 
 <!-- Tabs Content -->
@@ -416,6 +421,133 @@
         </div>
     </div>
 
+    <!-- 5. HR Policies & Calendar Pane -->
+    <div class="tab-pane fade" id="hrpolicies-pane" role="tabpanel" tabindex="0">
+        <div class="row g-4">
+            
+            <!-- Leaves & Cut Policies -->
+            <div class="col-md-5">
+                <div class="pepp-card">
+                    <div class="pepp-card-header">
+                        <h5 class="pepp-card-title m-0"><i class="fa-solid fa-calculator text-danger me-2"></i> Leave Allocation & Salary Cut Policies</h5>
+                    </div>
+                    <div class="pepp-card-body">
+                        <form action="<?= base_url('company/masterdata/hrpolicies') ?>" method="POST">
+                            <?= \App\Core\Session::csrfField() ?>
+                            
+                            <h6 class="fw-bold text-dark border-bottom pb-2 mb-3"><i class="fa-solid fa-leaf text-success me-1"></i> Annual Leave Allowances</h6>
+                            <div class="row g-3 mb-4">
+                                <div class="col-4">
+                                    <label class="form-label small fw-bold">Casual Leave (CL)</label>
+                                    <input type="number" name="leave_allocation_cl" class="form-control text-dark" value="<?= htmlspecialchars($policySettings['leave_allocation_cl'] ?? '12') ?>" required>
+                                </div>
+                                <div class="col-4">
+                                    <label class="form-label small fw-bold">Sick Leave (SL)</label>
+                                    <input type="number" name="leave_allocation_sl" class="form-control text-dark" value="<?= htmlspecialchars($policySettings['leave_allocation_sl'] ?? '10') ?>" required>
+                                </div>
+                                <div class="col-4">
+                                    <label class="form-label small fw-bold">Privilege Leave (EL)</label>
+                                    <input type="number" name="leave_allocation_el" class="form-control text-dark" value="<?= htmlspecialchars($policySettings['leave_allocation_el'] ?? '15') ?>" required>
+                                </div>
+                            </div>
+
+                            <h6 class="fw-bold text-dark border-bottom pb-2 mb-3"><i class="fa-solid fa-percent text-danger me-1"></i> Non-Paid Leave Salary Cuts</h6>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Unexcused Absence Cut (%)</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.1" name="cut_policy_absent" class="form-control text-dark" value="<?= htmlspecialchars($policySettings['cut_policy_absent'] ?? '100') ?>" required>
+                                    <span class="input-group-text bg-light text-secondary">%</span>
+                                </div>
+                                <div class="form-text small">Deduction rate of the standard daily pay for an unexcused absent day (default 100%).</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Loss of Pay (LOP) Cut (%)</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.1" name="cut_policy_lop" class="form-control text-dark" value="<?= htmlspecialchars($policySettings['cut_policy_lop'] ?? '100') ?>" required>
+                                    <span class="input-group-text bg-light text-secondary">%</span>
+                                </div>
+                                <div class="form-text small">Deduction rate of standard daily pay for extra non-paid leave days (default 100%).</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Half Day Work Cut (%)</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.1" name="cut_policy_halfday" class="form-control text-dark" value="<?= htmlspecialchars($policySettings['cut_policy_halfday'] ?? '50') ?>" required>
+                                    <span class="input-group-text bg-light text-secondary">%</span>
+                                </div>
+                                <div class="form-text small">Deduction rate of standard daily pay for a half-day working session (default 50%).</div>
+                            </div>
+
+                            <button type="submit" class="btn btn-danger w-100 mt-2"><i class="fa-solid fa-save me-1"></i> Save Policies & Allocations</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Holidays & Weekends Planner -->
+            <div class="col-md-7">
+                <div class="pepp-card mb-4">
+                    <div class="pepp-card-header d-flex justify-content-between align-items-center">
+                        <h5 class="pepp-card-title m-0"><i class="fa-solid fa-calendar text-primary me-2"></i> Holiday & Weekend Calendar</h5>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#addHolidayModal">
+                                <i class="fa-solid fa-plus-circle me-1"></i> Add Date
+                            </button>
+                            <button class="btn btn-sm btn-outline-success rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#generateWeekendsModal">
+                                <i class="fa-solid fa-wand-magic-sparkles me-1"></i> Auto Weekends
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#cloneHolidaysModal">
+                                <i class="fa-solid fa-clone me-1"></i> Clone Year
+                            </button>
+                        </div>
+                    </div>
+                    <div class="pepp-card-body p-0">
+                        <div class="table-responsive border-0" style="max-height: 520px; overflow-y: auto;">
+                            <table class="table pepp-table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Occasion Name</th>
+                                        <th>Category Type</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php if (!empty($holidays)): ?>
+                                        <?php foreach ($holidays as $h): ?>
+                                            <tr>
+                                                <td><strong class="text-dark font-monospace"><?= date('d-M-Y (l)', strtotime($h['date'])) ?></strong></td>
+                                                <td><span class="fw-semibold text-dark"><?= htmlspecialchars($h['name']) ?></span></td>
+                                                <td>
+                                                    <span class="badge rounded-pill <?= $h['type'] === 'weekend' ? 'bg-light text-secondary' : 'bg-danger text-white' ?>" style="font-size: 11px;">
+                                                        <?= ucfirst($h['type']) ?>
+                                                    </span>
+                                                </td>
+                                                <td class="text-end">
+                                                    <form action="<?= base_url('company/masterdata/holidays/delete/' . $h['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Remove this date from Holiday & Weekend Calendar?');">
+                                                        <?= \App\Core\Session::csrfField() ?>
+                                                        <button type="submit" class="btn btn-sm btn-link text-danger border-0"><i class="fa-solid fa-trash-can"></i></button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <tr>
+                                            <td colspan="4" class="text-center p-5 text-secondary">
+                                                <i class="fa-solid fa-calendar-xmark fs-1 mb-3 text-light"></i>
+                                                <p class="m-0">No holidays or weekends defined. Mark them to block attendance dates.</p>
+                                            </td>
+                                        </tr>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
 </div>
 
 <!-- Modal 1: Add BOM Category -->
@@ -615,6 +747,100 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
                     <button type="submit" class="btn btn-info text-white px-4">Create Shift</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Add Holiday -->
+<div class="modal fade" id="addHolidayModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form action="<?= base_url('company/masterdata/holidays/create') ?>" method="POST">
+            <?= \App\Core\Session::csrfField() ?>
+            <div class="modal-content" style="border-radius: 12px;">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-calendar-plus text-primary me-2"></i> Register Holiday/Weekend</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-start">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Date <span class="text-danger">*</span></label>
+                        <input type="date" name="date" class="form-control text-dark" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Occasion Title / Name <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control text-dark" placeholder="e.g. Independence Day, New Year" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Day Type <span class="text-danger">*</span></label>
+                        <select name="type" class="form-select text-dark" required>
+                            <option value="holiday" selected>Official Holiday</option>
+                            <option value="weekend">Weekly Weekend</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary px-4">Register Date</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Generate Weekends -->
+<div class="modal fade" id="generateWeekendsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form action="<?= base_url('company/masterdata/holidays/generate') ?>" method="POST">
+            <?= \App\Core\Session::csrfField() ?>
+            <div class="modal-content" style="border-radius: 12px;">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-wand-magic-sparkles text-success me-2"></i> Auto-Generate Weekly Weekends</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-start">
+                    <p class="text-secondary small">This tool automatically generates and inserts all Saturdays and Sundays for the specified year as weekends in your calendar.</p>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Calendar Year <span class="text-danger">*</span></label>
+                        <input type="number" name="year" class="form-control text-dark" value="<?= date('Y') ?>" min="2000" max="2100" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-success text-white px-4">Generate Weekends</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Clone Holidays -->
+<div class="modal fade" id="cloneHolidaysModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form action="<?= base_url('company/masterdata/holidays/clone') ?>" method="POST">
+            <?= \App\Core\Session::csrfField() ?>
+            <div class="modal-content" style="border-radius: 12px;">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-clone text-secondary me-2"></i> Clone Holidays to Upcoming Term</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-start">
+                    <p class="text-secondary small">Copy all official holidays (excluding weekly weekends) from a source fiscal term/year directly into a new target calendar year.</p>
+                    <div class="row g-3">
+                        <div class="col-6 mb-3">
+                            <label class="form-label small fw-bold">Source Year <span class="text-danger">*</span></label>
+                            <input type="number" name="source_year" class="form-control text-dark" value="<?= date('Y') - 1 ?>" required>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label small fw-bold">Target Year <span class="text-danger">*</span></label>
+                            <input type="number" name="target_year" class="form-control text-dark" value="<?= date('Y') ?>" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-secondary px-4">Clone Calendar</button>
                 </div>
             </div>
         </form>
