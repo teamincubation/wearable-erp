@@ -408,7 +408,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const formData = new FormData();
         formData.append('qr_code', decodedText);
-        formData.append('csrf_token', "<?= \App\Core\Session::getCsrfToken() ?>");
+        formData.append('csrf_token', "<?= \App\Core\Session::csrfToken() ?>");
 
         fetch("<?= base_url('company/production/rfid-tracking/verify') ?>", {
             method: 'POST',
@@ -477,7 +477,7 @@ document.addEventListener('DOMContentLoaded', function() {
         formData.append('stage', stage);
         formData.append('status', status);
         formData.append('duration_seconds', durationSeconds);
-        formData.append('csrf_token', "<?= \App\Core\Session::getCsrfToken() ?>");
+        formData.append('csrf_token', "<?= \App\Core\Session::csrfToken() ?>");
 
         // Disable buttons during request
         passBtn.disabled = true;
