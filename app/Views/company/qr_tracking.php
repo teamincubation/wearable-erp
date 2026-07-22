@@ -100,9 +100,23 @@
                     </select>
                 </div>
 
+                <!-- Camera Select Dropdown (hidden if single/no camera) -->
+                <div class="mb-3" id="camera-select-container" style="display: none;">
+                    <label class="form-label small fw-bold text-secondary mb-1"><i class="fa-solid fa-camera me-1"></i> SELECT ACTIVE CAMERA</label>
+                    <select id="camera-select" class="form-select text-dark fw-bold border-2" style="border-radius: 12px; background-color: #f8fafc; font-size: 13px;">
+                    </select>
+                </div>
+
                 <!-- Video Scanner Viewport -->
                 <div class="scanner-container mb-3 position-relative" id="scanner-container">
                     <div id="reader"></div>
+                </div>
+
+                <!-- Flashlight Button (hidden by default) -->
+                <div class="mb-3" id="flashlight-container" style="display: none;">
+                    <button type="button" id="flashlight-toggle-btn" class="btn btn-warning w-100 py-2.5 rounded-pill fw-bold text-dark shadow-sm" style="font-size: 13px;">
+                        <i class="fa-solid fa-bolt me-1"></i> Toggle Flashlight / Torch
+                    </button>
                 </div>
 
                 <!-- Snap Photo of QR fallback (Visible in camera mode) -->
@@ -198,8 +212,8 @@
     </div>
 </div>
 
-<!-- Load camera scanner dependency -->
-<script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
+<!-- Load locally hosted camera scanner dependency -->
+<script src="<?= base_url('assets/js/html5-qrcode.min.js') ?>"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -225,12 +239,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const qrFileInput = document.getElementById('qr-file-input');
     const photoSnapContainer = document.getElementById('photo-snap-container');
 
+    // Flashlight & Camera select Elements
+    const cameraSelect = document.getElementById('camera-select');
+    const cameraSelectContainer = document.getElementById('camera-select-container');
+    const flashlightContainer = document.getElementById('flashlight-container');
+    const flashlightToggleBtn = document.getElementById('flashlight-toggle-btn');
+
     let html5QrCode = null;
     let scanCount = 0;
     let sessionStartTime = new Date();
     let pieceStartTime = new Date();
     let timerInterval = null;
     let currentScannedCode = null;
+
+    let isCameraMode = true;
+    let cameraRetryCount = 0;
+    const maxRetryAttempts = 3;
+    let torchState = false;
 
     // Start timer automatically
     timerInterval = setInterval(updateTimer, 1000);
@@ -242,45 +267,117 @@ document.addEventListener('DOMContentLoaded', function() {
         // Reset manual UI visibility
         manualContainer.style.display = 'none';
         scannerContainer.style.display = 'block';
+        photoSnapContainer.style.display = 'block';
         toggleModeBtn.innerHTML = '<i class="fa-solid fa-keyboard me-1"></i> Switch to Manual Entry Mode';
+        isCameraMode = true;
 
         startCameraScanner();
     }
 
-    function startCameraScanner() {
+    function startCameraScanner(preferredCameraId = null) {
         // Enumerate devices static method first to avoid state conflicts on instantiation
         Html5Qrcode.getCameras().then(devices => {
             if (devices && devices.length > 0) {
-                // Default to the first camera in list
-                let cameraId = devices[0].id;
-                
-                // Scan devices list for any camera labeled back/rear/environment
-                for (let i = 0; i < devices.length; i++) {
-                    const label = devices[i].label.toLowerCase();
-                    if (label.indexOf('back') !== -1 || 
-                        label.indexOf('rear') !== -1 || 
-                        label.indexOf('environment') !== -1) {
-                        cameraId = devices[i].id;
-                        break;
+                // Populate camera select dropdown
+                cameraSelect.innerHTML = '';
+                devices.forEach((device, index) => {
+                    const opt = document.createElement('option');
+                    opt.value = device.id;
+                    opt.text = device.label || `Camera ${index + 1}`;
+                    cameraSelect.appendChild(opt);
+                });
+
+                if (devices.length > 1) {
+                    cameraSelectContainer.style.display = 'block';
+                } else {
+                    cameraSelectContainer.style.display = 'none';
+                }
+
+                let selectedCameraId = preferredCameraId;
+                if (!selectedCameraId) {
+                    // Scan devices list for any camera labeled back/rear/environment
+                    for (let i = 0; i < devices.length; i++) {
+                        const label = devices[i].label.toLowerCase();
+                        if (label.indexOf('back') !== -1 || 
+                            label.indexOf('rear') !== -1 || 
+                            label.indexOf('environment') !== -1) {
+                            selectedCameraId = devices[i].id;
+                            break;
+                        }
+                    }
+                    // Fallback to first camera if no environment camera detected
+                    if (!selectedCameraId) {
+                        selectedCameraId = devices[0].id;
                     }
                 }
 
+                // Match select value
+                cameraSelect.value = selectedCameraId;
+
+                // Stop any previous scanning session before initiating new one
+                if (html5QrCode && html5QrCode.isScanning) {
+                    return;
+                }
+
                 // Initialize Html5Qrcode on the reader node
-                html5QrCode = new Html5Qrcode("reader");
+                const formats = window.Html5QrcodeSupportedFormats || {};
+                const formatsToSupport = [
+                    formats.QR_CODE || 11,
+                    formats.CODE_128 || 4,
+                    formats.CODE_39 || 2,
+                    formats.EAN_13 || 7,
+                    formats.EAN_8 || 6,
+                    formats.UPC_A || 14,
+                    formats.UPC_E || 15,
+                    formats.ITF || 8
+                ];
+
+                html5QrCode = new Html5Qrcode("reader", {
+                    formatsToSupport: formatsToSupport
+                });
 
                 const config = { 
-                    fps: 20, 
-                    qrbox: { width: 250, height: 250 }
+                    fps: 25, 
+                    qrbox: function(width, height) {
+                        const size = Math.min(width, height) * 0.7;
+                        return { width: size, height: size * 0.6 }; // rect scan region suitable for barcodes & QRs
+                    },
+                    aspectRatio: 1.333333
                 };
 
                 // Start scanning with selected camera device ID
                 html5QrCode.start(
-                    cameraId,
+                    selectedCameraId,
                     config,
                     onScanSuccess
-                ).catch(err => {
+                ).then(() => {
+                    // Reset retry counter on successful startup
+                    cameraRetryCount = 0;
+                    torchState = false;
+                    flashlightToggleBtn.innerHTML = '<i class="fa-solid fa-bolt me-1"></i> Toggle Flashlight / Torch';
+                    flashlightToggleBtn.className = 'btn btn-warning w-100 py-2.5 rounded-pill fw-bold text-dark shadow-sm';
+
+                    // Check flashlight compatibility
+                    try {
+                        if (html5QrCode.hasFlashlight && typeof html5QrCode.hasFlashlight === 'function') {
+                            html5QrCode.hasFlashlight().then(hasFlash => {
+                                if (hasFlash) {
+                                    flashlightContainer.style.display = 'block';
+                                } else {
+                                    flashlightContainer.style.display = 'none';
+                                }
+                            }).catch(() => {
+                                flashlightContainer.style.display = 'none';
+                            });
+                        } else {
+                            flashlightContainer.style.display = 'none';
+                        }
+                    } catch(e) {
+                        flashlightContainer.style.display = 'none';
+                    }
+                }).catch(err => {
                     console.error("Camera startup failure: ", err);
-                    switchToManualMode("Camera Permission Request Denied or Blocked by Browser. Switching to Manual Input Mode.");
+                    handleCameraError(err, selectedCameraId);
                 });
             } else {
                 switchToManualMode("No camera devices detected on this hardware.");
@@ -291,13 +388,52 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function stopScanner() {
+    function handleCameraError(err, cameraId) {
+        const errorStr = (err && err.message) ? err.message : String(err);
+        let friendlyMessage = "Camera initialization failed.";
+
+        if (errorStr.indexOf("Permission") !== -1 || errorStr.indexOf("NotAllowedError") !== -1) {
+            friendlyMessage = "Camera permission request was denied or blocked. Please enable camera access in browser site settings.";
+            // Do not retry on explicit permission denial
+            switchToManualMode(friendlyMessage);
+            return;
+        } else if (errorStr.indexOf("NotReadableError") !== -1 || errorStr.indexOf("already in use") !== -1 || errorStr.indexOf("Could not start video source") !== -1) {
+            friendlyMessage = "Selected camera is already in use by another tab, browser window, or application.";
+        } else if (errorStr.indexOf("OverconstrainedError") !== -1) {
+            friendlyMessage = "Requested camera configuration constraints are not supported by the hardware.";
+        } else if (errorStr.indexOf("NotFoundError") !== -1 || errorStr.indexOf("DevicesNotFound") !== -1) {
+            friendlyMessage = "No camera hardware detected on this device.";
+            switchToManualMode(friendlyMessage);
+            return;
+        }
+
+        // Retry logic if camera fails startup
+        if (cameraRetryCount < maxRetryAttempts) {
+            cameraRetryCount++;
+            showTemporaryToast(`Warning: ${friendlyMessage} Retrying... (Attempt ${cameraRetryCount}/${maxRetryAttempts})`, "warning", 3000);
+            setTimeout(() => {
+                startCameraScanner(cameraId);
+            }, 1500);
+        } else {
+            switchToManualMode(`Exceeded maximum camera startup retries. ${friendlyMessage} Switching to Manual Input.`);
+        }
+    }
+
+    function stopScanner(resetMode = true) {
+        if (resetMode) {
+            isCameraMode = false;
+        }
         if (html5QrCode) {
-            html5QrCode.stop().then(() => {
+            if (html5QrCode.isScanning) {
+                html5QrCode.stop().then(() => {
+                    html5QrCode = null;
+                }).catch(err => {
+                    console.error("Failed to stop scanner cleanly: ", err);
+                    html5QrCode = null;
+                });
+            } else {
                 html5QrCode = null;
-            }).catch(err => {
-                console.error(err);
-            });
+            }
         }
     }
 
@@ -306,31 +442,64 @@ document.addEventListener('DOMContentLoaded', function() {
         if (manualContainer.style.display === 'none') {
             switchToManualMode();
         } else {
-            manualContainer.style.display = 'none';
-            scannerContainer.style.display = 'block';
-            photoSnapContainer.style.display = 'block';
-            toggleModeBtn.innerHTML = '<i class="fa-solid fa-keyboard me-1"></i> Switch to Manual Entry Mode';
             initScanner();
         }
     });
 
     function switchToManualMode(reason = null) {
-        stopScanner();
+        stopScanner(true);
         scannerContainer.style.display = 'none';
         photoSnapContainer.style.display = 'none';
+        cameraSelectContainer.style.display = 'none';
+        flashlightContainer.style.display = 'none';
         manualContainer.style.display = 'block';
         toggleModeBtn.innerHTML = '<i class="fa-solid fa-camera me-1"></i> Switch to Camera Mode';
 
         if (reason) {
-            const toast = document.createElement('div');
-            toast.className = 'alert alert-warning text-center py-2 mb-2 small fw-bold';
-            toast.innerText = reason;
-            manualContainer.parentNode.insertBefore(toast, manualContainer);
-            setTimeout(() => toast.remove(), 4000);
+            showTemporaryToast(reason, "warning", 4000);
         }
         manualCodeInput.value = '';
         manualCodeInput.focus();
     }
+
+    // Camera Switch Event
+    cameraSelect.addEventListener('change', function(e) {
+        const selectedId = e.target.value;
+        if (html5QrCode && html5QrCode.isScanning) {
+            html5QrCode.stop().then(() => {
+                html5QrCode = null;
+                startCameraScanner(selectedId);
+            }).catch(err => {
+                console.error(err);
+                html5QrCode = null;
+                startCameraScanner(selectedId);
+            });
+        } else {
+            startCameraScanner(selectedId);
+        }
+    });
+
+    // Flashlight Toggle Event
+    flashlightToggleBtn.addEventListener('click', function() {
+        if (html5QrCode && html5QrCode.isScanning) {
+            try {
+                html5QrCode.toggleFlashlight().then(isTorchOn => {
+                    torchState = isTorchOn;
+                    if (torchState) {
+                        flashlightToggleBtn.innerHTML = '<i class="fa-solid fa-bolt me-1"></i> Flashlight ON';
+                        flashlightToggleBtn.className = 'btn btn-light w-100 py-2.5 rounded-pill fw-bold text-dark shadow-sm border border-warning';
+                    } else {
+                        flashlightToggleBtn.innerHTML = '<i class="fa-solid fa-bolt me-1"></i> Toggle Flashlight / Torch';
+                        flashlightToggleBtn.className = 'btn btn-warning w-100 py-2.5 rounded-pill fw-bold text-dark shadow-sm';
+                    }
+                }).catch(e => {
+                    console.error("Failed to toggle torch: ", e);
+                });
+            } catch(e) {
+                console.error("Toggle torch call failed: ", e);
+            }
+        }
+    });
 
     // Handle manual entry submit
     manualSubmitBtn.addEventListener('click', function() {
@@ -397,7 +566,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function onScanSuccess(decodedText) {
         // Pause camera scanning during verification
-        if (html5QrCode) {
+        if (html5QrCode && html5QrCode.isScanning) {
             html5QrCode.pause(true);
         }
 
@@ -438,14 +607,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 scanResultCard.style.display = 'block';
             } else {
                 // Show verification failure toast
-                const toast = document.createElement('div');
-                toast.className = 'alert alert-danger text-center py-2.5 mb-2 fw-bold';
-                toast.innerText = 'Verification Failed: ' + data.message;
-                scanResultCard.parentNode.insertBefore(toast, scanResultCard);
-                setTimeout(() => toast.remove(), 4000);
+                showTemporaryToast('Verification Failed: ' + data.message, "danger", 4000);
 
                 // Auto-resume scanner if in camera mode
-                if (manualContainer.style.display === 'none' && html5QrCode) {
+                if (isCameraMode && html5QrCode && html5QrCode.isScanning) {
                     setTimeout(() => html5QrCode.resume(), 2500);
                 }
             }
@@ -454,7 +619,7 @@ document.addEventListener('DOMContentLoaded', function() {
             loader.remove();
             console.error(err);
             alert('Verification connection failure.');
-            if (manualContainer.style.display === 'none' && html5QrCode) {
+            if (isCameraMode && html5QrCode && html5QrCode.isScanning) {
                 html5QrCode.resume();
             }
         });
@@ -498,12 +663,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 piecesCountEl.innerText = scanCount;
                 
                 // Show a brief success alert
-                const alertClass = status === 'pass' ? 'alert-success' : 'alert-danger';
-                const toast = document.createElement('div');
-                toast.className = `alert ${alertClass} text-center py-2 mb-2 font-monospace fw-bold`;
-                toast.innerText = data.message;
-                scanResultCard.parentNode.insertBefore(toast, scanResultCard);
-                setTimeout(() => toast.remove(), 2500);
+                showTemporaryToast(data.message, status === 'pass' ? "success" : "danger", 2500);
                 
                 // Reset card & input
                 scanResultCard.style.display = 'none';
@@ -513,12 +673,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 if (manualContainer.style.display !== 'none') {
                     manualCodeInput.focus();
-                } else if (html5QrCode) {
+                } else if (html5QrCode && html5QrCode.isScanning) {
                     html5QrCode.resume();
                 }
             } else {
                 alert('Logging Error: ' + data.message);
-                if (html5QrCode && manualContainer.style.display === 'none') {
+                if (html5QrCode && html5QrCode.isScanning && manualContainer.style.display === 'none') {
                     html5QrCode.resume();
                 }
             }
@@ -526,7 +686,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(err => {
             console.error(err);
             alert('Connection failure. Verify internet connectivity.');
-            if (html5QrCode && manualContainer.style.display === 'none') {
+            if (html5QrCode && html5QrCode.isScanning && manualContainer.style.display === 'none') {
                 html5QrCode.resume();
             }
         })
@@ -546,5 +706,34 @@ document.addEventListener('DOMContentLoaded', function() {
             String(mins).padStart(2, '0') + ':' + 
             String(secs).padStart(2, '0');
     }
+
+    function showTemporaryToast(message, type = "info", duration = 4000) {
+        const toast = document.createElement('div');
+        const alertClass = type === "success" ? "alert-success" : (type === "warning" ? "alert-warning" : (type === "danger" ? "alert-danger" : "alert-info"));
+        toast.className = `alert ${alertClass} text-center py-2.5 mb-2 small fw-bold font-monospace shadow-sm`;
+        toast.innerText = message;
+        
+        const container = document.getElementById('unified-scanner-view');
+        container.insertBefore(toast, container.firstChild);
+        setTimeout(() => toast.remove(), duration);
+    }
+
+    // Stop camera properly when page is hidden/unloaded, auto-start when returned
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'hidden') {
+            stopScanner(false); // Stop scanner stream but preserve isCameraMode setting
+        } else if (document.visibilityState === 'visible') {
+            if (isCameraMode) {
+                initScanner(); // Automatically re-initialize camera when user returns
+            }
+        }
+    });
+
+    window.addEventListener('pagehide', function() {
+        stopScanner(true);
+    });
+    window.addEventListener('beforeunload', function() {
+        stopScanner(true);
+    });
 });
 </script>
