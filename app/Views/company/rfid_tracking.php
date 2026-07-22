@@ -277,16 +277,62 @@ document.addEventListener('DOMContentLoaded', function() {
         scannerContainer.style.display = 'block';
         toggleModeBtn.innerHTML = '<i class="fa-solid fa-keyboard me-1"></i> Switch to Manual Entry Mode';
 
-        html5QrCode = new Html5Qrcode("reader");
-        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+        // Explicitly request camera permissions from browser before starting Html5Qrcode
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+            .then(function(stream) {
+                // Permission granted! Stop the temporary stream tracks
+                stream.getTracks().forEach(track => track.stop());
+                
+                // Launch scanner
+                startCameraScanner();
+            })
+            .catch(function(err) {
+                console.warn('Camera permission request denied or error occurred: ', err);
+                switchToManualMode("Camera Permission Request Denied or Blocked by Browser. Switching to Manual Input Mode.");
+            });
+        } else {
+            switchToManualMode("Secure connection (HTTPS) is required for camera scan permissions on mobile browsers. Manual input mode enabled.");
+        }
+    }
 
+    function startCameraScanner() {
+        html5QrCode = new Html5Qrcode("reader");
+        const config = { 
+            fps: 15, 
+            qrbox: function(width, height) {
+                const minEdge = Math.min(width, height);
+                return {
+                    width: Math.floor(minEdge * 0.75),
+                    height: Math.floor(minEdge * 0.75)
+                };
+            },
+            aspectRatio: 1.333333
+        };
+
+        // Try back environment camera
         html5QrCode.start(
             { facingMode: "environment" },
             config,
             onScanSuccess
         ).catch(err => {
-            console.warn('Camera access denied or unavailable. Falling back to manual entry mode: ', err);
-            switchToManualMode("Camera is not accessible or not supported on this browser/device. Manual input mode enabled.");
+            console.warn("Camera start failed with facingMode. Retrying with any camera...", err);
+            Html5Qrcode.getCameras().then(devices => {
+                if (devices && devices.length > 0) {
+                    html5QrCode.start(
+                        devices[0].id,
+                        config,
+                        onScanSuccess
+                    ).catch(err2 => {
+                        console.error("All camera initialization attempts failed: ", err2);
+                        switchToManualMode("Camera initialization failed: " + err2.message);
+                    });
+                } else {
+                    switchToManualMode("No camera devices found on this hardware.");
+                }
+            }).catch(ex => {
+                switchToManualMode("Failed to query hardware camera list: " + ex.message);
+            });
         });
     }
 
