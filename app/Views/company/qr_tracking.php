@@ -57,7 +57,7 @@
         height: 100% !important;
     }
     #reader__dashboard {
-        display: none !important; /* Hide html5-qrcode controls */
+        display: none !important;
     }
     .animate-pulse {
         animation: pulse-animation 2s infinite;
@@ -77,32 +77,57 @@
         <div class="mobile-app-header bg-dark text-white p-3 text-center position-relative">
             <h5 class="m-0 fw-bold"><i class="fa-solid fa-qrcode text-primary me-2"></i> QR Code Scanner Hub</h5>
             <small class="text-secondary" style="font-size: 11px;">Garment Floor Scan Unit</small>
+            
+            <!-- Complete button (visible only in scanner view) -->
+            <button type="button" id="complete-btn" class="btn btn-sm btn-outline-danger rounded-pill px-3 position-absolute end-0 top-50 translate-middle-y me-3" style="display: none; font-size: 11px;">
+                <i class="fa-solid fa-circle-check me-1"></i> Complete
+            </button>
         </div>
 
         <div class="mobile-app-body p-4 flex-grow-1">
-            <!-- Unified Active Scanning Screen -->
-            <div id="unified-scanner-view">
-                
-                <!-- Active User Banner -->
-                <div class="text-center mb-3">
-                    <span class="badge bg-light text-secondary rounded-pill px-3 py-1.5 font-monospace" style="font-size: 11.5px;">
-                        <i class="fa-solid fa-circle-user me-1 text-primary"></i> Operator: <strong><?= htmlspecialchars(\App\Core\Session::get('user_name')) ?></strong>
-                    </span>
+
+            <!-- ==================== SCREEN 1: Stage Selection ==================== -->
+            <div id="selection-view">
+                <div class="text-center mb-4">
+                    <div class="app-icon-circle bg-light-primary mb-3">
+                        <i class="fa-solid fa-industry fs-1 text-primary"></i>
+                    </div>
+                    <h4 class="fw-bold text-dark">Stage Setup</h4>
+                    <p class="text-secondary small">Select your operational line and click Start to launch the QR scanner.</p>
                 </div>
 
-                <!-- WIP Stage Selection Dropdown -->
-                <div class="mb-3">
-                    <label class="form-label small fw-bold text-secondary mb-1">SELECT WIP OPERATION STAGE</label>
-                    <select id="stage-select" class="form-select form-select-lg text-dark fw-bold border-2" style="border-radius: 12px; background-color: #f8fafc;">
+                <div class="mb-4">
+                    <label class="form-label small fw-bold text-secondary">SELECT WIP STAGE</label>
+                    <select id="stage-select" class="form-select form-select-lg text-dark fw-bold border-2" style="border-radius: 12px;">
+                        <option value="">-- Choose Stage --</option>
                         <?php foreach ($stages as $stg): ?>
-                            <option value="<?= $stg ?>" <?= ($stg === 'sewing') ? 'selected' : '' ?>><?= str_replace('_', ' ', strtoupper($stg)) ?></option>
+                            <option value="<?= $stg ?>"><?= str_replace('_', ' ', strtoupper($stg)) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
 
+                <button type="button" id="start-work-btn" class="btn btn-primary btn-lg w-100 py-3 rounded-pill fw-bold shadow">
+                    <i class="fa-solid fa-play me-2"></i> Start Work / Scan
+                </button>
+                
+                <div class="mt-4 text-center">
+                    <span class="badge bg-light text-secondary rounded-pill px-3 py-2">
+                        Logged User: <strong><?= htmlspecialchars(\App\Core\Session::get('user_name')) ?></strong>
+                    </span>
+                </div>
+            </div>
+
+            <!-- ==================== SCREEN 2: Active Scanner ==================== -->
+            <div id="scanner-view" style="display: none;">
+                <div class="text-center mb-3">
+                    <span class="badge bg-danger-subtle text-danger px-3 py-1.5 rounded-pill fw-bold" style="font-size: 12px; letter-spacing: 0.5px;">
+                        <span class="spinner-grow spinner-grow-sm me-1" role="status" aria-hidden="true"></span> SCANNING ACTIVE: <span id="active-stage-label" class="text-uppercase"></span>
+                    </span>
+                </div>
+
                 <!-- Camera Select Dropdown (hidden if single/no camera) -->
                 <div class="mb-3" id="camera-select-container" style="display: none;">
-                    <label class="form-label small fw-bold text-secondary mb-1"><i class="fa-solid fa-camera me-1"></i> SELECT ACTIVE CAMERA</label>
+                    <label class="form-label small fw-bold text-secondary mb-1"><i class="fa-solid fa-camera me-1"></i> SELECT CAMERA</label>
                     <select id="camera-select" class="form-select text-dark fw-bold border-2" style="border-radius: 12px; background-color: #f8fafc; font-size: 13px;">
                     </select>
                 </div>
@@ -119,7 +144,7 @@
                     </button>
                 </div>
 
-                <!-- Snap Photo of QR fallback (Visible in camera mode) -->
+                <!-- Snap Photo of QR fallback -->
                 <div id="photo-snap-container" class="mb-3 text-center">
                     <button type="button" id="snap-photo-btn" class="btn btn-outline-dark w-100 py-2.5 rounded-pill fw-bold" style="font-size: 13px; border: 2px dashed #475569;">
                         <i class="fa-solid fa-camera me-1"></i> Camera Blank? Snap Photo of QR
@@ -127,7 +152,7 @@
                     <input type="file" id="qr-file-input" accept="image/*" capture="environment" style="display: none;">
                 </div>
 
-                <!-- Manual Barcode Input Fallback (Hidden by default, toggled by switch button) -->
+                <!-- Manual Barcode Input Fallback -->
                 <div id="manual-input-container" class="card border border-2 p-3 mb-3 bg-light" style="display: none; border-radius: 16px;">
                     <div class="text-center">
                         <label class="form-label small fw-bold text-secondary mb-2"><i class="fa-solid fa-keyboard me-1"></i> MANUAL QR CODE INPUT</label>
@@ -138,7 +163,7 @@
                     </div>
                 </div>
 
-                <!-- Switch Mode Button Trigger -->
+                <!-- Switch Mode Button -->
                 <div class="text-center mb-3">
                     <button type="button" id="toggle-mode-btn" class="btn btn-sm btn-link text-decoration-none text-secondary fw-bold">
                         <i class="fa-solid fa-keyboard me-1"></i> Switch to Manual Entry Mode
@@ -151,7 +176,6 @@
                         <div class="badge bg-success text-white text-uppercase mb-2" style="font-size: 10px; letter-spacing: 0.5px;"><i class="fa-solid fa-shield-check me-1"></i> Verified Active Item</div>
                         <h5 id="scanned-code-display" class="fw-bold font-monospace text-primary my-1"></h5>
                         
-                        <!-- Dynamic Product Details from Style Master -->
                         <div class="border rounded p-2 mb-3 bg-white text-start" style="font-size: 11.5px; line-height: 1.5; color: #334155;">
                             <div class="d-flex justify-content-between mb-1">
                                 <span class="text-secondary small">Style No:</span>
@@ -202,12 +226,14 @@
                     </div>
                 </div>
 
-                <!-- Live stats during scan session -->
+                <!-- Live stats -->
                 <div class="d-flex justify-content-between text-secondary small px-2 mt-2">
                     <span>Scanned pieces: <strong id="pieces-count" class="text-dark">0</strong></span>
                     <span>Elapsed: <strong id="elapsed-timer" class="text-dark">00:00</strong></span>
                 </div>
             </div>
+            <!-- ==================== END SCREENS ==================== -->
+
         </div>
     </div>
 </div>
@@ -217,7 +243,14 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // ===================== DOM REFERENCES =====================
+    const selectionView = document.getElementById('selection-view');
+    const scannerView = document.getElementById('scanner-view');
     const stageSelect = document.getElementById('stage-select');
+    const startWorkBtn = document.getElementById('start-work-btn');
+    const completeBtn = document.getElementById('complete-btn');
+    const activeStageLabel = document.getElementById('active-stage-label');
+
     const scanResultCard = document.getElementById('scan-result-card');
     const codeDisplay = document.getElementById('scanned-code-display');
     const sizeDisplay = document.getElementById('scanned-size-display');
@@ -227,44 +260,77 @@ document.addEventListener('DOMContentLoaded', function() {
     const piecesCountEl = document.getElementById('pieces-count');
     const timerEl = document.getElementById('elapsed-timer');
 
-    // Mode Toggle Elements
     const toggleModeBtn = document.getElementById('toggle-mode-btn');
     const manualContainer = document.getElementById('manual-input-container');
     const scannerContainer = document.getElementById('scanner-container');
     const manualCodeInput = document.getElementById('manual-code-input');
     const manualSubmitBtn = document.getElementById('manual-submit-btn');
 
-    // Snap Photo Fallback Elements
     const snapPhotoBtn = document.getElementById('snap-photo-btn');
     const qrFileInput = document.getElementById('qr-file-input');
     const photoSnapContainer = document.getElementById('photo-snap-container');
 
-    // Flashlight & Camera select Elements
     const cameraSelect = document.getElementById('camera-select');
     const cameraSelectContainer = document.getElementById('camera-select-container');
     const flashlightContainer = document.getElementById('flashlight-container');
     const flashlightToggleBtn = document.getElementById('flashlight-toggle-btn');
 
+    // ===================== STATE =====================
     let html5QrCode = null;
     let scanCount = 0;
-    let sessionStartTime = new Date();
-    let pieceStartTime = new Date();
+    let sessionStartTime = null;
+    let pieceStartTime = null;
     let timerInterval = null;
     let currentScannedCode = null;
-
     let isCameraMode = true;
     let cameraRetryCount = 0;
     const maxRetryAttempts = 3;
     let torchState = false;
 
-    // Start timer automatically
-    timerInterval = setInterval(updateTimer, 1000);
+    // ===================== SCREEN 1: START WORK =====================
+    startWorkBtn.addEventListener('click', function() {
+        const stage = stageSelect.value;
+        if (!stage) {
+            alert('Please select a production stage first.');
+            return;
+        }
 
-    // Initialize scanner automatically on load
-    initScanner();
+        // Transition to scanner screen
+        activeStageLabel.innerText = stage.replace('_', ' ');
+        selectionView.style.display = 'none';
+        scannerView.style.display = 'block';
+        completeBtn.style.display = 'block';
 
+        sessionStartTime = new Date();
+        pieceStartTime = new Date();
+        scanCount = 0;
+        piecesCountEl.innerText = '0';
+        scanResultCard.style.display = 'none';
+
+        // Start timer
+        clearInterval(timerInterval);
+        timerInterval = setInterval(updateTimer, 1000);
+
+        // Launch camera scanner
+        initScanner();
+    });
+
+    // ===================== COMPLETE SESSION =====================
+    completeBtn.addEventListener('click', function() {
+        stopScanner(true);
+        clearInterval(timerInterval);
+
+        alert(`Session Completed! Total logged pieces: ${scanCount}. Returning to stage selection.`);
+
+        scannerView.style.display = 'none';
+        completeBtn.style.display = 'none';
+        cameraSelectContainer.style.display = 'none';
+        flashlightContainer.style.display = 'none';
+        selectionView.style.display = 'block';
+    });
+
+    // ===================== CAMERA INIT (UNCHANGED WORKING CODE) =====================
     function initScanner() {
-        // Reset manual UI visibility
         manualContainer.style.display = 'none';
         scannerContainer.style.display = 'block';
         photoSnapContainer.style.display = 'block';
@@ -275,7 +341,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function startCameraScanner(preferredCameraId = null) {
-        // Enumerate devices static method first to avoid state conflicts on instantiation
         Html5Qrcode.getCameras().then(devices => {
             if (devices && devices.length > 0) {
                 // Populate camera select dropdown
@@ -295,7 +360,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 let selectedCameraId = preferredCameraId;
                 if (!selectedCameraId) {
-                    // Scan devices list for any camera labeled back/rear/environment
                     for (let i = 0; i < devices.length; i++) {
                         const label = devices[i].label.toLowerCase();
                         if (label.indexOf('back') !== -1 || 
@@ -305,21 +369,17 @@ document.addEventListener('DOMContentLoaded', function() {
                             break;
                         }
                     }
-                    // Fallback to first camera if no environment camera detected
                     if (!selectedCameraId) {
                         selectedCameraId = devices[0].id;
                     }
                 }
 
-                // Match select value
                 cameraSelect.value = selectedCameraId;
 
-                // Stop any previous scanning session before initiating new one
                 if (html5QrCode && html5QrCode.isScanning) {
                     return;
                 }
 
-                // Initialize Html5Qrcode on the reader node
                 const formats = window.Html5QrcodeSupportedFormats || {};
                 const formatsToSupport = [
                     formats.QR_CODE || 11,
@@ -340,32 +400,25 @@ document.addEventListener('DOMContentLoaded', function() {
                     fps: 25, 
                     qrbox: function(width, height) {
                         const size = Math.min(width, height) * 0.7;
-                        return { width: size, height: size * 0.6 }; // rect scan region suitable for barcodes & QRs
+                        return { width: size, height: size * 0.6 };
                     },
                     aspectRatio: 1.333333
                 };
 
-                // Start scanning with selected camera device ID
                 html5QrCode.start(
                     selectedCameraId,
                     config,
                     onScanSuccess
                 ).then(() => {
-                    // Reset retry counter on successful startup
                     cameraRetryCount = 0;
                     torchState = false;
                     flashlightToggleBtn.innerHTML = '<i class="fa-solid fa-bolt me-1"></i> Toggle Flashlight / Torch';
                     flashlightToggleBtn.className = 'btn btn-warning w-100 py-2.5 rounded-pill fw-bold text-dark shadow-sm';
 
-                    // Check flashlight compatibility
                     try {
                         if (html5QrCode.hasFlashlight && typeof html5QrCode.hasFlashlight === 'function') {
                             html5QrCode.hasFlashlight().then(hasFlash => {
-                                if (hasFlash) {
-                                    flashlightContainer.style.display = 'block';
-                                } else {
-                                    flashlightContainer.style.display = 'none';
-                                }
+                                flashlightContainer.style.display = hasFlash ? 'block' : 'none';
                             }).catch(() => {
                                 flashlightContainer.style.display = 'none';
                             });
@@ -393,51 +446,40 @@ document.addEventListener('DOMContentLoaded', function() {
         let friendlyMessage = "Camera initialization failed.";
 
         if (errorStr.indexOf("Permission") !== -1 || errorStr.indexOf("NotAllowedError") !== -1) {
-            friendlyMessage = "Camera permission request was denied or blocked. Please enable camera access in browser site settings.";
-            // Do not retry on explicit permission denial
+            friendlyMessage = "Camera permission was denied. Please enable camera access in browser settings.";
             switchToManualMode(friendlyMessage);
             return;
         } else if (errorStr.indexOf("NotReadableError") !== -1 || errorStr.indexOf("already in use") !== -1 || errorStr.indexOf("Could not start video source") !== -1) {
-            friendlyMessage = "Selected camera is already in use by another tab, browser window, or application.";
+            friendlyMessage = "Camera is already in use by another app or tab.";
         } else if (errorStr.indexOf("OverconstrainedError") !== -1) {
-            friendlyMessage = "Requested camera configuration constraints are not supported by the hardware.";
+            friendlyMessage = "Camera constraints not supported by hardware.";
         } else if (errorStr.indexOf("NotFoundError") !== -1 || errorStr.indexOf("DevicesNotFound") !== -1) {
-            friendlyMessage = "No camera hardware detected on this device.";
+            friendlyMessage = "No camera hardware detected.";
             switchToManualMode(friendlyMessage);
             return;
         }
 
-        // Retry logic if camera fails startup
         if (cameraRetryCount < maxRetryAttempts) {
             cameraRetryCount++;
-            showTemporaryToast(`Warning: ${friendlyMessage} Retrying... (Attempt ${cameraRetryCount}/${maxRetryAttempts})`, "warning", 3000);
-            setTimeout(() => {
-                startCameraScanner(cameraId);
-            }, 1500);
+            showTemporaryToast(`${friendlyMessage} Retrying... (${cameraRetryCount}/${maxRetryAttempts})`, "warning", 3000);
+            setTimeout(() => { startCameraScanner(cameraId); }, 1500);
         } else {
-            switchToManualMode(`Exceeded maximum camera startup retries. ${friendlyMessage} Switching to Manual Input.`);
+            switchToManualMode(`${friendlyMessage} Switching to Manual Input.`);
         }
     }
 
     function stopScanner(resetMode = true) {
-        if (resetMode) {
-            isCameraMode = false;
-        }
+        if (resetMode) { isCameraMode = false; }
         if (html5QrCode) {
             if (html5QrCode.isScanning) {
-                html5QrCode.stop().then(() => {
-                    html5QrCode = null;
-                }).catch(err => {
-                    console.error("Failed to stop scanner cleanly: ", err);
-                    html5QrCode = null;
-                });
+                html5QrCode.stop().then(() => { html5QrCode = null; }).catch(() => { html5QrCode = null; });
             } else {
                 html5QrCode = null;
             }
         }
     }
 
-    // Toggle camera / manual modes
+    // ===================== MODE TOGGLE =====================
     toggleModeBtn.addEventListener('click', function() {
         if (manualContainer.style.display === 'none') {
             switchToManualMode();
@@ -455,31 +497,22 @@ document.addEventListener('DOMContentLoaded', function() {
         manualContainer.style.display = 'block';
         toggleModeBtn.innerHTML = '<i class="fa-solid fa-camera me-1"></i> Switch to Camera Mode';
 
-        if (reason) {
-            showTemporaryToast(reason, "warning", 4000);
-        }
+        if (reason) { showTemporaryToast(reason, "warning", 4000); }
         manualCodeInput.value = '';
         manualCodeInput.focus();
     }
 
-    // Camera Switch Event
+    // ===================== CAMERA SWITCH =====================
     cameraSelect.addEventListener('change', function(e) {
         const selectedId = e.target.value;
         if (html5QrCode && html5QrCode.isScanning) {
-            html5QrCode.stop().then(() => {
-                html5QrCode = null;
-                startCameraScanner(selectedId);
-            }).catch(err => {
-                console.error(err);
-                html5QrCode = null;
-                startCameraScanner(selectedId);
-            });
+            html5QrCode.stop().then(() => { html5QrCode = null; startCameraScanner(selectedId); }).catch(() => { html5QrCode = null; startCameraScanner(selectedId); });
         } else {
             startCameraScanner(selectedId);
         }
     });
 
-    // Flashlight Toggle Event
+    // ===================== FLASHLIGHT =====================
     flashlightToggleBtn.addEventListener('click', function() {
         if (html5QrCode && html5QrCode.isScanning) {
             try {
@@ -492,46 +525,31 @@ document.addEventListener('DOMContentLoaded', function() {
                         flashlightToggleBtn.innerHTML = '<i class="fa-solid fa-bolt me-1"></i> Toggle Flashlight / Torch';
                         flashlightToggleBtn.className = 'btn btn-warning w-100 py-2.5 rounded-pill fw-bold text-dark shadow-sm';
                     }
-                }).catch(e => {
-                    console.error("Failed to toggle torch: ", e);
-                });
-            } catch(e) {
-                console.error("Toggle torch call failed: ", e);
-            }
+                }).catch(e => { console.error("Torch toggle failed:", e); });
+            } catch(e) { console.error("Torch call failed:", e); }
         }
     });
 
-    // Handle manual entry submit
+    // ===================== MANUAL ENTRY =====================
     manualSubmitBtn.addEventListener('click', function() {
         const code = manualCodeInput.value.trim();
-        if (!code) {
-            alert('Please enter or scan a valid code.');
-            return;
-        }
+        if (!code) { alert('Please enter or scan a valid code.'); return; }
         onScanSuccess(code);
     });
-
     manualCodeInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            manualSubmitBtn.click();
-        }
+        if (e.key === 'Enter') { manualSubmitBtn.click(); }
     });
 
-    // Snap Photo Fallback Listeners
-    snapPhotoBtn.addEventListener('click', function() {
-        qrFileInput.click();
-    });
+    // ===================== SNAP PHOTO FALLBACK =====================
+    snapPhotoBtn.addEventListener('click', function() { qrFileInput.click(); });
 
     qrFileInput.addEventListener('change', function(e) {
         if (e.target.files && e.target.files.length > 0) {
             const file = e.target.files[0];
-            
-            // Show loading indicator
             const originalBtnHtml = snapPhotoBtn.innerHTML;
-            snapPhotoBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Decoding QR...';
+            snapPhotoBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Decoding QR...';
             snapPhotoBtn.disabled = true;
 
-            // Stop active video stream before scanning local image
             if (html5QrCode && html5QrCode.isScanning) {
                 html5QrCode.stop().then(runFileScan).catch(runFileScan);
             } else {
@@ -539,10 +557,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             function runFileScan() {
-                if (!html5QrCode) {
-                    html5QrCode = new Html5Qrcode("reader");
-                }
-
+                if (!html5QrCode) { html5QrCode = new Html5Qrcode("reader"); }
                 html5QrCode.scanFile(file, true)
                     .then(decodedText => {
                         snapPhotoBtn.innerHTML = originalBtnHtml;
@@ -551,26 +566,24 @@ document.addEventListener('DOMContentLoaded', function() {
                         onScanSuccess(decodedText);
                     })
                     .catch(err => {
-                        console.error("Local file scan failed: ", err);
+                        console.error("File scan failed:", err);
                         snapPhotoBtn.innerHTML = originalBtnHtml;
                         snapPhotoBtn.disabled = false;
                         qrFileInput.value = '';
-                        alert("No valid QR code detected in the photo. Please snap a closer and clearer photo of the QR sticker.");
-                        
-                        // Restart camera feed
+                        alert("No valid QR code detected. Please snap a clearer photo.");
                         initScanner();
                     });
             }
         }
     });
 
+    // ===================== ON SCAN SUCCESS (AUTO-CAPTURE) =====================
     function onScanSuccess(decodedText) {
-        // Pause camera scanning during verification
+        // Pause camera during verification — auto-captured instantly
         if (html5QrCode && html5QrCode.isScanning) {
             html5QrCode.pause(true);
         }
 
-        // Hide result card and show verification loader
         scanResultCard.style.display = 'none';
         
         const loader = document.createElement('div');
@@ -593,7 +606,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.success) {
                 currentScannedCode = decodedText;
                 
-                // Populate elements dynamically
                 codeDisplay.innerText = data.product.batch_no;
                 document.getElementById('scanned-style-no-display').innerText = data.product.style_no;
                 document.getElementById('scanned-style-name-display').innerText = data.product.style_name;
@@ -603,13 +615,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 sizeDisplay.innerText = data.product.size;
                 serialDisplay.innerText = '#' + String(data.product.serial).padStart(4, '0') + ' / ' + String(data.product.target_qty).padStart(4, '0');
 
-                // Show result card
                 scanResultCard.style.display = 'block';
             } else {
-                // Show verification failure toast
                 showTemporaryToast('Verification Failed: ' + data.message, "danger", 4000);
-
-                // Auto-resume scanner if in camera mode
                 if (isCameraMode && html5QrCode && html5QrCode.isScanning) {
                     setTimeout(() => html5QrCode.resume(), 2500);
                 }
@@ -625,14 +633,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Pass and Fail action triggers
-    passBtn.addEventListener('click', function() {
-        submitLog('pass');
-    });
-
-    failBtn.addEventListener('click', function() {
-        submitLog('fail');
-    });
+    // ===================== PASS / FAIL LOGGING =====================
+    passBtn.addEventListener('click', function() { submitLog('pass'); });
+    failBtn.addEventListener('click', function() { submitLog('fail'); });
 
     function submitLog(status) {
         if (!currentScannedCode) return;
@@ -640,7 +643,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const durationSeconds = Math.round((new Date() - pieceStartTime) / 1000);
         const stage = stageSelect.value;
 
-        // Prepare POST payload
         const formData = new FormData();
         formData.append('qr_code', currentScannedCode);
         formData.append('stage', stage);
@@ -648,7 +650,6 @@ document.addEventListener('DOMContentLoaded', function() {
         formData.append('duration_seconds', durationSeconds);
         formData.append('csrf_token', "<?= \App\Core\Session::csrfToken() ?>");
 
-        // Disable buttons during request
         passBtn.disabled = true;
         failBtn.disabled = true;
 
@@ -662,14 +663,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 scanCount++;
                 piecesCountEl.innerText = scanCount;
                 
-                // Show a brief success alert
                 showTemporaryToast(data.message, status === 'pass' ? "success" : "danger", 2500);
                 
-                // Reset card & input
                 scanResultCard.style.display = 'none';
                 currentScannedCode = null;
                 manualCodeInput.value = '';
-                pieceStartTime = new Date(); // Reset timer for next piece
+                pieceStartTime = new Date();
                 
                 if (manualContainer.style.display !== 'none') {
                     manualCodeInput.focus();
@@ -685,7 +684,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(err => {
             console.error(err);
-            alert('Connection failure. Verify internet connectivity.');
+            alert('Connection failure.');
             if (html5QrCode && html5QrCode.isScanning && manualContainer.style.display === 'none') {
                 html5QrCode.resume();
             }
@@ -696,44 +695,37 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // ===================== TIMER =====================
     function updateTimer() {
         const diff = new Date() - sessionStartTime;
         const totalSecs = Math.floor(diff / 1000);
         const mins = Math.floor(totalSecs / 60);
         const secs = totalSecs % 60;
-        
-        timerEl.innerText = 
-            String(mins).padStart(2, '0') + ':' + 
-            String(secs).padStart(2, '0');
+        timerEl.innerText = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
     }
 
+    // ===================== TOAST HELPER =====================
     function showTemporaryToast(message, type = "info", duration = 4000) {
         const toast = document.createElement('div');
         const alertClass = type === "success" ? "alert-success" : (type === "warning" ? "alert-warning" : (type === "danger" ? "alert-danger" : "alert-info"));
         toast.className = `alert ${alertClass} text-center py-2.5 mb-2 small fw-bold font-monospace shadow-sm`;
         toast.innerText = message;
-        
-        const container = document.getElementById('unified-scanner-view');
+        const container = scannerView;
         container.insertBefore(toast, container.firstChild);
         setTimeout(() => toast.remove(), duration);
     }
 
-    // Stop camera properly when page is hidden/unloaded, auto-start when returned
+    // ===================== VISIBILITY / LIFECYCLE =====================
     document.addEventListener('visibilitychange', function() {
         if (document.visibilityState === 'hidden') {
-            stopScanner(false); // Stop scanner stream but preserve isCameraMode setting
+            stopScanner(false);
         } else if (document.visibilityState === 'visible') {
-            if (isCameraMode) {
-                initScanner(); // Automatically re-initialize camera when user returns
+            if (isCameraMode && scannerView.style.display !== 'none') {
+                initScanner();
             }
         }
     });
-
-    window.addEventListener('pagehide', function() {
-        stopScanner(true);
-    });
-    window.addEventListener('beforeunload', function() {
-        stopScanner(true);
-    });
+    window.addEventListener('pagehide', function() { stopScanner(true); });
+    window.addEventListener('beforeunload', function() { stopScanner(true); });
 });
 </script>
