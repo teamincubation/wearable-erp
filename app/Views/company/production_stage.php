@@ -107,12 +107,12 @@
                         </div>
                         <div class="row g-2 mb-3">
                             <div class="col-4">
-                                <label class="form-label small fw-bold">Qty In <span class="text-danger">*</span></label>
-                                <input type="number" name="qty_in" class="form-control" placeholder="In" min="1" required>
+                                <label class="form-label small fw-bold">Qty In</label>
+                                <input type="number" name="qty_in" class="form-control" placeholder="In" min="0" value="0">
                             </div>
                             <div class="col-4">
-                                <label class="form-label small fw-bold">Qty Out <span class="text-danger">*</span></label>
-                                <input type="number" name="qty_out" class="form-control" placeholder="Out" min="0" required>
+                                <label class="form-label small fw-bold">Qty Out</label>
+                                <input type="number" name="qty_out" class="form-control" placeholder="Out" min="0" value="0">
                             </div>
                             <div class="col-4">
                                 <label class="form-label small fw-bold">Wastage Qty</label>
@@ -163,6 +163,7 @@
                                 <th>Qty (In/Out/Waste)</th>
                                 <th>Time Taken</th>
                                 <th>Logged Date</th>
+                                <th class="text-end">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -179,11 +180,109 @@
                                         </td>
                                         <td><span class="badge bg-light text-secondary"><?= $h['duration_minutes'] ?> mins</span></td>
                                         <td><?= date('d M Y H:i', strtotime($h['created_at'])) ?></td>
+                                        <td class="text-end">
+                                            <?php if (\App\Core\Auth::hasPermission('company.production.manage')): ?>
+                                                <button class="btn btn-sm btn-outline-primary rounded-pill px-2 me-1" data-bs-toggle="modal" data-bs-target="#editLogModal-<?= $h['id'] ?>" title="Edit Entry">
+                                                    <i class="fa-solid fa-pen-to-square"></i>
+                                                </button>
+                                                <form action="<?= base_url('company/production/stage-log/delete/' . $h['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this stage log? This will update active WIP counts.');">
+                                                    <?= \App\Core\Session::csrfField() ?>
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-2" title="Delete Entry">
+                                                        <i class="fa-solid fa-trash"></i>
+                                                    </button>
+                                                </form>
+
+                                                <!-- Edit Log Modal -->
+                                                <div class="modal fade text-start" id="editLogModal-<?= $h['id'] ?>" tabindex="-1" aria-hidden="true">
+                                                    <div class="modal-dialog">
+                                                        <form action="<?= base_url('company/production/stage-log/edit/' . $h['id']) ?>" method="POST">
+                                                            <?= \App\Core\Session::csrfField() ?>
+                                                            <div class="modal-content text-dark" style="border-radius: 12px;">
+                                                                <div class="modal-header">
+                                                                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-pen-to-square text-primary me-2"></i> Edit Stage Activity Log</h5>
+                                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                                </div>
+                                                                <div class="modal-body text-start">
+                                                                    <div class="mb-3">
+                                                                        <label class="form-label small fw-bold">Production Stage <span class="text-danger">*</span></label>
+                                                                        <select name="stage" class="form-select text-dark" required>
+                                                                            <?php foreach ($stagesList as $stg): ?>
+                                                                                <option value="<?= $stg ?>" <?= $h['stage'] === $stg ? 'selected' : '' ?>><?= str_replace('_', ' ', ucfirst($stg)) ?></option>
+                                                                            <?php endforeach; ?>
+                                                                        </select>
+                                                                    </div>
+                                                                    <div class="row g-2 mb-3">
+                                                                        <div class="col-6">
+                                                                            <label class="form-label small fw-bold">Machine Link</label>
+                                                                            <select name="machine_id" class="form-select text-dark">
+                                                                                <option value="">-- Manual (None) --</option>
+                                                                                <?php foreach ($machines as $m): ?>
+                                                                                    <option value="<?= $m['id'] ?>" <?= $h['machine_id'] == $m['id'] ? 'selected' : '' ?>><?= htmlspecialchars($m['name']) ?> (<?= htmlspecialchars($m['code']) ?>)</option>
+                                                                                <?php endforeach; ?>
+                                                                            </select>
+                                                                        </div>
+                                                                        <div class="col-6">
+                                                                            <label class="form-label small fw-bold">Operator Link</label>
+                                                                            <select name="employee_id" class="form-select text-dark">
+                                                                                <option value="">-- Choose Employee --</option>
+                                                                                <?php foreach ($employees as $emp): ?>
+                                                                                    <option value="<?= $emp['id'] ?>" <?= $h['employee_id'] == $emp['id'] ? 'selected' : '' ?>><?= htmlspecialchars($emp['name']) ?></option>
+                                                                                <?php endforeach; ?>
+                                                                            </select>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="row g-2 mb-3">
+                                                                        <div class="col-4">
+                                                                            <label class="form-label small fw-bold">Qty In</label>
+                                                                            <input type="number" name="qty_in" class="form-control" value="<?= $h['qty_in'] ?>" min="0">
+                                                                        </div>
+                                                                        <div class="col-4">
+                                                                            <label class="form-label small fw-bold">Qty Out</label>
+                                                                            <input type="number" name="qty_out" class="form-control" value="<?= $h['qty_out'] ?>" min="0">
+                                                                        </div>
+                                                                        <div class="col-4">
+                                                                            <label class="form-label small fw-bold">Wastage Qty</label>
+                                                                            <input type="number" name="waste_qty" class="form-control" value="<?= $h['waste_qty'] ?>" min="0">
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="row g-2 mb-3">
+                                                                        <div class="col-6">
+                                                                            <label class="form-label small fw-bold">Start Date</label>
+                                                                            <input type="date" name="start_date" class="form-control text-dark" value="<?= date('Y-m-d', strtotime($h['start_time'])) ?>" required>
+                                                                        </div>
+                                                                        <div class="col-6">
+                                                                            <label class="form-label small fw-bold">Start Time</label>
+                                                                            <input type="time" name="start_time" class="form-control text-dark" value="<?= date('H:i', strtotime($h['start_time'])) ?>" required>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="row g-2 mb-3">
+                                                                        <div class="col-6">
+                                                                            <label class="form-label small fw-bold">End Date</label>
+                                                                            <input type="date" name="end_date" class="form-control text-dark" value="<?= $h['end_time'] ? date('Y-m-d', strtotime($h['end_time'])) : date('Y-m-d') ?>" required>
+                                                                        </div>
+                                                                        <div class="col-6">
+                                                                            <label class="form-label small fw-bold">End Time</label>
+                                                                            <input type="time" name="end_time" class="form-control text-dark" value="<?= $h['end_time'] ? date('H:i', strtotime($h['end_time'])) : date('H:i') ?>" required>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="modal-footer">
+                                                                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
+                                                                    <button type="submit" class="btn btn-primary px-4">Save Changes</button>
+                                                                </div>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            <?php else: ?>
+                                                <span class="text-secondary small">Locked</span>
+                                            <?php endif; ?>
+                                        </td>
                                     </tr>
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="6" class="text-center p-5 text-secondary">
+                                    <td colspan="7" class="text-center p-5 text-secondary">
                                         <i class="fa-solid fa-history fs-1 mb-3 text-light"></i>
                                         <p class="m-0">No operational activities logged for this batch yet.</p>
                                     </td>

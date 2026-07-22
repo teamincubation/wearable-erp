@@ -181,6 +181,30 @@ class MerchandisingController extends Controller {
         if (empty($buyerId) || empty($styleId) || empty($poNo) || empty($poDate) || empty($deliveryDate) || $quantity <= 0 || $unitPrice <= 0) {
             Session::setFlash('error', 'All fields are required. Quantity and price must be greater than zero.');
             $this->redirect('company/merchandising/buyerpos');
+            return;
+        }
+
+        // Validate size quantities
+        $sizeQtys = $request->get('size_qty') ?: [];
+        $totalSizeQty = 0;
+        foreach ($sizeQtys as $sz => $q) {
+            $totalSizeQty += (int)$q;
+        }
+
+        if ($totalSizeQty > $quantity) {
+            Session::setFlash('error', "The sum of size quantities ({$totalSizeQty}) cannot exceed the total order quantity ({$quantity}).");
+            $this->redirect('company/merchandising/buyerpos');
+            return;
+        }
+
+        $sizesJson = json_encode($sizeQtys);
+
+        // Ensure database table has sizes_json column
+        $db = Database::getInstance();
+        try {
+            $db->query("SELECT sizes_json FROM buyer_pos LIMIT 1");
+        } catch (\Exception $e) {
+            $db->exec("ALTER TABLE buyer_pos ADD COLUMN sizes_json JSON DEFAULT NULL AFTER total_amount");
         }
 
         // Calculate total amount
@@ -196,6 +220,7 @@ class MerchandisingController extends Controller {
             'quantity' => $quantity,
             'unit_price' => $unitPrice,
             'total_amount' => $totalAmount,
+            'sizes_json' => $sizesJson,
             'status' => 'draft',
             'created_by' => Session::get('user_id')
         ]);

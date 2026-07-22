@@ -134,7 +134,7 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label small fw-bold">Select Style <span class="text-danger">*</span></label>
-                            <select name="style_id" class="form-select text-dark" required>
+                            <select name="style_id" id="style_select_po" class="form-select text-dark" required>
                                 <option value="">-- Choose Garment Style --</option>
                                 <?php foreach ($styles as $s): ?>
                                     <option value="<?= $s['id'] ?>"><?= htmlspecialchars($s['style_no']) ?> - <?= htmlspecialchars($s['name']) ?></option>
@@ -155,14 +155,25 @@
                                 <input type="date" name="delivery_date" class="form-control text-dark" required>
                             </div>
                         </div>
-                        <div class="row g-3">
+                        <div class="row g-3 mb-3">
                             <div class="col-6">
                                 <label class="form-label small fw-bold">Order Qty (pcs) <span class="text-danger">*</span></label>
-                                <input type="number" name="quantity" class="form-control" placeholder="e.g. 5000" min="1" required>
+                                <input type="number" name="quantity" id="po_overall_qty" class="form-control" placeholder="e.g. 5000" min="1" required>
                             </div>
                             <div class="col-6">
                                 <label class="form-label small fw-bold">Unit Price (₹) <span class="text-danger">*</span></label>
                                 <input type="number" step="0.01" name="unit_price" class="form-control" placeholder="e.g. 240.00" min="0.01" required>
+                            </div>
+                        </div>
+
+                        <!-- Size-Wise Quantities Grid -->
+                        <div id="size-quantities-container" class="mt-3 p-3 bg-light border rounded text-dark" style="display: none;">
+                            <h6 class="fw-bold mb-1 text-primary" style="font-size: 13px;"><i class="fa-solid fa-arrows-left-right me-1"></i> Size breakdown Details</h6>
+                            <p class="text-secondary small mb-3" style="font-size: 11px;">Allocate quantities across the active garment style sizes. Total size quantity cannot exceed the overall PO quantity.</p>
+                            <div id="size-fields-wrapper" class="row row-cols-3 g-2"></div>
+                            <div class="mt-3 text-secondary small d-flex justify-content-between pt-2 border-top" style="font-size: 12px;">
+                                <span>Total size breakdown sum: <strong id="size-sum-indicator" class="text-dark">0</strong> pcs</span>
+                                <span>Unallocated remaining: <strong id="size-rem-indicator" class="text-success">0</strong> pcs</span>
                             </div>
                         </div>
                     </div>
@@ -175,3 +186,104 @@
         </div>
     </div>
 <?php endif; ?>
+
+<script>
+const styleSizeRanges = {
+    <?php foreach ($styles as $s): ?>
+        "<?= $s['id'] ?>": "<?= htmlspecialchars($s['size_range'] ?? '') ?>",
+    <?php endforeach; ?>
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    const styleSelect = document.getElementById('style_select_po');
+    const qtyInput = document.getElementById('po_overall_qty');
+    const container = document.getElementById('size-quantities-container');
+    const wrapper = document.getElementById('size-fields-wrapper');
+    const sumIndicator = document.getElementById('size-sum-indicator');
+    const remIndicator = document.getElementById('size-rem-indicator');
+
+    function updateSizeBreakdown() {
+        const styleId = styleSelect.value;
+        const sizeRangeStr = styleSizeRanges[styleId] || '';
+        
+        if (!styleId || !sizeRangeStr.trim()) {
+            container.style.display = 'none';
+            wrapper.innerHTML = '';
+            return;
+        }
+
+        // Split sizes (comma separated)
+        const sizes = sizeRangeStr.split(',').map(s => s.trim()).filter(s => s !== '');
+        
+        if (sizes.length === 0) {
+            container.style.display = 'none';
+            wrapper.innerHTML = '';
+            return;
+        }
+
+        container.style.display = 'block';
+        wrapper.innerHTML = '';
+
+        sizes.forEach(size => {
+            const col = document.createElement('div');
+            col.className = 'col mb-2';
+            col.innerHTML = `
+                <label class="form-label small fw-bold mb-1 text-secondary" style="font-size: 11px;">Size ${size}</label>
+                <input type="number" name="size_qty[${size}]" class="form-control form-control-sm size-qty-input font-monospace" min="0" value="0" style="font-size: 12px;">
+            `;
+            wrapper.appendChild(col);
+        });
+
+        // Add event listeners to new inputs
+        document.querySelectorAll('.size-qty-input').forEach(input => {
+            input.addEventListener('input', calculateSums);
+        });
+
+        calculateSums();
+    }
+
+    function calculateSums() {
+        let sum = 0;
+        document.querySelectorAll('.size-qty-input').forEach(input => {
+            sum += parseInt(input.value) || 0;
+        });
+
+        const overall = parseInt(qtyInput.value) || 0;
+        sumIndicator.innerText = sum.toLocaleString();
+        
+        const rem = overall - sum;
+        remIndicator.innerText = rem.toLocaleString();
+
+        if (rem < 0) {
+            remIndicator.className = 'text-danger fw-bold';
+        } else {
+            remIndicator.className = 'text-success fw-bold';
+        }
+    }
+
+    if (styleSelect) {
+        styleSelect.addEventListener('change', updateSizeBreakdown);
+    }
+    if (qtyInput) {
+        qtyInput.addEventListener('input', calculateSums);
+    }
+
+    // Form submission validation
+    const form = container ? container.closest('form') : null;
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            let sum = 0;
+            document.querySelectorAll('.size-qty-input').forEach(input => {
+                sum += parseInt(input.value) || 0;
+            });
+            const overall = parseInt(qtyInput.value) || 0;
+
+            if (sum > overall) {
+                e.preventDefault();
+                alert('Validation Error: The sum of size quantities (' + sum + ') cannot exceed the total order quantity (' + overall + ').');
+                return false;
+            }
+        });
+    }
+});
+</script>

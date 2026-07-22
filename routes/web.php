@@ -497,6 +497,23 @@ $router->post('/company/production/stage/{id}/log', [\App\Controllers\Production
        ->middleware(PermissionMiddleware::class)
        ->permission('company.production.manage');
 
+$router->post('/company/production/stage-log/edit/{id}', [\App\Controllers\ProductionController::class, 'editStageLog'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.production.manage');
+
+$router->post('/company/production/stage-log/delete/{id}', [\App\Controllers\ProductionController::class, 'deleteStageLog'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.production.manage');
+
+$router->get('/company/production/barcode', [\App\Controllers\ProductionController::class, 'generateBatchBarcodes'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.production.view');
+
 $router->get('/company/production/quality', [\App\Controllers\ProductionController::class, 'quality'])
        ->middleware(AuthMiddleware::class)
        ->middleware(PermissionMiddleware::class)
