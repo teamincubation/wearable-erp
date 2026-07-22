@@ -251,6 +251,30 @@ $router->post('/company/masterdata/branches/create', [\App\Controllers\MasterDat
        ->middleware(PermissionMiddleware::class)
        ->permission('company.styles.manage');
 
+$router->post('/company/masterdata/generalhours', [\App\Controllers\MasterDataController::class, 'updateGeneralHours'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
+$router->post('/company/masterdata/shifts/create', [\App\Controllers\MasterDataController::class, 'createShift'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
+$router->post('/company/masterdata/shifts/edit/{id}', [\App\Controllers\MasterDataController::class, 'editShift'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
+$router->post('/company/masterdata/shifts/delete/{id}', [\App\Controllers\MasterDataController::class, 'deleteShift'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
 // Buyer & Client Master Management
 $router->get('/company/buyers', [\App\Controllers\BuyerController::class, 'index'])
        ->middleware(AuthMiddleware::class)

@@ -41,11 +41,17 @@ class HrPayrollController extends Controller {
         $stmt->execute([$companyId]);
         $shifts = $stmt->fetchAll() ?: [];
 
+        // Fetch General Working Hours setting
+        $stmtGwh = $db->prepare("SELECT setting_value FROM system_settings WHERE company_id = ? AND setting_key = 'general_working_hours' AND deleted_at IS NULL LIMIT 1");
+        $stmtGwh->execute([$companyId]);
+        $gwh = (int)($stmtGwh->fetchColumn() ?: 8);
+
         $this->renderView('company/attendance', [
             'title' => 'Attendance Register | ERP',
             'attendance' => $attendance,
             'employees' => $employees,
-            'shifts' => $shifts
+            'shifts' => $shifts,
+            'gwh' => $gwh
         ]);
     }
 
@@ -65,19 +71,26 @@ class HrPayrollController extends Controller {
             $this->redirect('company/hr/attendance');
         }
 
+        $db = Database::getInstance();
+        $companyId = Session::get('company_id');
+
+        // Fetch General Working Hours setting
+        $stmtGwh = $db->prepare("SELECT setting_value FROM system_settings WHERE company_id = ? AND setting_key = 'general_working_hours' AND deleted_at IS NULL LIMIT 1");
+        $stmtGwh->execute([$companyId]);
+        $gwh = (float)($stmtGwh->fetchColumn() ?: 8.00);
+
         // Calculate overtime hours if clocked in & out
         $ot = 0.00;
         if (!empty($clockIn) && !empty($clockOut)) {
             $in = strtotime($date . ' ' . $clockIn);
             $out = strtotime($date . ' ' . $clockOut);
             $duration = ($out - $in) / 3600; // Total hours
-            if ($duration > 8.00) {
-                $ot = $duration - 8.00; // standard shift is 8 hours
+            if ($duration > $gwh) {
+                $ot = $duration - $gwh;
             }
         }
 
         $attModel = new EmployeeAttendance();
-        $companyId = Session::get('company_id');
 
         // Check if attendance already exists for this date & employee
         $existing = $attModel->findOneBy([

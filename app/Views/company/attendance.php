@@ -121,24 +121,24 @@
                                 <option value="holiday">Official Holiday</option>
                             </select>
                         </div>
-                        <div class="row g-3 mb-3">
-                            <div class="col-6">
-                                <label class="form-label small fw-bold">Clock In Time</label>
-                                <input type="time" name="clock_in" class="form-control text-dark" value="09:00">
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label small fw-bold">Clock Out Time</label>
-                                <input type="time" name="clock_out" class="form-control text-dark" value="18:00">
-                            </div>
-                        </div>
                         <div class="mb-3">
                             <label class="form-label small fw-bold">Shift Schedule Mapping</label>
                             <select name="shift_id" class="form-select text-dark">
                                 <option value="">-- Standard General (None) --</option>
                                 <?php foreach ($shifts as $s): ?>
-                                    <option value="<?= $s['id'] ?>"><?= htmlspecialchars($s['name']) ?> (<?= $s['start_time'] ?> - <?= $s['end_time'] ?>)</option>
+                                    <option value="<?= $s['id'] ?>" data-start="<?= date('H:i', strtotime($s['start_time'])) ?>" data-end="<?= date('H:i', strtotime($s['end_time'])) ?>"><?= htmlspecialchars($s['name']) ?> (<?= date('h:i A', strtotime($s['start_time'])) ?> - <?= date('h:i A', strtotime($s['end_time'])) ?>)</option>
                                 <?php endforeach; ?>
                             </select>
+                        </div>
+                        <div class="row g-3 mb-3">
+                            <div class="col-6">
+                                <label class="form-label small fw-bold">Clock In Time</label>
+                                <input type="time" name="clock_in" class="form-control text-dark" value="08:00">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-bold">Clock Out Time</label>
+                                <input type="time" name="clock_out" class="form-control text-dark" value="16:00">
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -149,4 +149,40 @@
             </form>
         </div>
     </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const shiftSelect = document.querySelector('select[name="shift_id"]');
+        const clockInInput = document.querySelector('input[name="clock_in"]');
+        const clockOutInput = document.querySelector('input[name="clock_out"]');
+        const gwh = <?= (int)($gwh ?? 8) ?>;
+
+        if (shiftSelect && clockInInput && clockOutInput) {
+            function updateClockTimes() {
+                const selectedOption = shiftSelect.options[shiftSelect.selectedIndex];
+                if (shiftSelect.value === "") {
+                    // Standard General (None)
+                    clockInInput.value = "08:00";
+                    
+                    // Calculate end time as 8:00 AM + GWH hours
+                    let inHours = 8;
+                    let outHours = (inHours + gwh) % 24;
+                    let outHoursStr = String(outHours).padStart(2, '0');
+                    clockOutInput.value = `${outHoursStr}:00`;
+                } else {
+                    // Custom shift schedule
+                    const start = selectedOption.getAttribute('data-start');
+                    const end = selectedOption.getAttribute('data-end');
+                    if (start) clockInInput.value = start;
+                    if (end) clockOutInput.value = end;
+                }
+            }
+
+            shiftSelect.addEventListener('change', updateClockTimes);
+            
+            // Set initial value on setup
+            updateClockTimes();
+        }
+    });
+    </script>
 <?php endif; ?>

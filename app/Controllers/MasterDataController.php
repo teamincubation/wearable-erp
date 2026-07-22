@@ -36,12 +36,23 @@ class MasterDataController extends Controller {
         $branchModel = new Branch();
         $branches = $branchModel->all();
 
+        // Fetch General Working Hours setting
+        $stmtGwh = $db->prepare("SELECT setting_value FROM system_settings WHERE company_id = ? AND setting_key = 'general_working_hours' AND deleted_at IS NULL LIMIT 1");
+        $stmtGwh->execute([$companyId]);
+        $gwh = (int)($stmtGwh->fetchColumn() ?: 8);
+
+        // Fetch Shifts
+        $shiftModel = new \App\Models\Shift();
+        $shifts = $shiftModel->all();
+
         $this->renderView('company/masterdata', [
             'title' => 'Master Data Hub | Wearable ERP',
             'contacts' => $contacts,
             'categories' => $categories,
             'warehouses' => $warehouses,
-            'branches' => $branches
+            'branches' => $branches,
+            'general_working_hours' => $gwh,
+            'shifts' => $shifts
         ]);
     }
 
@@ -211,6 +222,110 @@ class MasterDataController extends Controller {
         $model = new Branch();
         $model->delete($id, Session::get('user_id'));
         Session::setFlash('success', 'Branch office deleted successfully.');
+        $this->redirect('company/masterdata');
+    }
+
+    /**
+     * Update General Working Hours
+     */
+    public function updateGeneralHours(Request $request, Response $response): void {
+        $gwh = (int) $request->get('general_working_hours');
+        if ($gwh <= 0) {
+            Session::setFlash('error', 'Working hours must be a positive integer.');
+            $this->redirect('company/masterdata');
+        }
+
+        $db = Database::getInstance();
+        $companyId = Session::get('company_id');
+
+        try {
+            $stmt = $db->prepare("SELECT id FROM system_settings WHERE company_id = ? AND setting_key = 'general_working_hours' AND deleted_at IS NULL LIMIT 1");
+            $stmt->execute([$companyId]);
+            $settingId = $stmt->fetchColumn();
+
+            if ($settingId) {
+                $stmtUpdate = $db->prepare("UPDATE system_settings SET setting_value = ?, updated_by = ?, updated_at = NOW() WHERE id = ?");
+                $stmtUpdate->execute([$gwh, Session::get('user_id'), $settingId]);
+            } else {
+                $stmtInsert = $db->prepare("INSERT INTO system_settings (company_id, setting_key, setting_value, created_by, updated_by) VALUES (?, 'general_working_hours', ?, ?, ?)");
+                $stmtInsert->execute([$companyId, $gwh, Session::get('user_id'), Session::get('user_id')]);
+            }
+
+            AuditLog::log($companyId, Session::get('user_id'), 'update_gwh', 'SystemSetting', null, null, null, "Updated general working hours to: {$gwh} hours");
+            Session::setFlash('success', 'General working hours updated successfully.');
+        } catch (\Exception $e) {
+            Session::setFlash('error', 'Failed to update working hours: ' . $e->getMessage());
+        }
+
+        $this->redirect('company/masterdata');
+    }
+
+    /**
+     * Create Shift Schedule
+     */
+    public function createShift(Request $request, Response $response): void {
+        $name = trim($request->get('name'));
+        $startTime = trim($request->get('start_time'));
+        $endTime = trim($request->get('end_time'));
+
+        if (empty($name) || empty($startTime) || empty($endTime)) {
+            Session::setFlash('error', 'Shift Title, Start Time, and End Time are required.');
+            $this->redirect('company/masterdata');
+        }
+
+        $shiftModel = new \App\Models\Shift();
+        $id = $shiftModel->insert([
+            'name' => $name,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+            'created_by' => Session::get('user_id')
+        ]);
+
+        AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'create_shift', 'Shift', $id, null, null, "Created shift: {$name} ({$startTime} - {$endTime})");
+        Session::setFlash('success', "Shift schedule '{$name}' created successfully.");
+        $this->redirect('company/masterdata');
+    }
+
+    /**
+     * Edit Shift Schedule
+     */
+    public function editShift(Request $request, Response $response, string $id): void {
+        $shiftModel = new \App\Models\Shift();
+        $shift = $shiftModel->find($id);
+
+        if (!$shift) {
+            Session::setFlash('error', 'Shift not found.');
+            $this->redirect('company/masterdata');
+        }
+
+        $name = trim($request->get('name'));
+        $startTime = trim($request->get('start_time'));
+        $endTime = trim($request->get('end_time'));
+
+        if (empty($name) || empty($startTime) || empty($endTime)) {
+            Session::setFlash('error', 'Shift Title, Start Time, and End Time are required.');
+            $this->redirect('company/masterdata');
+        }
+
+        $shiftModel->update($id, [
+            'name' => $name,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+            'updated_by' => Session::get('user_id')
+        ]);
+
+        AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'edit_shift', 'Shift', $id, $shift, null, "Updated shift schedule to: {$name} ({$startTime} - {$endTime})");
+        Session::setFlash('success', 'Shift schedule updated successfully.');
+        $this->redirect('company/masterdata');
+    }
+
+    /**
+     * Delete Shift Schedule
+     */
+    public function deleteShift(Request $request, Response $response, string $id): void {
+        $shiftModel = new \App\Models\Shift();
+        $shiftModel->delete($id, Session::get('user_id'));
+        Session::setFlash('success', 'Shift schedule deleted successfully.');
         $this->redirect('company/masterdata');
     }
 }

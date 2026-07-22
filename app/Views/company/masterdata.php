@@ -22,6 +22,11 @@
             <i class="fa-solid fa-warehouse me-2 text-warning"></i> Warehouses & Branches
         </button>
     </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold px-4 py-2.5" id="shifts-tab" data-bs-toggle="tab" data-bs-target="#shifts-pane" type="button" role="tab" aria-selected="false">
+            <i class="fa-solid fa-clock me-2 text-info"></i> Shifts & Hours
+        </button>
+    </li>
 </ul>
 
 <!-- Tabs Content -->
@@ -289,6 +294,128 @@
         </div>
     </div>
 
+    <!-- 4. Shifts & Hours Pane -->
+    <div class="tab-pane fade" id="shifts-pane" role="tabpanel" tabindex="0">
+        <div class="row g-4">
+            
+            <!-- General Working Hours Card -->
+            <div class="col-md-4">
+                <div class="pepp-card">
+                    <div class="pepp-card-header">
+                        <h5 class="pepp-card-title m-0"><i class="fa-solid fa-hourglass-half text-info me-2"></i> General Working Hours</h5>
+                    </div>
+                    <div class="pepp-card-body">
+                        <form action="<?= base_url('company/masterdata/generalhours') ?>" method="POST">
+                            <?= \App\Core\Session::csrfField() ?>
+                            <p class="text-secondary small mb-3">Define the default standard working duration in hours for employees. This value is used to compute standard attendance shifts and overtime hours dynamically.</p>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Standard Work Hours / Day <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="number" name="general_working_hours" class="form-control text-dark" min="1" max="24" value="<?= htmlspecialchars($general_working_hours) ?>" required>
+                                    <span class="input-group-text bg-light text-secondary">Hrs</span>
+                                </div>
+                            </div>
+                            <?php if (\App\Core\Auth::hasPermission('company.styles.manage')): ?>
+                                <button type="submit" class="btn btn-info text-white w-100"><i class="fa-solid fa-save me-1"></i> Save Working Hours</button>
+                            <?php endif; ?>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Shift Schedules List -->
+            <div class="col-md-8">
+                <div class="pepp-card">
+                    <div class="pepp-card-header d-flex justify-content-between align-items-center">
+                        <h5 class="pepp-card-title m-0"><i class="fa-solid fa-business-time text-info me-2"></i> Shift Schedules</h5>
+                        <?php if (\App\Core\Auth::hasPermission('company.styles.manage')): ?>
+                            <button class="btn btn-sm btn-info text-white rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#addShiftModal">
+                                <i class="fa-solid fa-plus-circle me-1"></i> Add Shift Schedule
+                            </button>
+                        <?php endif; ?>
+                    </div>
+                    <div class="pepp-card-body p-0">
+                        <div class="table-responsive border-0">
+                            <table class="table pepp-table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Shift Title</th>
+                                        <th>Start Time</th>
+                                        <th>End Time</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php if (!empty($shifts)): ?>
+                                        <?php foreach ($shifts as $sh): ?>
+                                            <tr>
+                                                <td><strong class="text-dark"><?= htmlspecialchars($sh['name']) ?></strong></td>
+                                                <td><span class="badge bg-light text-secondary font-monospace"><?= date('h:i A', strtotime($sh['start_time'])) ?></span></td>
+                                                <td><span class="badge bg-light text-secondary font-monospace"><?= date('h:i A', strtotime($sh['end_time'])) ?></span></td>
+                                                <td class="text-end">
+                                                    <?php if (\App\Core\Auth::hasPermission('company.styles.manage')): ?>
+                                                        <button class="btn btn-sm btn-light border me-1" data-bs-toggle="modal" data-bs-target="#editShiftModal-<?= $sh['id'] ?>"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
+                                                        <form action="<?= base_url('company/masterdata/shifts/delete/' . $sh['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete this shift schedule?');">
+                                                            <?= \App\Core\Session::csrfField() ?>
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                                                        </form>
+                                                    <?php endif; ?>
+                                                </td>
+                                            </tr>
+
+                                            <!-- Modal: Edit Shift -->
+                                            <div class="modal fade" id="editShiftModal-<?= $sh['id'] ?>" tabindex="-1" aria-hidden="true">
+                                                <div class="modal-dialog">
+                                                    <form action="<?= base_url('company/masterdata/shifts/edit/' . $sh['id']) ?>" method="POST">
+                                                        <?= \App\Core\Session::csrfField() ?>
+                                                        <div class="modal-content text-start" style="border-radius: 12px;">
+                                                            <div class="modal-header">
+                                                                <h5 class="modal-title fw-bold">Edit Shift Schedule</h5>
+                                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                            </div>
+                                                            <div class="modal-body text-start">
+                                                                <div class="mb-3">
+                                                                    <label class="form-label small fw-bold">Shift Title <span class="text-danger">*</span></label>
+                                                                    <input type="text" name="name" class="form-control text-dark" value="<?= htmlspecialchars($sh['name']) ?>" required>
+                                                                </div>
+                                                                <div class="row g-3">
+                                                                    <div class="col-6 mb-3">
+                                                                        <label class="form-label small fw-bold">Start Time <span class="text-danger">*</span></label>
+                                                                        <input type="time" name="start_time" class="form-control text-dark" value="<?= htmlspecialchars($sh['start_time']) ?>" required>
+                                                                    </div>
+                                                                    <div class="col-6 mb-3">
+                                                                        <label class="form-label small fw-bold">End Time <span class="text-danger">*</span></label>
+                                                                        <input type="time" name="end_time" class="form-control text-dark" value="<?= htmlspecialchars($sh['end_time']) ?>" required>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
+                                                                <button type="submit" class="btn btn-info text-white px-4">Save Changes</button>
+                                                            </div>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <tr>
+                                            <td colspan="4" class="text-center p-5 text-secondary">
+                                                <i class="fa-solid fa-business-time fs-1 mb-3 text-light"></i>
+                                                <p class="m-0">No customized shift schedules defined yet.</p>
+                                            </td>
+                                        </tr>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
 </div>
 
 <!-- Modal 1: Add BOM Category -->
@@ -453,6 +580,41 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
                     <button type="submit" class="btn btn-primary px-4">Create Warehouse</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Add Shift Schedule -->
+<div class="modal fade" id="addShiftModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form action="<?= base_url('company/masterdata/shifts/create') ?>" method="POST">
+            <?= \App\Core\Session::csrfField() ?>
+            <div class="modal-content" style="border-radius: 12px;">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-plus-circle text-info me-2"></i> Add Shift Schedule</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-start">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Shift Title <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control text-dark" placeholder="e.g. Night Shift, Evening Shift" required>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6 mb-3">
+                            <label class="form-label small fw-bold">Start Time <span class="text-danger">*</span></label>
+                            <input type="time" name="start_time" class="form-control text-dark" required>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label small fw-bold">End Time <span class="text-danger">*</span></label>
+                            <input type="time" name="end_time" class="form-control text-dark" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-info text-white px-4">Create Shift</button>
                 </div>
             </div>
         </form>
