@@ -654,4 +654,22 @@ ALTER TABLE `users` ADD COLUMN `inactive_reason` VARCHAR(150) DEFAULT NULL;
 ALTER TABLE `users` ADD COLUMN `inactivity_date` DATE DEFAULT NULL;
 ALTER TABLE `users` ADD COLUMN `inactivity_remarks` TEXT DEFAULT NULL;
 
+-- 38. ALTER COMPANIES FOR CIK AND LOGO BRANDING
+ALTER TABLE `companies` ADD COLUMN `logo` VARCHAR(255) DEFAULT NULL;
+ALTER TABLE `companies` ADD COLUMN `cik` VARCHAR(6) UNIQUE DEFAULT NULL;
+ALTER TABLE `companies` ADD COLUMN `cik_generated_at` DATETIME DEFAULT NULL;
+ALTER TABLE `companies` ADD COLUMN `cik_regenerated_at` DATETIME DEFAULT NULL;
+ALTER TABLE `companies` ADD COLUMN `cik_regeneration_count` INT DEFAULT 0;
+ALTER TABLE `companies` ADD COLUMN `cik_regenerated_by` INT DEFAULT NULL;
+
+-- 39. CIK HISTORY TABLE
+CREATE TABLE IF NOT EXISTS `cik_history` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `company_id` INT NOT NULL,
+  `cik` VARCHAR(6) NOT NULL,
+  `regenerated_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `regenerated_by` INT DEFAULT NULL,
+  CONSTRAINT `fk_cik_history_company` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;

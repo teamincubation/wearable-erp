@@ -23,6 +23,8 @@ $router->get('/', [DashboardController::class, 'landing']);
 
 $router->get('/login', [AuthController::class, 'showLogin']);
 $router->post('/login', [AuthController::class, 'login'])->middleware(CsrfMiddleware::class);
+$router->post('/login/cik', [AuthController::class, 'verifyCik'])->middleware(CsrfMiddleware::class);
+$router->get('/login/change-cik', [AuthController::class, 'clearCikContext']);
 $router->get('/logout', [AuthController::class, 'logout']);
 
 $router->get('/forgot-password', [AuthController::class, 'showForgotPassword']);
@@ -31,8 +33,6 @@ $router->get('/reset-password', [AuthController::class, 'showResetPassword']);
 $router->post('/reset-password', [AuthController::class, 'resetPassword'])->middleware(CsrfMiddleware::class);
 
 $router->get('/verify-email', [AuthController::class, 'verifyEmail']);
-$router->get('/two-factor', [AuthController::class, 'showTwoFactor']);
-$router->post('/two-factor', [AuthController::class, 'verifyTwoFactor'])->middleware(CsrfMiddleware::class);
 
 // ==========================================================
 // 2. DEVELOPER PORTAL ROUTES (Global Super Admin Only)
@@ -60,6 +60,12 @@ $router->post('/developer/companies/edit/{id}', [DeveloperController::class, 'ed
        ->permission('developer.companies');
 
 $router->post('/developer/companies/delete/{id}', [DeveloperController::class, 'deleteCompany'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('developer.companies');
+
+$router->post('/developer/companies/regenerate-cik/{id}', [DeveloperController::class, 'regenerateCik'])
        ->middleware(AuthMiddleware::class)
        ->middleware(CsrfMiddleware::class)
        ->middleware(PermissionMiddleware::class)
@@ -377,6 +383,12 @@ $router->post('/company/merchandising/costsheets/create', [\App\Controllers\Merc
        ->middleware(PermissionMiddleware::class)
        ->permission('company.styles.manage');
 
+$router->post('/company/merchandising/costsheets/edit/{id}', [\App\Controllers\MerchandisingController::class, 'editCostsheet'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
 $router->get('/company/merchandising/buyerpos', [\App\Controllers\MerchandisingController::class, 'buyerpos'])
        ->middleware(AuthMiddleware::class)
        ->middleware(PermissionMiddleware::class)
@@ -418,6 +430,12 @@ $router->post('/company/purchase/orders/create', [\App\Controllers\PurchaseContr
        ->permission('company.styles.manage');
 
 $router->post('/company/purchase/orders/edit/{id}', [\App\Controllers\PurchaseController::class, 'editOrder'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
+$router->post('/company/purchase/orders/update-status/{id}', [\App\Controllers\PurchaseController::class, 'updateStatus'])
        ->middleware(AuthMiddleware::class)
        ->middleware(CsrfMiddleware::class)
        ->middleware(PermissionMiddleware::class)
@@ -588,6 +606,12 @@ $router->post('/company/settings/payment-accounts/edit/{id}', [CompanyController
        ->permission('company.settings');
 
 $router->post('/company/settings/payment-accounts/delete/{id}', [CompanyController::class, 'deletePaymentAccount'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.settings');
+
+$router->post('/company/settings/menu-order', [CompanyController::class, 'saveMenuOrder'])
        ->middleware(AuthMiddleware::class)
        ->middleware(CsrfMiddleware::class)
        ->middleware(PermissionMiddleware::class)

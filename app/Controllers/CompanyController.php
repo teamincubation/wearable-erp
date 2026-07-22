@@ -483,9 +483,13 @@ class CompanyController extends Controller {
         $db = Database::getInstance();
         $settings = [
             'currency' => $request->get('currency') ?: 'INR',
-            'timezone' => $request->get('timezone') ?: 'Asia/Kolkata',
-            'mfa_required' => $request->get('mfa_required') ? '1' : '0'
+            'timezone' => $request->get('timezone') ?: 'Asia/Kolkata'
         ];
+
+        $menuOrder = $request->get('sidebar_menu_order');
+        if (!empty($menuOrder)) {
+            $settings['sidebar_menu_order'] = $menuOrder;
+        }
 
         foreach ($settings as $key => $val) {
             $stmt = $db->prepare(
@@ -582,5 +586,27 @@ class CompanyController extends Controller {
         }
 
         $this->redirect('company/settings');
+    }
+
+    /**
+     * Save custom sidebar menu layout order
+     */
+    public function saveMenuOrder(Request $request, Response $response): void {
+        $orderJson = $request->get('sidebar_menu_order');
+        if (empty($orderJson)) {
+            $response->json(['success' => false, 'error' => 'Invalid order content.'], 400);
+            return;
+        }
+
+        $companyId = Session::get('company_id');
+        $db = Database::getInstance();
+        $stmt = $db->prepare(
+            "INSERT INTO system_settings (company_id, setting_key, setting_value, updated_by) 
+             VALUES (?, 'sidebar_menu_order', ?, ?)
+             ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_by = VALUES(updated_by)"
+        );
+        $stmt->execute([$companyId, $orderJson, Session::get('user_id')]);
+
+        $response->json(['success' => true]);
     }
 }

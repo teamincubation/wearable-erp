@@ -1,9 +1,15 @@
+<?php
+$tenant = \App\Core\Session::get('current_tenant');
+$logoUrl = ($tenant && !empty($tenant['logo'])) ? base_url($tenant['logo']) : null;
+$faviconUrl = $logoUrl ?: base_url('assets/images/favicon.ico');
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $title ?? 'Wearable ERP' ?></title>
+    <link rel="icon" type="image/png" href="<?= $faviconUrl ?>">
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
@@ -15,8 +21,13 @@
 
     <div class="auth-wrapper">
         <div class="auth-card fade-in-up">
-            <a href="<?= base_url() ?>" class="auth-brand">
-                <i class="fa-solid fa-shirt"></i> Wearable ERP
+            <a href="<?= base_url() ?>" class="auth-brand d-flex align-items-center justify-content-center">
+                <?php if ($logoUrl): ?>
+                    <img src="<?= $logoUrl ?>" alt="Logo" class="rounded me-2" style="max-height: 40px; border: 1px solid #ddd; padding: 2px; background: white;">
+                <?php else: ?>
+                    <i class="fa-solid fa-shirt me-2"></i>
+                <?php endif; ?>
+                <?= $tenant ? htmlspecialchars($tenant['name']) : 'Wearable ERP' ?>
             </a>
 
             <!-- System Flash Alerts -->

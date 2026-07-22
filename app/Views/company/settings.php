@@ -12,6 +12,7 @@
             <div class="pepp-card-body">
                 <form action="<?= base_url('company/settings') ?>" method="POST">
                     <?= \App\Core\Session::csrfField() ?>
+                    <input type="hidden" name="sidebar_menu_order" id="sidebar_menu_order_input" value="<?= htmlspecialchars($settings['sidebar_menu_order'] ?? '') ?>">
 
                     <h6 class="fw-bold text-primary mb-3"><i class="fa-solid fa-id-card me-1"></i> General Details</h6>
                     <div class="row g-3 mb-4">
@@ -56,20 +57,70 @@
                         </div>
                     </div>
 
-                    <h6 class="fw-bold text-primary mb-3"><i class="fa-solid fa-shield-halved me-1"></i> Security Enforcements</h6>
-                    <div class="mb-4">
-                        <div class="form-check form-switch">
-                            <input type="checkbox" name="mfa_required" id="mfa_required" class="form-check-input" value="1" 
-                                <?= ($settings['mfa_required'] ?? '0') === '1' ? 'checked' : '' ?>>
-                            <label class="form-check-label fw-semibold" for="mfa_required">Require Two-Factor Authentication (2FA) for all users</label>
-                            <div class="form-text text-secondary" style="font-size: 12px;">Forces users to type a 6-digit confirmation pin upon signing in.</div>
-                        </div>
-                    </div>
+
 
                     <button type="submit" class="btn btn-pepp-primary">
                         <i class="fa-solid fa-circle-check me-1"></i> Save Company Profile
                     </button>
                 </form>
+            </div>
+        </div>
+
+        <!-- Sidebar Menu Reordering Card -->
+        <div class="pepp-card mt-4">
+            <div class="pepp-card-header">
+                <h5 class="pepp-card-title"><i class="fa-solid fa-bars-staggered text-primary me-2"></i> Sidebar Navigation Order</h5>
+            </div>
+            <div class="pepp-card-body">
+                <p class="text-secondary small mb-3"><i class="fa-solid fa-circle-info text-info me-1"></i> Drag and drop the menu items below to customize the sidebar page order instantly in real-time.</p>
+                
+                <?php
+                // Generate ordered menu list
+                $defaultMenu = [
+                    'dashboard' => ['name' => 'Dashboard', 'icon' => 'fa-solid fa-chart-line'],
+                    'users' => ['name' => 'Employees', 'icon' => 'fa-solid fa-users-gear'],
+                    'roles' => ['name' => 'Roles & Privileges', 'icon' => 'fa-solid fa-shield-halved'],
+                    'masterdata' => ['name' => 'Master Data Hub', 'icon' => 'fa-solid fa-database'],
+                    'buyers' => ['name' => 'Buyers / Clients', 'icon' => 'fa-solid fa-user-tie'],
+                    'styles' => ['name' => 'Style Master', 'icon' => 'fa-solid fa-shirt'],
+                    'merchandising' => ['name' => 'Merchandising', 'icon' => 'fa-solid fa-calculator'],
+                    'procurement' => ['name' => 'Procurement', 'icon' => 'fa-solid fa-cart-shopping'],
+                    'inventory' => ['name' => 'Inventory Ledger', 'icon' => 'fa-solid fa-boxes-stacked'],
+                    'production' => ['name' => 'Production & Quality', 'icon' => 'fa-solid fa-industry'],
+                    'hr' => ['name' => 'HR & Attendance', 'icon' => 'fa-solid fa-user-clock'],
+                    'tally' => ['name' => 'Tally Integration', 'icon' => 'fa-solid fa-file-excel'],
+                    'logs' => ['name' => 'Audit History', 'icon' => 'fa-solid fa-list-check'],
+                    'settings' => ['name' => 'ERP Settings', 'icon' => 'fa-solid fa-sliders']
+                ];
+
+                $savedOrderRaw = $settings['sidebar_menu_order'] ?? null;
+                $savedOrder = $savedOrderRaw ? json_decode($savedOrderRaw, true) : [];
+                if (!is_array($savedOrder)) {
+                    $savedOrder = [];
+                }
+
+                $orderedMenuKeys = array_merge($savedOrder, array_diff(array_keys($defaultMenu), $savedOrder));
+                ?>
+
+                <ul id="draggable-menu-list" class="list-group">
+                    <?php foreach ($orderedMenuKeys as $key): 
+                        if (!isset($defaultMenu[$key])) continue;
+                        $item = $defaultMenu[$key];
+                    ?>
+                        <li class="list-group-item draggable-menu-item d-flex align-items-center justify-content-between p-3 mb-2 border rounded text-dark" 
+                            style="cursor: grab; background: #f8fafc;" 
+                            draggable="true" 
+                            data-key="<?= htmlspecialchars($key) ?>">
+                            <div class="d-flex align-items-center">
+                                <i class="<?= $item['icon'] ?> text-secondary me-3" style="width: 20px;"></i>
+                                <span class="fw-semibold text-dark"><?= htmlspecialchars($item['name']) ?></span>
+                            </div>
+                            <div class="text-secondary">
+                                <i class="fa-solid fa-grip-vertical"></i>
+                            </div>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
             </div>
         </div>
     </div>
@@ -288,5 +339,65 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    // Drag and Drop Sidebar Ordering
+    const menuList = document.getElementById('draggable-menu-list');
+    if (menuList) {
+        let draggedItem = null;
+
+        menuList.addEventListener('dragstart', function(e) {
+            draggedItem = e.target.closest('.draggable-menu-item');
+            if (draggedItem) {
+                draggedItem.style.opacity = '0.5';
+                draggedItem.style.background = '#eff6ff';
+            }
+        });
+
+        menuList.addEventListener('dragend', function(e) {
+            if (draggedItem) {
+                draggedItem.style.opacity = '';
+                draggedItem.style.background = '#f8fafc';
+            }
+            saveNewOrder();
+        });
+
+        menuList.addEventListener('dragover', function(e) {
+            e.preventDefault();
+        });
+
+        menuList.addEventListener('dragenter', function(e) {
+            const targetItem = e.target.closest('.draggable-menu-item');
+            if (targetItem && targetItem !== draggedItem) {
+                const bounding = targetItem.getBoundingClientRect();
+                const offset = e.clientY - bounding.top - (bounding.height / 2);
+                if (offset > 0) {
+                    targetItem.after(draggedItem);
+                } else {
+                    targetItem.before(draggedItem);
+                }
+            }
+        });
+
+        function saveNewOrder() {
+            const items = menuList.querySelectorAll('.draggable-menu-item');
+            const order = Array.from(items).map(item => item.dataset.key);
+            
+            // 1. Update hidden field
+            const hiddenInput = document.getElementById('sidebar_menu_order_input');
+            if (hiddenInput) {
+                hiddenInput.value = JSON.stringify(order);
+            }
+            
+            // 2. AJAX Save
+            const formData = new FormData();
+            formData.append('sidebar_menu_order', JSON.stringify(order));
+            formData.append('csrf_token', '<?= \App\Core\Session::csrfToken() ?>');
+            
+            fetch('<?= base_url("company/settings/menu-order") ?>', {
+                method: 'POST',
+                body: formData
+            });
+        }
+    }
 });
 </script>

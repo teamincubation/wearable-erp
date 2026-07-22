@@ -53,7 +53,8 @@ class DeveloperController extends Controller {
                    u.id as admin_id,
                    u.name as admin_name, 
                    u.email as admin_email, 
-                   u.phone as admin_phone
+                   u.phone as admin_phone,
+                   u_cik.name as cik_regenerated_by_name
             FROM companies c
             LEFT JOIN users u ON u.id = (
                 SELECT u2.id FROM users u2 
@@ -62,6 +63,7 @@ class DeveloperController extends Controller {
                 ORDER BY (CASE WHEN r.name LIKE '%Admin%' THEN 1 ELSE 2 END), u2.id ASC 
                 LIMIT 1
             )
+            LEFT JOIN users u_cik ON c.cik_regenerated_by = u_cik.id
             WHERE c.deleted_at IS NULL
             ORDER BY c.id DESC
         ");
@@ -127,6 +129,31 @@ class DeveloperController extends Controller {
             $this->redirect('developer/companies');
         }
 
+        // Logo Upload Processing
+        $logoPath = null;
+        if (isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
+            $logoFile = $_FILES['logo'];
+            $ext = pathinfo($logoFile['name'], PATHINFO_EXTENSION);
+            $logoName = $subdomain . '_logo_' . time() . '.' . $ext;
+            
+            $targetDir = dirname(__DIR__, 2) . '/uploads/logos/';
+            if (!is_dir($targetDir)) {
+                mkdir($targetDir, 0777, true);
+            }
+            
+            if (move_uploaded_file($logoFile['tmp_name'], $targetDir . $logoName)) {
+                $logoPath = 'uploads/logos/' . $logoName;
+            }
+        }
+
+        // CIK Generation
+        try {
+            $cik = self::generateUniqueCik();
+        } catch (\Exception $e) {
+            Session::setFlash('error', $e->getMessage());
+            $this->redirect('developer/companies');
+        }
+
         try {
             $db->beginTransaction();
 
@@ -157,6 +184,9 @@ class DeveloperController extends Controller {
                 'payment_slip' => $paymentSlip,
                 'timezone' => $timezone,
                 'currency' => $currency,
+                'logo' => $logoPath,
+                'cik' => $cik,
+                'cik_generated_at' => date('Y-m-d H:i:s'),
                 'created_by' => Session::get('user_id')
             ]);
 
@@ -273,6 +303,23 @@ class DeveloperController extends Controller {
 
         $db = Database::getInstance();
 
+        // Logo Upload Processing
+        $logoPath = $company['logo'];
+        if (isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
+            $logoFile = $_FILES['logo'];
+            $ext = pathinfo($logoFile['name'], PATHINFO_EXTENSION);
+            $logoName = $subdomain . '_logo_' . time() . '.' . $ext;
+            
+            $targetDir = dirname(__DIR__, 2) . '/uploads/logos/';
+            if (!is_dir($targetDir)) {
+                mkdir($targetDir, 0777, true);
+            }
+            
+            if (move_uploaded_file($logoFile['tmp_name'], $targetDir . $logoName)) {
+                $logoPath = 'uploads/logos/' . $logoName;
+            }
+        }
+
         try {
             $db->beginTransaction();
 
@@ -295,6 +342,7 @@ class DeveloperController extends Controller {
                 'payment_slip' => $paymentSlip,
                 'timezone' => $timezone,
                 'currency' => $currency,
+                'logo' => $logoPath,
                 'updated_by' => Session::get('user_id')
             ]);
 
@@ -672,5 +720,92 @@ class DeveloperController extends Controller {
             'title' => 'System Cron Jobs Logs',
             'cron_logs' => $cronLogs
         ], 'developer');
+    }
+
+    /**
+     * Generate secure globally unique 6-digit numeric Company Identification Key
+     */
+    public static function generateUniqueCik(): string {
+        $db = Database::getInstance();
+        $attempts = 0;
+        while ($attempts < 100) {
+            $cik = sprintf("%06d", mt_rand(100000, 999999));
+            
+            // Check if CIK is unique in companies
+            $stmt1 = $db->prepare("SELECT id FROM companies WHERE cik = ? LIMIT 1");
+            $stmt1->execute([$cik]);
+            if ($stmt1->fetch()) {
+                $attempts++;
+                continue;
+            }
+
+            // Check if CIK has been archived in history
+            $stmt2 = $db->prepare("SELECT id FROM cik_history WHERE cik = ? LIMIT 1");
+            $stmt2->execute([$cik]);
+            if ($stmt2->fetch()) {
+                $attempts++;
+                continue;
+            }
+
+            return $cik;
+        }
+        throw new \Exception("Unable to generate unique CIK.");
+    }
+
+    /**
+     * Regenerate CIK for a tenant company (Super Admin Only)
+     */
+    public function regenerateCik(Request $request, Response $response, string $id): void {
+        $db = Database::getInstance();
+        $stmt = $db->prepare("SELECT * FROM companies WHERE id = ? AND deleted_at IS NULL LIMIT 1");
+        $stmt->execute([$id]);
+        $company = $stmt->fetch();
+
+        if (!$company) {
+            Session::setFlash('error', 'Company not found.');
+            $this->redirect('developer/companies');
+        }
+
+        $oldCik = $company['cik'];
+        $userId = Session::get('user_id');
+
+        try {
+            $newCik = self::generateUniqueCik();
+        } catch (\Exception $e) {
+            Session::setFlash('error', $e->getMessage());
+            $this->redirect('developer/companies');
+            return;
+        }
+
+        try {
+            $db->beginTransaction();
+
+            // Archive old CIK
+            if (!empty($oldCik)) {
+                $stmtHist = $db->prepare("INSERT INTO cik_history (company_id, cik, regenerated_at, regenerated_by) VALUES (?, ?, NOW(), ?)");
+                $stmtHist->execute([$id, $oldCik, $userId]);
+            }
+
+            // Update new CIK
+            $stmtUpdate = $db->prepare("
+                UPDATE companies 
+                SET cik = ?, 
+                    cik_regenerated_at = NOW(), 
+                    cik_regeneration_count = cik_regeneration_count + 1, 
+                    cik_regenerated_by = ? 
+                WHERE id = ?
+            ");
+            $stmtUpdate->execute([$newCik, $userId, $id]);
+
+            $db->commit();
+
+            AuditLog::log(null, $userId, 'regenerate_cik', 'Company', (int)$id, null, null, "Regenerated CIK for company {$company['name']} (old: {$oldCik}, new: {$newCik})");
+            Session::setFlash('success', "CIK regenerated successfully for {$company['name']}. New CIK: {$newCik}");
+        } catch (\Exception $e) {
+            $db->rollBack();
+            Session::setFlash('error', 'Failed to regenerate CIK: ' . $e->getMessage());
+        }
+
+        $this->redirect('developer/companies');
     }
 }

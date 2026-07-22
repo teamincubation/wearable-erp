@@ -49,6 +49,38 @@ if (!$isCompanyExpired && $currentPagePermission) {
         $whatsappUrl = "https://wa.me/" . \App\Core\Auth::getDeveloperWhatsapp() . "?text=" . urlencode($whatsappMsg);
     }
 }
+
+// Load custom sidebar menu order from system_settings
+$savedOrderRaw = null;
+if ($company) {
+    $db = \App\Core\Database::getInstance();
+    $stmtMenu = $db->prepare("SELECT setting_value FROM system_settings WHERE company_id = ? AND setting_key = 'sidebar_menu_order' AND deleted_at IS NULL LIMIT 1");
+    $stmtMenu->execute([$company['id']]);
+    $savedOrderRaw = $stmtMenu->fetchColumn();
+}
+$savedOrder = $savedOrderRaw ? json_decode($savedOrderRaw, true) : [];
+if (!is_array($savedOrder)) {
+    $savedOrder = [];
+}
+
+$defaultMenu = [
+    'dashboard' => ['name' => 'Dashboard', 'icon' => 'fa-solid fa-chart-line', 'url' => 'company/dashboard', 'permission' => 'company.dashboard', 'active_check' => '/company/dashboard', 'is_exact' => true],
+    'users' => ['name' => 'Employees', 'icon' => 'fa-solid fa-users-gear', 'url' => 'company/users', 'permission' => 'company.users.view', 'active_check' => 'company/users'],
+    'roles' => ['name' => 'Roles & Privileges', 'icon' => 'fa-solid fa-shield-halved', 'url' => 'company/roles', 'permission' => 'company.roles.view', 'active_check' => 'company/roles'],
+    'masterdata' => ['name' => 'Master Data Hub', 'icon' => 'fa-solid fa-database', 'url' => 'company/masterdata', 'permission' => 'company.styles.view', 'active_check' => 'company/masterdata'],
+    'buyers' => ['name' => 'Buyers / Clients', 'icon' => 'fa-solid fa-user-tie', 'url' => 'company/buyers', 'permission' => 'company.styles.view', 'active_check' => 'company/buyers'],
+    'styles' => ['name' => 'Style Master', 'icon' => 'fa-solid fa-shirt', 'url' => 'company/styles', 'permission' => 'company.styles.view', 'active_check' => 'company/styles'],
+    'merchandising' => ['name' => 'Merchandising', 'icon' => 'fa-solid fa-calculator', 'url' => 'company/merchandising/costsheets', 'permission' => 'company.styles.view', 'active_check' => 'company/merchandising'],
+    'procurement' => ['name' => 'Procurement', 'icon' => 'fa-solid fa-cart-shopping', 'url' => 'company/purchase/orders', 'permission' => 'company.styles.view', 'active_check' => 'company/purchase'],
+    'inventory' => ['name' => 'Inventory Ledger', 'icon' => 'fa-solid fa-boxes-stacked', 'url' => 'company/inventory/ledger', 'permission' => 'company.inventory.view', 'active_check' => 'company/inventory'],
+    'production' => ['name' => 'Production & Quality', 'icon' => 'fa-solid fa-industry', 'url' => 'company/production/orders', 'permission' => 'company.production.view', 'active_check' => 'company/production'],
+    'hr' => ['name' => 'HR & Attendance', 'icon' => 'fa-solid fa-user-clock', 'url' => 'company/hr/attendance', 'permission' => 'company.users.view', 'active_check' => 'company/hr'],
+    'tally' => ['name' => 'Tally Integration', 'icon' => 'fa-solid fa-file-excel', 'url' => 'company/tally/vouchers', 'permission' => 'company.tally.export', 'active_check' => 'company/tally'],
+    'logs' => ['name' => 'Audit History', 'icon' => 'fa-solid fa-list-check', 'url' => 'company/logs', 'permission' => 'company.logs', 'active_check' => 'company/logs'],
+    'settings' => ['name' => 'ERP Settings', 'icon' => 'fa-solid fa-sliders', 'url' => 'company/settings', 'permission' => 'company.settings', 'active_check' => 'company/settings']
+];
+
+$orderedMenuKeys = array_merge($savedOrder, array_diff(array_keys($defaultMenu), $savedOrder));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -56,6 +88,7 @@ if (!$isCompanyExpired && $currentPagePermission) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $title ?? 'Wearable ERP' ?></title>
+    <link rel="icon" type="image/png" href="<?= ($company && !empty($company['logo'])) ? base_url($company['logo']) : base_url('assets/images/favicon.ico') ?>">
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
@@ -70,124 +103,39 @@ if (!$isCompanyExpired && $currentPagePermission) {
     <div class="app-layout">
         <!-- Sidebar Navigation -->
         <aside class="sidebar">
-            <a href="<?= base_url('company/dashboard') ?>" class="sidebar-brand">
-                <i class="fa-solid fa-shirt"></i> Wearable ERP
+            <a href="<?= base_url('company/dashboard') ?>" class="sidebar-brand d-flex align-items-center">
+                <?php if ($company && !empty($company['logo'])): ?>
+                    <img src="<?= base_url($company['logo']) ?>" alt="Logo" class="rounded me-2" style="max-height: 28px; width: auto; object-fit: contain; background: white; padding: 2px;">
+                <?php else: ?>
+                    <i class="fa-solid fa-shirt me-2"></i>
+                <?php endif; ?>
+                <span class="text-truncate" style="max-width: 140px;"><?= $company ? htmlspecialchars($company['name']) : 'Wearable ERP' ?></span>
             </a>
             
             <ul class="sidebar-menu">
                 <?php 
-                    $currentUri = $_SERVER['REQUEST_URI'];
-                    $isActive = fn($uri) => (strpos($currentUri, $uri) !== false) ? 'active' : '';
+                    foreach ($orderedMenuKeys as $key):
+                        if (!isset($defaultMenu[$key])) continue;
+                        $item = $defaultMenu[$key];
+                        if (!\App\Core\Auth::hasPermission($item['permission'])) continue;
+                        
+                        $activeClass = '';
+                        if (!empty($item['is_exact'])) {
+                            if ($currentUri === $item['active_check']) {
+                                $activeClass = 'active';
+                            }
+                        } else {
+                            if (strpos($currentUri, $item['active_check']) !== false) {
+                                $activeClass = 'active';
+                            }
+                        }
                 ?>
-                <li class="sidebar-item">
-                    <a href="<?= base_url('company/dashboard') ?>" class="sidebar-link <?= ($currentUri === '/company/dashboard') ? 'active' : '' ?>">
-                        <i class="fa-solid fa-chart-line"></i> Dashboard <?= \App\Core\Auth::getFeatureLabelBadge('company.dashboard') ?>
-                    </a>
-                </li>
-                
-                <?php if (\App\Core\Auth::hasPermission('company.users.view')): ?>
-                <li class="sidebar-item">
-                    <a href="<?= base_url('company/users') ?>" class="sidebar-link <?= $isActive('company/users') ?>">
-                        <i class="fa-solid fa-users-gear"></i> Employees <?= \App\Core\Auth::getFeatureLabelBadge('company.users.view') ?>
-                    </a>
-                </li>
-                <?php endif; ?>
-
-                <?php if (\App\Core\Auth::hasPermission('company.roles.view')): ?>
-                <li class="sidebar-item">
-                    <a href="<?= base_url('company/roles') ?>" class="sidebar-link <?= $isActive('company/roles') ?>">
-                        <i class="fa-solid fa-shield-halved"></i> Roles & Privileges <?= \App\Core\Auth::getFeatureLabelBadge('company.roles.view') ?>
-                    </a>
-                </li>
-                <?php endif; ?>
-
-                <?php if (\App\Core\Auth::hasPermission('company.styles.view')): ?>
-                <li class="sidebar-item">
-                    <a href="<?= base_url('company/masterdata') ?>" class="sidebar-link <?= $isActive('company/masterdata') ?>">
-                        <i class="fa-solid fa-database"></i> Master Data Hub <?= \App\Core\Auth::getFeatureLabelBadge('company.styles.view') ?>
-                    </a>
-                </li>
-                <?php endif; ?>
-
-                <?php if (\App\Core\Auth::hasPermission('company.styles.view')): ?>
-                <li class="sidebar-item">
-                    <a href="<?= base_url('company/buyers') ?>" class="sidebar-link <?= $isActive('company/buyers') ?>">
-                        <i class="fa-solid fa-user-tie"></i> Buyers / Clients <?= \App\Core\Auth::getFeatureLabelBadge('company.styles.view') ?>
-                    </a>
-                </li>
-                <?php endif; ?>
-
-                <?php if (\App\Core\Auth::hasPermission('company.styles.view')): ?>
-                <li class="sidebar-item">
-                    <a href="<?= base_url('company/styles') ?>" class="sidebar-link <?= $isActive('company/styles') ?>">
-                        <i class="fa-solid fa-shirt"></i> Style Master <?= \App\Core\Auth::getFeatureLabelBadge('company.styles.view') ?>
-                    </a>
-                </li>
-                <?php endif; ?>
-
-                <?php if (\App\Core\Auth::hasPermission('company.styles.view')): ?>
-                <li class="sidebar-item">
-                    <a href="<?= base_url('company/merchandising/costsheets') ?>" class="sidebar-link <?= $isActive('company/merchandising') ?>">
-                        <i class="fa-solid fa-calculator"></i> Merchandising <?= \App\Core\Auth::getFeatureLabelBadge('company.styles.view') ?>
-                    </a>
-                </li>
-                <?php endif; ?>
-
-                <?php if (\App\Core\Auth::hasPermission('company.styles.view')): ?>
-                <li class="sidebar-item">
-                    <a href="<?= base_url('company/purchase/orders') ?>" class="sidebar-link <?= $isActive('company/purchase') ?>">
-                        <i class="fa-solid fa-cart-shopping"></i> Procurement <?= \App\Core\Auth::getFeatureLabelBadge('company.styles.view') ?>
-                    </a>
-                </li>
-                <?php endif; ?>
-
-                <?php if (\App\Core\Auth::hasPermission('company.inventory.view')): ?>
-                <li class="sidebar-item">
-                    <a href="<?= base_url('company/inventory/ledger') ?>" class="sidebar-link <?= $isActive('company/inventory') ?>">
-                        <i class="fa-solid fa-boxes-stacked"></i> Inventory Ledger <?= \App\Core\Auth::getFeatureLabelBadge('company.inventory.view') ?>
-                    </a>
-                </li>
-                <?php endif; ?>
-
-                <?php if (\App\Core\Auth::hasPermission('company.production.view')): ?>
-                <li class="sidebar-item">
-                    <a href="<?= base_url('company/production/orders') ?>" class="sidebar-link <?= $isActive('company/production') ?>">
-                        <i class="fa-solid fa-industry"></i> Production & Quality <?= \App\Core\Auth::getFeatureLabelBadge('company.production.view') ?>
-                    </a>
-                </li>
-                <?php endif; ?>
-
-                <?php if (\App\Core\Auth::hasPermission('company.users.view')): ?>
-                <li class="sidebar-item">
-                    <a href="<?= base_url('company/hr/attendance') ?>" class="sidebar-link <?= $isActive('company/hr') ?>">
-                        <i class="fa-solid fa-user-clock"></i> HR & Attendance <?= \App\Core\Auth::getFeatureLabelBadge('company.users.view') ?>
-                    </a>
-                </li>
-                <?php endif; ?>
-
-                <?php if (\App\Core\Auth::hasPermission('company.tally.export')): ?>
-                <li class="sidebar-item">
-                    <a href="<?= base_url('company/tally/vouchers') ?>" class="sidebar-link <?= $isActive('company/tally') ?>">
-                        <i class="fa-solid fa-file-excel"></i> Tally Integration <?= \App\Core\Auth::getFeatureLabelBadge('company.tally.export') ?>
-                    </a>
-                </li>
-                <?php endif; ?>
-
-                <?php if (\App\Core\Auth::hasPermission('company.logs')): ?>
-                <li class="sidebar-item">
-                    <a href="<?= base_url('company/logs') ?>" class="sidebar-link <?= $isActive('company/logs') ?>">
-                        <i class="fa-solid fa-list-check"></i> Audit History <?= \App\Core\Auth::getFeatureLabelBadge('company.logs') ?>
-                    </a>
-                </li>
-                <?php endif; ?>
-
-                <?php if (\App\Core\Auth::hasPermission('company.settings')): ?>
-                <li class="sidebar-item">
-                    <a href="<?= base_url('company/settings') ?>" class="sidebar-link <?= $isActive('company/settings') ?>">
-                        <i class="fa-solid fa-sliders"></i> ERP Settings <?= \App\Core\Auth::getFeatureLabelBadge('company.settings') ?>
-                    </a>
-                </li>
-                <?php endif; ?>
+                    <li class="sidebar-item">
+                        <a href="<?= base_url($item['url']) ?>" class="sidebar-link <?= $activeClass ?>">
+                            <i class="<?= $item['icon'] ?>"></i> <?= htmlspecialchars($item['name']) ?> <?= \App\Core\Auth::getFeatureLabelBadge($item['permission']) ?>
+                        </a>
+                    </li>
+                <?php endforeach; ?>
             </ul>
 
             <div class="sidebar-footer">
@@ -242,10 +190,10 @@ if (!$isCompanyExpired && $currentPagePermission) {
                         $tenantTimezone = $tenant['timezone'];
                     }
                 ?>
-                <div class="d-none d-md-flex align-items-center me-3 px-3 py-1.5 rounded-pill shadow-sm" style="background: rgba(241, 245, 249, 0.85); border: 1px solid #cbd5e1; gap: 8px; font-size: 13px; font-weight: 500;">
-                    <i class="fa-regular fa-clock text-primary"></i>
+                <div class="d-none d-md-flex align-items-center me-3 px-3 py-1.5 rounded-pill shadow-sm" style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #3b82f6; gap: 8px; font-size: 13px; font-weight: 600;">
+                    <i class="fa-regular fa-clock text-primary fa-pulse"></i>
                     <span id="erp-global-clock" class="text-dark font-monospace">Loading...</span>
-                    <span class="badge bg-secondary text-white font-monospace" style="font-size: 10px;"><?= htmlspecialchars($tenantTimezone) ?></span>
+                    <span class="badge bg-primary text-white font-monospace" style="font-size: 10px;"><?= htmlspecialchars($tenantTimezone) ?></span>
                 </div>
 
                 <script>

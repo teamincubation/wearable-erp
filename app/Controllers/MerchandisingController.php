@@ -87,6 +87,53 @@ class MerchandisingController extends Controller {
     }
 
     /**
+     * Edit Cost Sheet Estimate
+     */
+    public function editCostsheet(Request $request, Response $response, string $id): void {
+        $styleId = (int)$request->get('style_id');
+        $costSheetNo = trim($request->get('cost_sheet_no'));
+        $yarnCost = (float)$request->get('yarn_cost');
+        $fabricCost = (float)$request->get('fabric_cost');
+        $processingCost = (float)$request->get('processing_cost');
+        $accessoriesCost = (float)$request->get('accessories_cost');
+        $packingCost = (float)$request->get('packing_cost');
+        $marginPercentage = (float)$request->get('margin_percentage');
+
+        if (empty($styleId) || empty($costSheetNo)) {
+            Session::setFlash('error', 'Style selection and Cost Sheet Number are required.');
+            $this->redirect('company/merchandising/costsheets');
+        }
+
+        // Calculate total cost
+        $subtotal = $yarnCost + $fabricCost + $processingCost + $accessoriesCost + $packingCost;
+        $totalCost = $subtotal * (1 + ($marginPercentage / 100));
+
+        $costSheetModel = new CostSheet();
+        $costSheet = $costSheetModel->find($id);
+        if (!$costSheet) {
+            Session::setFlash('error', 'Cost Sheet not found.');
+            $this->redirect('company/merchandising/costsheets');
+        }
+
+        $costSheetModel->update($id, [
+            'style_id' => $styleId,
+            'cost_sheet_no' => $costSheetNo,
+            'yarn_cost' => $yarnCost,
+            'fabric_cost' => $fabricCost,
+            'processing_cost' => $processingCost,
+            'accessories_cost' => $accessoriesCost,
+            'packing_cost' => $packingCost,
+            'margin_percentage' => $marginPercentage,
+            'total_cost' => $totalCost,
+            'updated_by' => Session::get('user_id')
+        ]);
+
+        AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'edit_costsheet', 'CostSheet', $id, null, null, "Updated cost sheet estimate: {$costSheetNo}");
+        Session::setFlash('success', 'Cost Sheet estimate updated successfully.');
+        $this->redirect('company/merchandising/costsheets');
+    }
+
+    /**
      * Buyer POs Manager View
      */
     public function buyerpos(Request $request, Response $response): void {

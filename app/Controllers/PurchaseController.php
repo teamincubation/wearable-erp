@@ -151,7 +151,7 @@ class PurchaseController extends Controller {
                 'po_no' => $poNo,
                 'date' => $date,
                 'total_amount' => 0.00, // Updated later
-                'status' => 'active',
+                'status' => 'draft',
                 'created_by' => Session::get('user_id')
             ]);
 
@@ -435,5 +435,26 @@ class PurchaseController extends Controller {
         $model->delete($id, Session::get('user_id'));
         Session::setFlash('success', 'GRN record deleted successfully.');
         $this->redirect('company/purchase/grns');
+    }
+
+    /**
+     * Instantly toggle PO status between 'draft' and 'active'
+     */
+    public function updateStatus(Request $request, Response $response, string $id): void {
+        $poModel = new PurchaseOrder();
+        $po = $poModel->find($id);
+
+        if (!$po) {
+            Session::setFlash('error', 'Purchase Order not found.');
+            $this->redirect('company/purchase/orders');
+            return;
+        }
+
+        $newStatus = ($po['status'] === 'draft') ? 'active' : 'draft';
+        $poModel->update($id, ['status' => $newStatus]);
+
+        AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'update_po_status', 'PurchaseOrder', $id, $po['status'], $newStatus, "Toggled PO status to {$newStatus}");
+        Session::setFlash('success', "Purchase Order status updated to {$newStatus} successfully.");
+        $this->redirect('company/purchase/orders');
     }
 }

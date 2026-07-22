@@ -38,15 +38,29 @@
                                 <td><?= date('d M Y', strtotime($o['date'])) ?></td>
                                 <td><strong class="text-dark">₹<?= number_format($o['total_amount'], 2) ?></strong></td>
                                 <td>
-                                    <span class="badge badge-pepp 
-                                        <?php 
-                                            if ($o['status'] === 'grn_completed') echo 'badge-success';
-                                            elseif ($o['status'] === 'draft') echo 'badge-warning';
-                                            elseif ($o['status'] === 'active') echo 'badge-info';
-                                            else echo 'badge-info';
-                                        ?>">
-                                        <?= htmlspecialchars(str_replace('_', ' ', ucfirst($o['status']))) ?>
-                                    </span>
+                                    <div class="d-flex align-items-center">
+                                        <span class="badge badge-pepp 
+                                            <?php 
+                                                if ($o['status'] === 'grn_completed') echo 'badge-success';
+                                                elseif ($o['status'] === 'draft') echo 'badge-warning';
+                                                elseif ($o['status'] === 'active') echo 'badge-info';
+                                                else echo 'badge-info';
+                                            ?>">
+                                            <?= htmlspecialchars(str_replace('_', ' ', ucfirst($o['status']))) ?>
+                                        </span>
+                                        <?php if ($o['status'] === 'draft' || $o['status'] === 'active'): ?>
+                                            <form action="<?= base_url('company/purchase/orders/update-status/' . $o['id']) ?>" method="POST" class="d-inline ms-2">
+                                                <?= \App\Core\Session::csrfField() ?>
+                                                <button type="submit" class="btn btn-sm btn-link p-0 text-primary border-0 bg-transparent" title="<?= $o['status'] === 'draft' ? 'Activate Purchase Order' : 'Mark as Draft' ?>">
+                                                    <?php if ($o['status'] === 'draft'): ?>
+                                                        <i class="fa-solid fa-circle-play fs-6"></i>
+                                                    <?php else: ?>
+                                                        <i class="fa-solid fa-circle-pause fs-6 text-secondary"></i>
+                                                    <?php endif; ?>
+                                                </button>
+                                            </form>
+                                        <?php endif; ?>
+                                    </div>
                                 </td>
                                 <td class="text-end">
                                     <?php if (\App\Core\Auth::hasPermission('company.styles.manage')): ?>

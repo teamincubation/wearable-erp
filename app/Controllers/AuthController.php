@@ -45,67 +45,9 @@ class AuthController extends Controller {
             $this->redirect('login');
         }
 
-        // 2FA Flow
-        if ($user['two_factor_enabled']) {
-            Session::set('mfa_user_id', $user['id']);
-            Session::setFlash('info', 'Two-Factor Authentication is enabled. Please enter your code.');
-            $this->redirect('two-factor');
-        }
-
         // Standard Login
         Auth::login($user);
         Session::setFlash('success', "Welcome back, {$user['name']}!");
-        $this->redirectToDashboard();
-    }
-
-    /**
-     * Show Two-Factor verification page
-     */
-    public function showTwoFactor(Request $request, Response $response): void {
-        if (!Session::has('mfa_user_id')) {
-            Session::setFlash('error', 'Authentication session expired.');
-            $this->redirect('login');
-        }
-        $this->renderView('auth/two_factor', ['title' => '2FA Verification | Wearable ERP'], 'auth');
-    }
-
-    /**
-     * Handle Two-Factor token validation
-     */
-    public function verifyTwoFactor(Request $request, Response $response): void {
-        $userId = Session::get('mfa_user_id');
-        $code = $request->get('code');
-
-        if (!$userId) {
-            Session::setFlash('error', 'Authentication session expired.');
-            $this->redirect('login');
-        }
-
-        if (empty($code) || strlen($code) !== 6) {
-            Session::setFlash('error', 'Please enter a valid 6-digit code.');
-            $this->redirect('two-factor');
-        }
-
-        $userModel = new User();
-        $user = $userModel->find($userId);
-
-        if (!$user) {
-            Session::setFlash('error', 'User not found.');
-            $this->redirect('login');
-        }
-
-        // In a real production app, we would verify $code using Google2FA library.
-        // For our production-ready Pilot demonstration: Code is "123456" for test login.
-        if ($code !== '123456' && $code !== '654321') {
-            AuditLog::log($user['company_id'], $user['id'], '2fa_failed', 'User', $user['id'], null, null, "Failed 2FA code verification.");
-            Session::setFlash('error', 'Invalid verification code. Use 123456 for testing.');
-            $this->redirect('two-factor');
-        }
-
-        // Succesfully verified
-        Session::remove('mfa_user_id');
-        Auth::login($user);
-        Session::setFlash('success', "Verification successful. Welcome back!");
         $this->redirectToDashboard();
     }
 
@@ -241,5 +183,70 @@ class AuthController extends Controller {
         } else {
             $this->redirect('company/dashboard');
         }
+    }
+
+    /**
+     * Handle CIK (Company Identification Key) verification
+     */
+    public function verifyCik(Request $request, Response $response): void {
+        $cik = trim($request->get('cik'));
+
+        // CIK attempts rate limiter
+        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        $attemptsKey = 'cik_attempts_' . $ip;
+        $lastAttemptKey = 'cik_last_attempt_' . $ip;
+
+        $attempts = Session::get($attemptsKey, 0);
+        $lastAttempt = Session::get($lastAttemptKey, 0);
+
+        if ($attempts >= 5 && (time() - $lastAttempt) < 60) {
+            $secondsLeft = 60 - (time() - $lastAttempt);
+            Session::setFlash('error', "Too many failed attempts. Please try again in {$secondsLeft} seconds.");
+            $this->redirect('login');
+            return;
+        }
+
+        if (empty($cik) || strlen($cik) !== 6 || !is_numeric($cik)) {
+            Session::set($attemptsKey, $attempts + 1);
+            Session::set($lastAttemptKey, time());
+            Session::setFlash('error', 'Please enter a valid 6-digit numeric Company Key.');
+            $this->redirect('login');
+            return;
+        }
+
+        $db = \App\Core\Database::getInstance();
+        $stmt = $db->prepare("SELECT * FROM companies WHERE cik = ? AND status = 'active' AND deleted_at IS NULL LIMIT 1");
+        $stmt->execute([$cik]);
+        $company = $stmt->fetch();
+
+        if ($company) {
+            // Establish tenant session context
+            Session::set('company_id', $company['id']);
+            Session::set('current_tenant', $company);
+            Session::set('active_tenant_subdomain', $company['subdomain']);
+            
+            // Clear attempts
+            Session::remove($attemptsKey);
+            Session::remove($lastAttemptKey);
+
+            Session::setFlash('success', "Identified company: {$company['name']}. Please login with credentials.");
+        } else {
+            Session::set($attemptsKey, $attempts + 1);
+            Session::set($lastAttemptKey, time());
+            Session::setFlash('error', 'Invalid Company Identification Key.');
+        }
+
+        $this->redirect('login');
+    }
+
+    /**
+     * Clear active CIK session context to login into another company
+     */
+    public function clearCikContext(Request $request, Response $response): void {
+        Session::remove('company_id');
+        Session::remove('current_tenant');
+        Session::remove('active_tenant_subdomain');
+        Session::setFlash('info', 'Company context cleared. Enter new CIK.');
+        $this->redirect('login');
     }
 }

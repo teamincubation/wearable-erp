@@ -19,6 +19,7 @@
                     <tr>
                         <th>Company Name</th>
                         <th>Subdomain</th>
+                        <th>CIK & Logo</th>
                         <th>Admin Email</th>
                         <th>T&C & Payment Slip Info</th>
                         <th>Subscription</th>
@@ -36,6 +37,27 @@
                                     <div class="text-muted" style="font-size: 12px;"><?= htmlspecialchars($c['city'] ?? 'Tiruppur') ?>, <?= htmlspecialchars($c['state'] ?? 'Tamil Nadu') ?></div>
                                 </td>
                                 <td><span class="badge bg-light text-primary"><?= htmlspecialchars($c['subdomain']) ?></span></td>
+                                <td>
+                                    <div class="d-flex align-items-center mb-1">
+                                        <?php if (!empty($c['logo'])): ?>
+                                            <img src="<?= base_url($c['logo']) ?>" alt="Logo" class="rounded me-2" style="width: 24px; height: 24px; object-fit: contain; border: 1px solid #dee2e6;">
+                                        <?php endif; ?>
+                                        <span class="badge bg-warning text-dark font-monospace fw-bold" style="font-size: 13px; letter-spacing: 1px;"><?= htmlspecialchars($c['cik'] ?? 'N/A') ?></span>
+                                    </div>
+                                    <div style="font-size: 11px;" class="text-secondary">
+                                        <div><strong>Gen:</strong> <?= $c['cik_generated_at'] ? date('d M Y H:i', strtotime($c['cik_generated_at'])) : 'System' ?></div>
+                                        <?php if ($c['cik_regenerated_at']): ?>
+                                            <div><strong>Regen:</strong> <?= date('d M Y H:i', strtotime($c['cik_regenerated_at'])) ?></div>
+                                            <div><strong>Count:</strong> <?= (int)$c['cik_regeneration_count'] ?> (By: <?= htmlspecialchars($c['cik_regenerated_by_name'] ?: 'Admin') ?>)</div>
+                                        <?php endif; ?>
+                                    </div>
+                                    <form action="<?= base_url('developer/companies/regenerate-cik/' . $c['id']) ?>" method="POST" class="mt-1" onsubmit="return confirm('Are you sure you want to regenerate the CIK for <?= htmlspecialchars($c['name']) ?>? The old CIK will be instantly archived and become invalid.');">
+                                        <?= \App\Core\Session::csrfField() ?>
+                                        <button type="submit" class="btn btn-xs btn-outline-secondary py-0 px-2 mt-1" style="font-size: 10px;">
+                                            <i class="fa-solid fa-arrows-rotate"></i> Regenerate CIK
+                                        </button>
+                                    </form>
+                                </td>
                                 <td>
                                     <div class="fw-bold text-dark"><?= htmlspecialchars($c['admin_email'] ?? $c['email']) ?></div>
                                     <?php if (!empty($c['admin_email']) && $c['admin_email'] !== $c['email']): ?>
@@ -75,7 +97,7 @@
                             <!-- Edit Modal -->
                             <div class="modal fade" id="editModal-<?= $c['id'] ?>" tabindex="-1" aria-hidden="true">
                                 <div class="modal-dialog modal-lg">
-                                    <form action="<?= base_url('developer/companies/edit/' . $c['id']) ?>" method="POST">
+                                    <form action="<?= base_url('developer/companies/edit/' . $c['id']) ?>" method="POST" enctype="multipart/form-data">
                                         <?= \App\Core\Session::csrfField() ?>
                                         <div class="modal-content text-start" style="border-radius: var(--border-radius-lg);">
                                             <div class="modal-header">
@@ -104,6 +126,17 @@
                                                     <div class="col-md-6">
                                                         <label class="form-label fw-semibold">Company Phone</label>
                                                         <input type="text" name="phone" class="form-control" value="<?= htmlspecialchars($c['phone'] ?? '') ?>">
+                                                    </div>
+                                                    <div class="col-md-12">
+                                                        <label class="form-label fw-semibold">Company Logo (Optional)</label>
+                                                        <?php if (!empty($c['logo'])): ?>
+                                                            <div class="mb-2 d-flex align-items-center">
+                                                                <img src="<?= base_url($c['logo']) ?>" alt="Logo" class="rounded me-2" style="max-height: 40px; border: 1px solid #ddd;">
+                                                                <span class="text-secondary small">Current logo</span>
+                                                            </div>
+                                                        <?php endif; ?>
+                                                        <input type="file" name="logo" class="form-control" accept="image/*">
+                                                        <div class="form-text">Upload an image file to set/change the portal branding logo and favicon.</div>
                                                     </div>
                                                 </div>
 
@@ -290,7 +323,7 @@
 <!-- Onboard Modal with Wizard Form -->
 <div class="modal fade" id="onboardModal" tabindex="-1" aria-labelledby="onboardModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
-        <form action="<?= base_url('developer/companies/create') ?>" method="POST" id="onboardWizardForm">
+        <form action="<?= base_url('developer/companies/create') ?>" method="POST" id="onboardWizardForm" enctype="multipart/form-data">
             <?= \App\Core\Session::csrfField() ?>
             <div class="modal-content shadow-lg text-start" style="border-radius: var(--border-radius-lg);">
                 <div class="modal-header">
@@ -321,6 +354,11 @@
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold">Contact Phone</label>
                                 <input type="text" name="phone" class="form-control" placeholder="e.g. +91 98765 43210">
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label fw-semibold">Company Logo (Optional)</label>
+                                <input type="file" name="logo" class="form-control" accept="image/*">
+                                <div class="form-text">Upload an image to set as the favicon and branding logo of this company's portal.</div>
                             </div>
                         </div>
                     </div>

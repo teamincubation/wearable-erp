@@ -65,11 +65,9 @@
                         <th>Employee ID</th>
                         <th>Name</th>
                         <th>Designation</th>
-                        <th>Email / Username</th>
                         <th>Phone</th>
                         <th>Role Privileges</th>
                         <th>Salary Package</th>
-                        <th>Verification</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
@@ -91,7 +89,6 @@
                                     </div>
                                 </td>
                                 <td><span class="badge bg-light text-secondary"><?= htmlspecialchars($u['designation'] ?: 'Staff') ?></span></td>
-                                <td><?= htmlspecialchars($u['email']) ?></td>
                                 <td><?= htmlspecialchars($u['phone'] ?: 'N/A') ?></td>
                                 <td>
                                     <?php 
@@ -110,16 +107,15 @@
                                     <span class="fw-bold text-dark font-monospace"><?= get_currency_symbol() ?><?= number_format($u['base_salary'] ?? 0, 2) ?></span>
                                 </td>
                                 <td>
-                                    <span class="badge badge-pepp <?= $u['email_verified_at'] ? 'badge-success' : 'badge-warning' ?>">
-                                        <?= $u['email_verified_at'] ? 'Verified' : 'Pending' ?>
-                                    </span>
-                                </td>
-                                <td>
                                     <span class="badge badge-pepp <?= ($u['status'] === 'active') ? 'badge-success' : 'badge-danger' ?>">
                                         <?= htmlspecialchars(ucfirst($u['status'])) ?>
                                     </span>
                                 </td>
                                 <td>
+                                    <button class="btn btn-sm btn-light border me-1" data-bs-toggle="modal" data-bs-target="#viewUserModal-<?= $u['id'] ?>" title="View Employee Details">
+                                        <i class="fa-regular fa-eye text-primary"></i>
+                                    </button>
+
                                     <?php if (\App\Core\Auth::hasPermission('company.users.edit')): ?>
                                         <button class="btn btn-sm btn-light border me-1" data-bs-toggle="modal" data-bs-target="#editUserModal-<?= $u['id'] ?>">
                                             <i class="fa-regular fa-pen-to-square"></i>
@@ -136,6 +132,84 @@
                                     <?php endif; ?>
                                 </td>
                             </tr>
+
+                            <!-- View User Modal -->
+                            <div class="modal fade" id="viewUserModal-<?= $u['id'] ?>" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <div class="modal-content text-start" style="border-radius: var(--border-radius-lg);">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title fw-bold"><i class="fa-regular fa-id-badge text-primary me-2"></i> Employee Details</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body p-4 text-dark">
+                                            <div class="d-flex align-items-center mb-4">
+                                                <div class="user-avatar bg-light text-primary me-3 fw-bold fs-3" style="width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid #dee2e6;">
+                                                    <?= strtoupper(substr($u['name'], 0, 1)) ?>
+                                                </div>
+                                                <div>
+                                                    <h5 class="fw-bold mb-0 text-dark"><?= htmlspecialchars($u['name']) ?></h5>
+                                                    <span class="badge bg-secondary font-monospace"><?= htmlspecialchars($u['employee_code'] ?? 'N/A') ?></span>
+                                                </div>
+                                            </div>
+                                            <div class="row g-3">
+                                                <div class="col-6 mb-2">
+                                                    <label class="text-secondary small d-block">Designation</label>
+                                                    <strong class="text-dark"><?= htmlspecialchars($u['designation'] ?: 'Staff') ?></strong>
+                                                </div>
+                                                <div class="col-6 mb-2">
+                                                    <label class="text-secondary small d-block">Assigned Role</label>
+                                                    <strong class="text-dark"><?= htmlspecialchars($roleName) ?></strong>
+                                                </div>
+                                                <div class="col-6 mb-2">
+                                                    <label class="text-secondary small d-block">Email / Username</label>
+                                                    <strong class="text-dark"><?= htmlspecialchars($u['email']) ?></strong>
+                                                </div>
+                                                <div class="col-6 mb-2">
+                                                    <label class="text-secondary small d-block">Contact Phone</label>
+                                                    <strong class="text-dark"><?= htmlspecialchars($u['phone'] ?: 'N/A') ?></strong>
+                                                </div>
+                                                <div class="col-6 mb-2">
+                                                    <label class="text-secondary small d-block">Base Salary Package</label>
+                                                    <strong class="text-success font-monospace"><?= get_currency_symbol() ?><?= number_format($u['base_salary'] ?? 0, 2) ?></strong>
+                                                </div>
+                                                <div class="col-6 mb-2">
+                                                    <label class="text-secondary small d-block">Account Status</label>
+                                                    <span class="badge bg-light text-dark border px-2 py-1 text-capitalize fw-bold">
+                                                        <?= htmlspecialchars(ucfirst($u['status'])) ?>
+                                                    </span>
+                                                </div>
+                                                <div class="col-12 mb-2">
+                                                    <label class="text-secondary small d-block">Verification Status</label>
+                                                    <span class="badge badge-pepp <?= $u['email_verified_at'] ? 'badge-success' : 'badge-warning' ?>">
+                                                        <?= $u['email_verified_at'] ? 'Verified' : 'Pending' ?>
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <?php if ($u['status'] === 'inactive'): ?>
+                                                <div class="mt-4 p-3 border border-danger rounded text-start" style="background-color: #fef2f2;">
+                                                    <h6 class="fw-bold text-danger mb-2"><i class="fa-solid fa-triangle-exclamation me-1"></i> Inactivity Details</h6>
+                                                    <div class="mb-2">
+                                                        <span class="text-secondary small d-block">Reason / Separation Type</span>
+                                                        <strong class="text-dark text-capitalize"><?= htmlspecialchars($u['inactive_reason'] ?: 'N/A') ?></strong>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <span class="text-secondary small d-block">Effective Date</span>
+                                                        <strong class="text-dark"><?= $u['inactivity_date'] ? date('d M Y', strtotime($u['inactivity_date'])) : 'N/A' ?></strong>
+                                                    </div>
+                                                    <div>
+                                                        <span class="text-secondary small d-block">Admin Remarks</span>
+                                                        <p class="text-dark mb-0 small"><?= nl2br(htmlspecialchars($u['inactivity_remarks'] ?: 'No remarks provided.')) ?></p>
+                                                    </div>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="modal-footer border-0">
+                                            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
                             <!-- Edit User Modal -->
                             <div class="modal fade" id="editUserModal-<?= $u['id'] ?>" tabindex="-1" aria-hidden="true">
