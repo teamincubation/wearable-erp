@@ -509,6 +509,16 @@ $router->post('/company/production/stage-log/delete/{id}', [\App\Controllers\Pro
        ->middleware(PermissionMiddleware::class)
        ->permission('company.production.manage');
 
+$router->get('/company/production/stage/{id}/export', [\App\Controllers\ProductionController::class, 'exportStageLogs'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.production.view');
+
+$router->get('/company/production/stage/{id}/live-report', [\App\Controllers\ProductionController::class, 'stageLiveReport'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.production.view');
+
 $router->get('/company/production/barcode', [\App\Controllers\ProductionController::class, 'generateBatchBarcodes'])
        ->middleware(AuthMiddleware::class)
        ->middleware(PermissionMiddleware::class)

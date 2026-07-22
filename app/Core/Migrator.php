@@ -201,6 +201,14 @@ class Migrator {
                 }
             } catch (\PDOException $e) {}
 
+            // Auto-heal production_stage_logs table columns for RFID QR Code tags
+            try {
+                $checkQrCode = $db->query("SHOW COLUMNS FROM `production_stage_logs` LIKE 'qr_code'");
+                if (!$checkQrCode || $checkQrCode->rowCount() === 0) {
+                    $db->exec("ALTER TABLE `production_stage_logs` ADD COLUMN `qr_code` VARCHAR(100) DEFAULT NULL");
+                }
+            } catch (\PDOException $e) {}
+
             // Auto-heal payroll_records table for statistics and payment tracking
             $payrollColumns = [
                 'present_days' => "INT DEFAULT 0",

@@ -149,8 +149,16 @@
     <!-- History Logs Table -->
     <div class="<?= \App\Core\Auth::hasPermission('company.production.manage') ? 'col-md-8' : 'col-12' ?>">
         <div class="pepp-card">
-            <div class="pepp-card-header">
-                <h5 class="pepp-card-title"><i class="fa-solid fa-clock-rotate-left text-primary me-2"></i> Stage History Journal</h5>
+            <div class="pepp-card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <h5 class="pepp-card-title m-0"><i class="fa-solid fa-clock-rotate-left text-primary me-2"></i> Stage History Journal</h5>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="<?= base_url('company/production/stage/' . $order['id'] . '/live-report') ?>" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill fw-bold">
+                        <i class="fa-solid fa-chart-line me-1"></i> Stage Live Report
+                    </a>
+                    <a href="<?= base_url('company/production/stage/' . $order['id'] . '/export') ?>" class="btn btn-sm btn-outline-success rounded-pill fw-bold">
+                        <i class="fa-solid fa-file-excel me-1"></i> Export History (Excel)
+                    </a>
+                </div>
             </div>
             <div class="pepp-card-body p-0">
                 <div class="table-responsive border-0">
@@ -172,7 +180,7 @@
                                     <tr>
                                         <td><span class="badge bg-light text-dark text-capitalize"><?= str_replace('_', ' ', $h['stage']) ?></span></td>
                                         <td><?= htmlspecialchars($h['employee_name'] ?: 'System / Admin') ?></td>
-                                        <td><?= htmlspecialchars($h['machine_name'] ?: 'Manual') ?></td>
+                                        <td><?= htmlspecialchars($h['machine_name'] ?: ($h['qr_code'] ? 'QR: ' . $h['qr_code'] : 'Manual')) ?></td>
                                         <td class="font-monospace text-dark small">
                                             In: <?= $h['qty_in'] ?><br>
                                             Out: <strong class="text-success"><?= $h['qty_out'] ?></strong><br>
@@ -291,6 +299,26 @@
                         </tbody>
                     </table>
                 </div>
+                <!-- Pagination Controls -->
+                <?php if (isset($totalPages) && $totalPages > 1): ?>
+                <div class="card-footer bg-white border-top py-3">
+                    <nav aria-label="Page navigation" class="m-0">
+                        <ul class="pagination pagination-sm justify-content-center m-0">
+                            <li class="page-item <?= ($currentPage <= 1) ? 'disabled' : '' ?>">
+                                <a class="page-link rounded-pill-start px-3" href="?page=<?= $currentPage - 1 ?>"><i class="fa-solid fa-angle-left"></i></a>
+                            </li>
+                            <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                                <li class="page-item <?= ($i === $currentPage) ? 'active' : '' ?>">
+                                    <a class="page-link px-3" href="?page=<?= $i ?>"><?= $i ?></a>
+                                </li>
+                            <?php endfor; ?>
+                            <li class="page-item <?= ($currentPage >= $totalPages) ? 'disabled' : '' ?>">
+                                <a class="page-link rounded-pill-end px-3" href="?page=<?= $currentPage + 1 ?>"><i class="fa-solid fa-angle-right"></i></a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>

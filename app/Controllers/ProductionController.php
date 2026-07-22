@@ -108,13 +108,25 @@ class ProductionController extends Controller {
         $productionService = new ProductionService();
         $wipSummary = $productionService->getOrderWipSummary($companyId, (int)$id);
 
-        // Fetch stage history logs
+        // Pagination variables
+        $page = max(1, (int)($request->get('page') ?: 1));
+        $limit = 30;
+        $offset = ($page - 1) * $limit;
+
+        // Get total logs count for pagination controls
+        $stmtCount = $db->prepare("SELECT COUNT(*) FROM production_stage_logs WHERE production_order_id = ? AND company_id = ?");
+        $stmtCount->execute([$id, $companyId]);
+        $totalLogs = (int)$stmtCount->fetchColumn();
+        $totalPages = max(1, (int)ceil($totalLogs / $limit));
+
+        // Fetch stage history logs page-wise
         $stmt = $db->prepare("SELECT psl.*, m.name as machine_name, u.name as employee_name
                              FROM production_stage_logs psl
                              LEFT JOIN machines m ON psl.machine_id = m.id
                              LEFT JOIN users u ON psl.employee_id = u.id
                              WHERE psl.production_order_id = ? AND psl.company_id = ?
-                             ORDER BY psl.id DESC");
+                             ORDER BY psl.id DESC
+                             LIMIT {$limit} OFFSET {$offset}");
         $stmt->execute([$id, $companyId]);
         $history = $stmt->fetchAll() ?: [];
 
@@ -143,7 +155,9 @@ class ProductionController extends Controller {
             'history' => $history,
             'machines' => $machines,
             'employees' => $employees,
-            'stagesList' => $stagesList
+            'stagesList' => $stagesList,
+            'currentPage' => $page,
+            'totalPages' => $totalPages
         ]);
     }
 
@@ -471,7 +485,7 @@ class ProductionController extends Controller {
         }
 
         // Fetch active WIP stages configured for this company from system_settings
-        $stmtWip = $db->prepare("SELECT setting_value FROM system_settings WHERE company_id = ? AND setting_key = 'active_wip_stages' AND deleted_at IS NULL ORDER BY id DESC LIMIT 1");
+        $stmtWip = $db->prepare("SELECT setting_value FROM system_settings WHERE company_id = ? AND setting_key = 'active_production_stages' AND deleted_at IS NULL ORDER BY id DESC LIMIT 1");
         $stmtWip->execute([$companyId]);
         $activeWipRaw = $stmtWip->fetchColumn();
         
@@ -542,8 +556,8 @@ class ProductionController extends Controller {
         try {
             $stmtLog = $db->prepare("
                 INSERT INTO production_stage_logs 
-                (company_id, production_order_id, stage, employee_id, qty_in, qty_out, waste_qty, start_time, end_time, duration_minutes, created_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (company_id, production_order_id, stage, employee_id, qty_in, qty_out, waste_qty, start_time, end_time, duration_minutes, created_by, qr_code)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             $stmtLog->execute([
                 $companyId,
@@ -556,7 +570,8 @@ class ProductionController extends Controller {
                 $startTime,
                 $endTime,
                 $durationMinutes,
-                $userId
+                $userId,
+                $qrCode
             ]);
 
             // Update batch status to running if not already
@@ -655,5 +670,142 @@ class ProductionController extends Controller {
             ]
         ]);
         exit;
+    }
+
+    /**
+     * Export all stage history logs for a production order to CSV (Excel compatible)
+     */
+    public function exportStageLogs(Request $request, Response $response, string $id): void {
+        $companyId = Session::get('company_id');
+        $db = Database::getInstance();
+
+        // Fetch production order
+        $stmtOrder = $db->prepare("SELECT production_no FROM production_orders WHERE id = ? AND company_id = ? AND deleted_at IS NULL LIMIT 1");
+        $stmtOrder->execute([$id, $companyId]);
+        $orderNo = $stmtOrder->fetchColumn();
+        if (!$orderNo) {
+            Session::setFlash('error', 'Production order not found.');
+            $this->redirect('company/production/orders');
+            return;
+        }
+
+        // Fetch all logs in ASCENDING order (oldest first)
+        $stmt = $db->prepare("
+            SELECT psl.*, m.name as machine_name, u.name as employee_name
+            FROM production_stage_logs psl
+            LEFT JOIN machines m ON psl.machine_id = m.id
+            LEFT JOIN users u ON psl.employee_id = u.id
+            WHERE psl.production_order_id = ? AND psl.company_id = ?
+            ORDER BY psl.id ASC
+        ");
+        $stmt->execute([$id, $companyId]);
+        $logs = $stmt->fetchAll() ?: [];
+
+        $filename = "production_logs_" . strtolower(str_replace(' ', '_', $orderNo)) . "_" . date('Ymd_His') . ".csv";
+
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        
+        $output = fopen('php://output', 'w');
+        
+        // Add UTF-8 BOM for proper Excel encoding of special chars
+        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+
+        // Column headers
+        fputcsv($output, [
+            'Log ID', 
+            'Stage', 
+            'Operator Name', 
+            'Machine Code / Tag ID', 
+            'Qty In', 
+            'Qty Out', 
+            'Waste Qty', 
+            'Start Time', 
+            'End Time', 
+            'Duration (Mins)', 
+            'Logged Date'
+        ]);
+
+        foreach ($logs as $l) {
+            $machineCode = $l['machine_name'] ?: ($l['qr_code'] ?: 'Manual');
+            fputcsv($output, [
+                $l['id'],
+                strtoupper(str_replace('_', ' ', $l['stage'])),
+                $l['employee_name'] ?: 'System / Admin',
+                $machineCode,
+                $l['qty_in'],
+                $l['qty_out'],
+                $l['waste_qty'],
+                $l['start_time'],
+                $l['end_time'],
+                $l['duration_minutes'],
+                date('Y-m-d H:i:s', strtotime($l['created_at']))
+            ]);
+        }
+
+        fclose($output);
+        exit;
+    }
+
+    /**
+     * Live Operations Stage Dashboard Report
+     */
+    public function stageLiveReport(Request $request, Response $response, string $id): void {
+        $companyId = Session::get('company_id');
+        $db = Database::getInstance();
+
+        // Fetch production order details joined with PO & Style
+        $stmt = $db->prepare("
+            SELECT pro.*, s.style_no, s.name as style_name, s.category as style_category, s.composition as fabric_composition,
+                   po.po_no as buyer_po_no, po.quantity as target_qty, po.sizes_json
+            FROM production_orders pro
+            JOIN buyer_pos po ON pro.po_id = po.id
+            JOIN styles s ON po.style_id = s.id
+            WHERE pro.id = ? AND pro.company_id = ? AND pro.deleted_at IS NULL
+            LIMIT 1
+        ");
+        $stmt->execute([$id, $companyId]);
+        $order = $stmt->fetch();
+
+        if (!$order) {
+            Session::setFlash('error', 'Production order not found.');
+            $this->redirect('company/production/orders');
+            return;
+        }
+
+        $productionService = new ProductionService();
+        $wipSummary = $productionService->getOrderWipSummary($companyId, (int)$id);
+
+        // Fetch active production stages settings
+        $stmtStageSettings = $db->prepare("SELECT setting_value FROM system_settings WHERE company_id = ? AND setting_key = 'active_production_stages' AND deleted_at IS NULL ORDER BY id DESC LIMIT 1");
+        $stmtStageSettings->execute([$companyId]);
+        $activeStagesRaw = $stmtStageSettings->fetchColumn();
+        
+        $allStagesDefault = ['knitting', 'dyeing', 'compacting', 'relaxing', 'spreading', 'cutting', 'bundling', 'printing', 'embroidery', 'sewing', 'checking', 'thread_cutting', 'washing', 'ironing', 'packing', 'carton_packing', 'shipment'];
+        $stagesList = $activeStagesRaw ? json_decode(html_entity_decode($activeStagesRaw), true) : $allStagesDefault;
+        if (!is_array($stagesList) || empty($stagesList)) {
+            $stagesList = $allStagesDefault;
+        }
+
+        // Fetch the 10 most recent activity logs for live ticker
+        $stmtLogs = $db->prepare("
+            SELECT psl.*, u.name as employee_name, m.name as machine_name
+            FROM production_stage_logs psl
+            LEFT JOIN users u ON psl.employee_id = u.id
+            LEFT JOIN machines m ON psl.machine_id = m.id
+            WHERE psl.production_order_id = ? AND psl.company_id = ?
+            ORDER BY psl.id DESC
+            LIMIT 10
+        ");
+        $stmtLogs->execute([$id, $companyId]);
+        $recentLogs = $stmtLogs->fetchAll() ?: [];
+
+        $this->renderView('company/production_stage_live', [
+            'title' => "Live Monitor: {$order['production_no']} | ERP",
+            'order' => $order,
+            'wip_summary' => $wipSummary,
+            'stagesList' => $stagesList,
+            'recentLogs' => $recentLogs
+        ], 'mobile');
     }
 }

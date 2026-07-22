@@ -432,6 +432,7 @@ CREATE TABLE IF NOT EXISTS `production_stage_logs` (
   `start_time` DATETIME NOT NULL,
   `end_time` DATETIME DEFAULT NULL,
   `duration_minutes` INT DEFAULT NULL,
+  `qr_code` VARCHAR(100) DEFAULT NULL,
   `created_by` INT DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT `fk_psl_company` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE,
