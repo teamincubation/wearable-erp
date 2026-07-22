@@ -68,6 +68,11 @@ class MasterDataController extends Controller {
         $stmtHolidays->execute([$companyId]);
         $holidays = $stmtHolidays->fetchAll() ?: [];
 
+        // Fetch designations list
+        $stmtD = $db->prepare("SELECT * FROM designations WHERE company_id = ? AND deleted_at IS NULL ORDER BY title ASC");
+        $stmtD->execute([$companyId]);
+        $designations = $stmtD->fetchAll() ?: [];
+
         $this->renderView('company/masterdata', [
             'title' => 'Master Data Hub | Wearable ERP',
             'contacts' => $contacts,
@@ -77,7 +82,8 @@ class MasterDataController extends Controller {
             'general_working_hours' => $gwh,
             'shifts' => $shifts,
             'policySettings' => $policySettings,
-            'holidays' => $holidays
+            'holidays' => $holidays,
+            'designations' => $designations
         ]);
     }
 
@@ -544,6 +550,101 @@ class MasterDataController extends Controller {
         } catch (\Exception $e) {
             $db->rollBack();
             Session::setFlash('error', 'Failed to clone calendar holidays: ' . $e->getMessage());
+        }
+
+        $this->redirect('company/masterdata');
+    }
+
+    /**
+     * Create a Designation
+     */
+    public function createDesignation(Request $request, Response $response): void {
+        $title = trim($request->get('title'));
+        $description = trim($request->get('description'));
+
+        if (empty($title)) {
+            Session::setFlash('error', 'Designation Title is required.');
+            $this->redirect('company/masterdata');
+        }
+
+        $companyId = Session::get('company_id');
+        $userId = Session::get('user_id');
+        $db = Database::getInstance();
+
+        try {
+            // Check uniqueness
+            $stmtCheck = $db->prepare("SELECT id FROM designations WHERE company_id = ? AND title = ? AND deleted_at IS NULL LIMIT 1");
+            $stmtCheck->execute([$companyId, $title]);
+            if ($stmtCheck->fetch()) {
+                Session::setFlash('error', 'This Designation already exists.');
+                $this->redirect('company/masterdata');
+            }
+
+            $stmt = $db->prepare("INSERT INTO designations (company_id, title, description, created_by) VALUES (?, ?, ?, ?)");
+            $stmt->execute([$companyId, $title, $description ?: null, $userId]);
+
+            AuditLog::log($companyId, $userId, 'create_designation', 'Designation', $db->lastInsertId(), null, null, "Created designation: {$title}");
+            Session::setFlash('success', 'Designation created successfully.');
+        } catch (\Exception $e) {
+            Session::setFlash('error', 'Failed to create designation: ' . $e->getMessage());
+        }
+
+        $this->redirect('company/masterdata');
+    }
+
+    /**
+     * Edit a Designation
+     */
+    public function editDesignation(Request $request, Response $response, string $id): void {
+        $title = trim($request->get('title'));
+        $description = trim($request->get('description'));
+
+        if (empty($title)) {
+            Session::setFlash('error', 'Designation Title is required.');
+            $this->redirect('company/masterdata');
+        }
+
+        $companyId = Session::get('company_id');
+        $userId = Session::get('user_id');
+        $db = Database::getInstance();
+
+        try {
+            // Check uniqueness excluding current ID
+            $stmtCheck = $db->prepare("SELECT id FROM designations WHERE company_id = ? AND title = ? AND id != ? AND deleted_at IS NULL LIMIT 1");
+            $stmtCheck->execute([$companyId, $title, $id]);
+            if ($stmtCheck->fetch()) {
+                Session::setFlash('error', 'Another Designation with this title already exists.');
+                $this->redirect('company/masterdata');
+            }
+
+            $stmt = $db->prepare("UPDATE designations SET title = ?, description = ? WHERE id = ? AND company_id = ?");
+            $stmt->execute([$title, $description ?: null, $id, $companyId]);
+
+            AuditLog::log($companyId, $userId, 'edit_designation', 'Designation', $id, null, null, "Updated designation ID {$id} to: {$title}");
+            Session::setFlash('success', 'Designation updated successfully.');
+        } catch (\Exception $e) {
+            Session::setFlash('error', 'Failed to update designation: ' . $e->getMessage());
+        }
+
+        $this->redirect('company/masterdata');
+    }
+
+    /**
+     * Delete a Designation
+     */
+    public function deleteDesignation(Request $request, Response $response, string $id): void {
+        $companyId = Session::get('company_id');
+        $userId = Session::get('user_id');
+        $db = Database::getInstance();
+
+        try {
+            $stmt = $db->prepare("UPDATE designations SET deleted_at = NOW() WHERE id = ? AND company_id = ?");
+            $stmt->execute([$id, $companyId]);
+
+            AuditLog::log($companyId, $userId, 'delete_designation', 'Designation', $id, null, null, "Deleted designation ID {$id}");
+            Session::setFlash('success', 'Designation deleted successfully.');
+        } catch (\Exception $e) {
+            Session::setFlash('error', 'Failed to delete designation: ' . $e->getMessage());
         }
 
         $this->redirect('company/masterdata');

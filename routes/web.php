@@ -305,6 +305,24 @@ $router->post('/company/masterdata/holidays/clone', [\App\Controllers\MasterData
        ->middleware(PermissionMiddleware::class)
        ->permission('company.styles.manage');
 
+$router->post('/company/masterdata/designations/create', [\App\Controllers\MasterDataController::class, 'createDesignation'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
+$router->post('/company/masterdata/designations/edit/{id}', [\App\Controllers\MasterDataController::class, 'editDesignation'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
+$router->post('/company/masterdata/designations/delete/{id}', [\App\Controllers\MasterDataController::class, 'deleteDesignation'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
 // Buyer & Client Master Management
 $router->get('/company/buyers', [\App\Controllers\BuyerController::class, 'index'])
        ->middleware(AuthMiddleware::class)
@@ -471,6 +489,11 @@ $router->post('/company/hr/attendance/clock', [\App\Controllers\HrPayrollControl
        ->middleware(CsrfMiddleware::class)
        ->middleware(PermissionMiddleware::class)
        ->permission('company.users.create');
+
+$router->get('/company/hr/loans', [\App\Controllers\HrPayrollController::class, 'loansPage'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.users.view');
 
 $router->post('/company/hr/loans/create', [\App\Controllers\HrPayrollController::class, 'createLoan'])
        ->middleware(AuthMiddleware::class)

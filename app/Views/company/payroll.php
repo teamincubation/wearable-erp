@@ -89,23 +89,27 @@
                                     <?php endif; ?>
                                 </td>
                                 <td class="text-end">
-                                    <?php if ($pr['status'] === 'pending' && \App\Core\Auth::hasPermission('company.users.create')): ?>
-                                        <button class="btn btn-sm btn-success text-white me-1 rounded-pill" data-bs-toggle="modal" data-bs-target="#paySalaryModal-<?= $pr['id'] ?>">
-                                            <i class="fa-solid fa-check-double"></i> Mark Paid
+                                    <div class="d-flex justify-content-end align-items-center gap-1">
+                                        <?php if (($pr['status'] === 'pending' || $pr['status'] === 'draft') && \App\Core\Auth::hasPermission('company.users.create')): ?>
+                                            <button class="btn btn-sm btn-success text-white rounded-pill px-2.5" data-bs-toggle="modal" data-bs-target="#paySalaryModal-<?= $pr['id'] ?>" style="font-size: 11px;">
+                                                <i class="fa-solid fa-check-double me-1"></i> Mark Paid
+                                            </button>
+                                        <?php endif; ?>
+                                        <button class="btn btn-sm btn-outline-primary rounded-pill px-2.5" onclick="downloadPayslipPdf(<?= htmlspecialchars(json_encode($pr)) ?>, '<?= htmlspecialchars($pr['employee_name']) ?>', '<?= $monthName ?>', '<?= $pr['year'] ?>', '<?= htmlspecialchars($pr['designation'] ?? 'Staff') ?>')" style="font-size: 11px;">
+                                            <i class="fa-solid fa-file-pdf me-1"></i> PDF
                                         </button>
-                                    <?php endif; ?>
-                                    <button class="btn btn-sm btn-outline-primary me-1 rounded-pill" onclick="downloadPayslipPdf(<?= htmlspecialchars(json_encode($pr)) ?>, '<?= htmlspecialchars($pr['employee_name']) ?>', '<?= $monthName ?>', '<?= $pr['year'] ?>', '<?= htmlspecialchars($pr['designation'] ?? 'Staff') ?>')">
-                                        <i class="fa-solid fa-file-pdf"></i> PDF
-                                    </button>
-                                    <form action="<?= base_url('company/hr/payroll/delete/' . $pr['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this payroll record?');">
-                                        <?= \App\Core\Session::csrfField() ?>
-                                        <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
-                                    </form>
+                                        <form action="<?= base_url('company/hr/payroll/delete/' . $pr['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this payroll record?');">
+                                            <?= \App\Core\Session::csrfField() ?>
+                                            <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-2.5" style="font-size: 11px;">
+                                                <i class="fa-solid fa-trash-can me-1"></i> Delete
+                                            </button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
 
                             <!-- Modal: Mark Paid -->
-                            <?php if ($pr['status'] === 'pending' && \App\Core\Auth::hasPermission('company.users.create')): ?>
+                            <?php if (($pr['status'] === 'pending' || $pr['status'] === 'draft') && \App\Core\Auth::hasPermission('company.users.create')): ?>
                                 <div class="modal fade" id="paySalaryModal-<?= $pr['id'] ?>" tabindex="-1" aria-hidden="true">
                                     <div class="modal-dialog">
                                         <form action="<?= base_url('company/hr/payroll/pay/' . $pr['id']) ?>" method="POST" class="paySalaryForm" data-net="<?= $pr['net_salary'] ?>" data-id="<?= $pr['id'] ?>">
@@ -530,7 +534,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Payment modals balance calculator
     const payForms = document.querySelectorAll('.paySalaryForm');
     payForms.forEach(form => {
         const netVal = parseFloat(form.getAttribute('data-net')) || 0.00;
@@ -538,6 +541,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const amtInput = document.getElementById('paid_amount_' + formId);
         const balLabel = document.getElementById('paid_balance_' + formId);
         const errLabel = document.getElementById('paid_amount_err_' + formId);
+
+        if (!amtInput || !balLabel || !errLabel) return;
 
         function updatePayDetails() {
             const entered = parseFloat(amtInput.value) || 0.00;

@@ -26,10 +26,16 @@ class CompanyController extends Controller {
         $roleModel = new Role();
         $roles = $roleModel->all();
 
+        $db = Database::getInstance();
+        $stmtD = $db->prepare("SELECT * FROM designations WHERE company_id = ? AND deleted_at IS NULL ORDER BY title ASC");
+        $stmtD->execute([Session::get('company_id')]);
+        $designations = $stmtD->fetchAll() ?: [];
+
         $this->renderView('company/users', [
             'title' => 'Employee Manager | ERP',
             'users' => $users,
-            'roles' => $roles
+            'roles' => $roles,
+            'designations' => $designations
         ]);
     }
 

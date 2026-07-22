@@ -208,9 +208,25 @@ class Migrator {
                 } catch (\PDOException $e) {}
             }
 
-            // Modify payroll status column to include pending/paid
+            // Modify payroll status column to include draft, pending, paid
             try {
-                $db->exec("ALTER TABLE `payroll_records` MODIFY COLUMN `status` ENUM('pending', 'paid') NOT NULL DEFAULT 'pending'");
+                $db->exec("ALTER TABLE `payroll_records` MODIFY COLUMN `status` ENUM('draft', 'pending', 'paid') NOT NULL DEFAULT 'pending'");
+            } catch (\PDOException $e) {}
+
+            // Auto-heal designations table
+            try {
+                $db->exec("
+                    CREATE TABLE IF NOT EXISTS `designations` (
+                      `id` INT AUTO_INCREMENT PRIMARY KEY,
+                      `company_id` INT NOT NULL,
+                      `title` VARCHAR(150) NOT NULL,
+                      `description` VARCHAR(255) DEFAULT NULL,
+                      `created_by` INT DEFAULT NULL,
+                      `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                      `deleted_at` TIMESTAMP NULL DEFAULT NULL,
+                      CONSTRAINT `fk_designation_company` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                ");
             } catch (\PDOException $e) {}
 
             // Modify employee_attendance status column to include half_day

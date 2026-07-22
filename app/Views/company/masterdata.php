@@ -32,6 +32,11 @@
             <i class="fa-solid fa-calendar-days me-2 text-danger"></i> HR Policies & Calendar
         </button>
     </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold px-4 py-2.5" id="designations-tab" data-bs-toggle="tab" data-bs-target="#designations-pane" type="button" role="tab" aria-selected="false">
+            <i class="fa-solid fa-id-card-clip me-2" style="color: #a855f7;"></i> Designations
+        </button>
+    </li>
 </ul>
 
 <!-- Tabs Content -->
@@ -552,6 +557,119 @@
                 </div>
             </div>
 
+        </div>
+    </div>
+
+    <!-- 6. Designations Pane -->
+    <div class="tab-pane fade" id="designations-pane" role="tabpanel" tabindex="0">
+        <div class="pepp-card">
+            <div class="pepp-card-header d-flex justify-content-between align-items-center">
+                <h5 class="pepp-card-title m-0"><i class="fa-solid fa-id-card-clip text-primary me-2"></i> Employee Designations Master</h5>
+                <?php if (\App\Core\Auth::hasPermission('company.styles.manage')): ?>
+                    <button class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#addDesignationModal">
+                        <i class="fa-solid fa-plus-circle me-1"></i> Add Designation
+                    </button>
+                <?php endif; ?>
+            </div>
+            <div class="pepp-card-body p-0">
+                <div class="table-responsive border-0">
+                    <table class="table table-hover pepp-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Designation Title</th>
+                                <th>Description / Responsibilities</th>
+                                <th>Created Date</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (!empty($designations)): ?>
+                                <?php foreach ($designations as $desig): ?>
+                                    <tr>
+                                        <td><strong class="text-dark"><?= htmlspecialchars($desig['title']) ?></strong></td>
+                                        <td><span class="text-secondary small"><?= htmlspecialchars($desig['description'] ?: 'No description provided') ?></span></td>
+                                        <td><?= date('d M Y', strtotime($desig['created_at'])) ?></td>
+                                        <td class="text-end">
+                                            <?php if (\App\Core\Auth::hasPermission('company.styles.manage')): ?>
+                                                <button class="btn btn-sm btn-light border me-1" data-bs-toggle="modal" data-bs-target="#editDesignationModal-<?= $desig['id'] ?>"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
+                                                <form action="<?= base_url('company/masterdata/designations/delete/' . $desig['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete this Designation?');">
+                                                    <?= \App\Core\Session::csrfField() ?>
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                                                </form>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Edit Designation Modal -->
+                                    <div class="modal fade" id="editDesignationModal-<?= $desig['id'] ?>" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <form action="<?= base_url('company/masterdata/designations/edit/' . $desig['id']) ?>" method="POST">
+                                                <?= \App\Core\Session::csrfField() ?>
+                                                <div class="modal-content text-start" style="border-radius: 12px;">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title fw-bold">Edit Designation</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body text-start">
+                                                        <div class="mb-3">
+                                                            <label class="form-label small fw-bold">Designation Title <span class="text-danger">*</span></label>
+                                                            <input type="text" name="title" class="form-control text-dark" value="<?= htmlspecialchars($desig['title']) ?>" required>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label small fw-bold">Description / Responsibilities</label>
+                                                            <textarea name="description" class="form-control text-dark" rows="3" placeholder="Define role details..."><?= htmlspecialchars($desig['description'] ?? '') ?></textarea>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
+                                                        <button type="submit" class="btn btn-primary px-4">Save Changes</button>
+                                                    </div>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="4" class="text-center p-5 text-secondary">
+                                        <i class="fa-solid fa-id-card-clip fs-1 mb-3 text-light"></i>
+                                        <p class="m-0">No custom designations configured yet.</p>
+                                    </td>
+                                </tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Add Designation -->
+    <div class="modal fade" id="addDesignationModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <form action="<?= base_url('company/masterdata/designations/create') ?>" method="POST">
+                <?= \App\Core\Session::csrfField() ?>
+                <div class="modal-content text-start" style="border-radius: 12px;">
+                    <div class="modal-header">
+                        <h5 class="modal-title fw-bold"><i class="fa-solid fa-id-card-clip text-primary me-2"></i> Register Designation</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-start">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Designation Title <span class="text-danger">*</span></label>
+                            <input type="text" name="title" class="form-control text-dark" placeholder="e.g. Production Supervisor, Cost Manager" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Description / Responsibilities</label>
+                            <textarea name="description" class="form-control text-dark" rows="3" placeholder="Define role details..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary px-4">Register Role</button>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 

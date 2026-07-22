@@ -235,6 +235,69 @@ if (!$isCompanyExpired && $currentPagePermission) {
                     <?php endif; ?>
                 </div>
 
+                <!-- Global timezone-aware realtime clock -->
+                <?php
+                    $tenantTimezone = 'Asia/Kolkata';
+                    if (!empty($tenant) && !empty($tenant['timezone'])) {
+                        $tenantTimezone = $tenant['timezone'];
+                    }
+                ?>
+                <div class="d-none d-md-flex align-items-center me-3 px-3 py-1.5 rounded-pill shadow-sm" style="background: rgba(241, 245, 249, 0.85); border: 1px solid #cbd5e1; gap: 8px; font-size: 13px; font-weight: 500;">
+                    <i class="fa-regular fa-clock text-primary"></i>
+                    <span id="erp-global-clock" class="text-dark font-monospace">Loading...</span>
+                    <span class="badge bg-secondary text-white font-monospace" style="font-size: 10px;"><?= htmlspecialchars($tenantTimezone) ?></span>
+                </div>
+
+                <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const timezone = "<?= $tenantTimezone ?>";
+                    let serverTimeMs = <?= time() * 1000 ?>;
+                    const clockElem = document.getElementById('erp-global-clock');
+
+                    function updateClock() {
+                        serverTimeMs += 1000;
+                        const dateObj = new Date(serverTimeMs);
+                        try {
+                            const formatter = new Intl.DateTimeFormat('en-US', {
+                                timeZone: timezone,
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit',
+                                hour12: true
+                            });
+
+                            const parts = formatter.formatToParts(dateObj);
+                            let day = '', month = '', year = '', hour = '', minute = '', second = '', dayPeriod = '';
+                            for (const part of parts) {
+                                if (part.type === 'day') day = part.value;
+                                else if (part.type === 'month') month = part.value;
+                                else if (part.type === 'year') year = part.value;
+                                else if (part.type === 'hour') hour = part.value;
+                                else if (part.type === 'minute') minute = part.value;
+                                else if (part.type === 'second') second = part.value;
+                                else if (part.type === 'dayPeriod') dayPeriod = part.value.toUpperCase();
+                            }
+
+                            // Pad hour/minute/second if single digit
+                            if (hour.length === 1) hour = '0' + hour;
+                            if (minute.length === 1) minute = '0' + minute;
+                            if (second.length === 1) second = '0' + second;
+
+                            const clockStr = `${day} ${month} ${year}, ${hour}:${minute}:${second} ${dayPeriod}`;
+                            if (clockElem) clockElem.innerText = clockStr;
+                        } catch (e) {
+                            if (clockElem) clockElem.innerText = dateObj.toUTCString();
+                        }
+                    }
+
+                    setInterval(updateClock, 1000);
+                    updateClock();
+                });
+                </script>
+
                 <div class="dropdown">
                     <div class="user-profile-menu dropdown-toggle" id="userMenu" data-bs-toggle="dropdown" aria-expanded="false">
                         <div class="user-avatar">

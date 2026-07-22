@@ -23,13 +23,28 @@ class HrPayrollController extends Controller {
         $db = Database::getInstance();
         $companyId = Session::get('company_id');
 
-        // Fetch attendance with employee name
-        $stmt = $db->prepare("SELECT att.*, u.name as employee_name 
-                             FROM employee_attendance att
-                             JOIN users u ON att.employee_id = u.id
-                             WHERE att.company_id = ? AND att.deleted_at IS NULL
-                             ORDER BY att.date DESC, att.id DESC LIMIT 100");
-        $stmt->execute([$companyId]);
+        // Read filter date or default to current day
+        $filterDate = $request->get('date_filter');
+        if (empty($filterDate)) {
+            $filterDate = date('Y-m-d');
+        }
+
+        // Fetch attendance with employee name, filtered by date
+        if ($filterDate === 'all') {
+            $stmt = $db->prepare("SELECT att.*, u.name as employee_name 
+                                 FROM employee_attendance att
+                                 JOIN users u ON att.employee_id = u.id
+                                 WHERE att.company_id = ? AND att.deleted_at IS NULL
+                                 ORDER BY att.date DESC, att.id DESC LIMIT 500");
+            $stmt->execute([$companyId]);
+        } else {
+            $stmt = $db->prepare("SELECT att.*, u.name as employee_name 
+                                 FROM employee_attendance att
+                                 JOIN users u ON att.employee_id = u.id
+                                 WHERE att.company_id = ? AND att.date = ? AND att.deleted_at IS NULL
+                                 ORDER BY att.id DESC");
+            $stmt->execute([$companyId, $filterDate]);
+        }
         $attendance = $stmt->fetchAll() ?: [];
 
         // Fetch active employees
@@ -51,15 +66,6 @@ class HrPayrollController extends Controller {
         $stmtH->execute([$companyId]);
         $blockedDates = $stmtH->fetchAll(\PDO::FETCH_COLUMN) ?: [];
 
-        // Fetch employee loans
-        $stmtLoans = $db->prepare("SELECT el.*, u.name as employee_name 
-                                  FROM employee_loans el
-                                  JOIN users u ON el.employee_id = u.id
-                                  WHERE el.company_id = ? AND el.deleted_at IS NULL
-                                  ORDER BY el.id DESC");
-        $stmtLoans->execute([$companyId]);
-        $loans = $stmtLoans->fetchAll() ?: [];
-
         $this->renderView('company/attendance', [
             'title' => 'Attendance Register | ERP',
             'attendance' => $attendance,
@@ -67,7 +73,7 @@ class HrPayrollController extends Controller {
             'shifts' => $shifts,
             'gwh' => $gwh,
             'blocked_dates' => $blockedDates,
-            'loans' => $loans
+            'filter_date' => $filterDate
         ]);
     }
 
@@ -427,7 +433,7 @@ class HrPayrollController extends Controller {
 
         if (empty($employeeId) || $amount <= 0 || empty($month) || empty($year)) {
             Session::setFlash('error', 'All fields are required and loan amount must be positive.');
-            $this->redirect('company/hr/attendance');
+            $this->redirect('company/hr/loans');
         }
 
         $db = Database::getInstance();
@@ -440,7 +446,7 @@ class HrPayrollController extends Controller {
 
         if ($amount > $baseSalary) {
             Session::setFlash('error', 'Loan amount cannot exceed the employee\'s basic monthly salary.');
-            $this->redirect('company/hr/attendance');
+            $this->redirect('company/hr/loans');
         }
 
         // Validate month & year are current or upcoming
@@ -449,7 +455,7 @@ class HrPayrollController extends Controller {
 
         if ($year < $currentYear || ($year === $currentYear && $month < $currentMonth)) {
             Session::setFlash('error', 'Loan can only be issued for the current or upcoming months.');
-            $this->redirect('company/hr/attendance');
+            $this->redirect('company/hr/loans');
         }
 
         try {
@@ -462,7 +468,7 @@ class HrPayrollController extends Controller {
             Session::setFlash('error', 'Failed to save loan record: ' . $e->getMessage());
         }
 
-        $this->redirect('company/hr/attendance');
+        $this->redirect('company/hr/loans');
     }
 
     /**
@@ -483,6 +489,33 @@ class HrPayrollController extends Controller {
             Session::setFlash('error', 'Failed to delete loan record: ' . $e->getMessage());
         }
 
-        $this->redirect('company/hr/attendance');
+        $this->redirect('company/hr/loans');
+    }
+
+    /**
+     * Standalone Employee Loans Dashboard Page
+     */
+    public function loansPage(Request $request, Response $response): void {
+        $db = Database::getInstance();
+        $companyId = Session::get('company_id');
+
+        // Fetch active employees
+        $userModel = new User();
+        $employees = $userModel->all();
+
+        // Fetch employee loans
+        $stmtLoans = $db->prepare("SELECT el.*, u.name as employee_name, u.base_salary 
+                                  FROM employee_loans el
+                                  JOIN users u ON el.employee_id = u.id
+                                  WHERE el.company_id = ? AND el.deleted_at IS NULL
+                                  ORDER BY el.id DESC");
+        $stmtLoans->execute([$companyId]);
+        $loans = $stmtLoans->fetchAll() ?: [];
+
+        $this->renderView('company/loans', [
+            'title' => 'Employee Loans Registry | ERP',
+            'employees' => $employees,
+            'loans' => $loans
+        ]);
     }
 }

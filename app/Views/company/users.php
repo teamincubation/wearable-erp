@@ -135,7 +135,18 @@
                                                   </div>
                                                   <div class="mb-3">
                                                       <label class="form-label fw-semibold">Designation / Role Title <span class="text-danger">*</span></label>
-                                                      <input type="text" name="designation" class="form-control" value="<?= htmlspecialchars($u['designation'] ?? 'Staff') ?>" required>
+                                                      <select name="designation" class="form-select text-dark" required>
+                                                          <option value="" disabled>-- Select Designation --</option>
+                                                          <?php if (!empty($designations)): ?>
+                                                              <?php foreach ($designations as $d): ?>
+                                                                  <option value="<?= htmlspecialchars($d['title']) ?>" <?= (($u['designation'] ?? '') === $d['title']) ? 'selected' : '' ?>>
+                                                                      <?= htmlspecialchars($d['title']) ?>
+                                                                  </option>
+                                                              <?php endforeach; ?>
+                                                          <?php else: ?>
+                                                              <option value="Staff" selected>Staff</option>
+                                                          <?php endif; ?>
+                                                      </select>
                                                   </div>
                                                 <div class="mb-3">
                                                     <label class="form-label fw-semibold">Reset Password (Leave blank to keep current)</label>
@@ -215,7 +226,18 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Designation / Role Title <span class="text-danger">*</span></label>
-                        <input type="text" name="designation" class="form-control" placeholder="e.g. Line Operator" value="Staff" required>
+                        <select name="designation" class="form-select text-dark" required>
+                            <option value="" disabled selected>-- Select Designation --</option>
+                            <?php if (!empty($designations)): ?>
+                                <?php foreach ($designations as $d): ?>
+                                    <option value="<?= htmlspecialchars($d['title']) ?>">
+                                        <?= htmlspecialchars($d['title']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <option value="Staff">Staff (Configure master designations to add more)</option>
+                            <?php endif; ?>
+                        </select>
                     </div>
                 </div>
                 <div class="modal-footer border-0">
