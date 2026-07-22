@@ -20,21 +20,65 @@ class CompanyController extends Controller {
      * User Administration List
      */
     public function users(Request $request, Response $response): void {
-        $userModel = new User();
-        $users = $userModel->all();
-
-        $roleModel = new Role();
-        $roles = $roleModel->all();
-
+        $companyId = Session::get('company_id');
         $db = Database::getInstance();
+
+        // Retrieve query parameters
+        $search = trim($request->get('search') ?? '');
+        $filterDesignation = trim($request->get('filter_designation') ?? '');
+        $filterRole = trim($request->get('filter_role') ?? '');
+        $filterStatus = trim($request->get('filter_status') ?? '');
+
+        // Base query - exclude super admin (role_id = 1) and restrict to company_id
+        $sql = "SELECT * FROM users WHERE company_id = ? AND role_id != 1 AND deleted_at IS NULL";
+        $params = [$companyId];
+
+        // Apply Search by name, employee_code, phone
+        if ($search !== '') {
+            $sql .= " AND (name LIKE ? OR employee_code LIKE ? OR phone LIKE ?)";
+            $searchParam = "%{$search}%";
+            $params[] = $searchParam;
+            $params[] = $searchParam;
+            $params[] = $searchParam;
+        }
+
+        // Apply designation filter
+        if ($filterDesignation !== '') {
+            $sql .= " AND designation = ?";
+            $params[] = $filterDesignation;
+        }
+
+        // Apply role filter
+        if ($filterRole !== '') {
+            $sql .= " AND role_id = ?";
+            $params[] = (int)$filterRole;
+        }
+
+        // Apply status filter
+        if ($filterStatus !== '') {
+            $sql .= " AND status = ?";
+            $params[] = $filterStatus;
+        }
+
+        $sql .= " ORDER BY id DESC";
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+        $users = $stmt->fetchAll() ?: [];
+
+        // Fetch all roles excluding Super Admin role
+        $roles = $db->prepare("SELECT * FROM roles WHERE (company_id = ? OR company_id IS NULL) AND id != 1 AND deleted_at IS NULL ORDER BY name ASC");
+        $roles->execute([$companyId]);
+        $rolesList = $roles->fetchAll() ?: [];
+
         $stmtD = $db->prepare("SELECT * FROM designations WHERE company_id = ? AND deleted_at IS NULL ORDER BY title ASC");
-        $stmtD->execute([Session::get('company_id')]);
+        $stmtD->execute([$companyId]);
         $designations = $stmtD->fetchAll() ?: [];
 
         $this->renderView('company/users', [
             'title' => 'Employee Manager | ERP',
             'users' => $users,
-            'roles' => $roles,
+            'roles' => $rolesList,
             'designations' => $designations
         ]);
     }
@@ -116,15 +160,35 @@ class CompanyController extends Controller {
         $baseSalary = (float)$request->get('base_salary');
         $designation = trim($request->get('designation'));
 
+        // Handle inactivity fields
+        $inactiveReason = trim($request->get('inactive_reason') ?? '');
+        $inactivityDate = trim($request->get('inactivity_date') ?? '');
+        $inactivityRemarks = trim($request->get('inactivity_remarks') ?? '');
+
         if (empty($name) || empty($email) || empty($employeeCode) || empty($roleId)) {
             Session::setFlash('error', 'Name, Email/Username, Employee ID, and Role are required.');
             $this->redirect('company/users');
         }
 
+        if ($status === 'inactive') {
+            if (empty($inactiveReason) || empty($inactivityDate)) {
+                Session::setFlash('error', 'Inactive Type and Inactivity Date are required when deactivating an account.');
+                $this->redirect('company/users');
+            }
+            if (strtotime($inactivityDate) > time()) {
+                Session::setFlash('error', 'Inactivity date cannot be in the future.');
+                $this->redirect('company/users');
+            }
+        } else {
+            $inactiveReason = null;
+            $inactivityDate = null;
+            $inactivityRemarks = null;
+        }
+
         $db = Database::getInstance();
 
         // Ensure Employee ID uniqueness (excluding current user)
-        $stmtCheck = $db->prepare("SELECT id FROM users WHERE company_id = ? AND employee_code = ? AND id != ? AND deleted_at IS NULL LIMIT 1");
+        $stmtCheck = $db->prepare("SELECT id FROM users WHERE company_id = ? && employee_code = ? && id != ? && deleted_at IS NULL LIMIT 1");
         $stmtCheck->execute([Session::get('company_id'), $employeeCode, $id]);
         if ($stmtCheck->fetch()) {
             Session::setFlash('error', 'This Employee ID is already registered for another user in this company.');
@@ -132,7 +196,7 @@ class CompanyController extends Controller {
         }
 
         // Ensure Email/Username uniqueness (excluding current user)
-        $stmtCheckEmail = $db->prepare("SELECT id FROM users WHERE email = ? AND id != ? AND deleted_at IS NULL LIMIT 1");
+        $stmtCheckEmail = $db->prepare("SELECT id FROM users WHERE email = ? && id != ? && deleted_at IS NULL LIMIT 1");
         $stmtCheckEmail->execute([$email, $id]);
         if ($stmtCheckEmail->fetch()) {
             Session::setFlash('error', 'This Email/Username is already registered.');
@@ -146,6 +210,9 @@ class CompanyController extends Controller {
             'phone' => $phone,
             'role_id' => $roleId,
             'status' => $status,
+            'inactive_reason' => $inactiveReason,
+            'inactivity_date' => $inactivityDate,
+            'inactivity_remarks' => $inactivityRemarks,
             'base_salary' => $baseSalary,
             'designation' => $designation ?: 'Staff',
             'updated_by' => Session::get('user_id')
@@ -272,6 +339,69 @@ class CompanyController extends Controller {
 
         AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'edit_role', 'Role', $id, null, null, "Updated role {$name} permissions.");
         Session::setFlash('success', 'Role permissions updated successfully.');
+        $this->redirect('company/roles');
+    }
+
+    /**
+     * Delete custom role
+     */
+    public function deleteRole(Request $request, Response $response, string $id): void {
+        $roleModel = new Role();
+        $role = $roleModel->find($id);
+
+        if (!$role) {
+            Session::setFlash('error', 'Role not found.');
+            $this->redirect('company/roles');
+        }
+
+        if ($role['is_system']) {
+            Session::setFlash('error', 'System roles cannot be deleted.');
+            $this->redirect('company/roles');
+        }
+
+        $roleModel->update($id, [
+            'deleted_at' => date('Y-m-d H:i:s'),
+            'updated_by' => Session::get('user_id')
+        ]);
+
+        AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'delete_role', 'Role', $id, null, null, "Deleted custom role: {$role['name']}");
+        Session::setFlash('success', 'Custom role deleted successfully.');
+        $this->redirect('company/roles');
+    }
+
+    /**
+     * Bulk delete custom roles
+     */
+    public function bulkDeleteRoles(Request $request, Response $response): void {
+        $roleIds = $request->get('role_ids');
+        if (empty($roleIds) || !is_array($roleIds)) {
+            Session::setFlash('error', 'No roles selected.');
+            $this->redirect('company/roles');
+        }
+
+        $roleModel = new Role();
+        $count = 0;
+        $companyId = Session::get('company_id');
+        $userId = Session::get('user_id');
+
+        foreach ($roleIds as $id) {
+            $role = $roleModel->find($id);
+            if ($role && !$role['is_system']) {
+                $roleModel->update($id, [
+                    'deleted_at' => date('Y-m-d H:i:s'),
+                    'updated_by' => $userId
+                ]);
+                $count++;
+            }
+        }
+
+        if ($count > 0) {
+            AuditLog::log($companyId, $userId, 'bulk_delete_roles', 'Role', null, null, null, "Bulk-deleted {$count} custom roles.");
+            Session::setFlash('success', "Successfully deleted {$count} custom roles.");
+        } else {
+            Session::setFlash('error', 'No custom roles could be deleted.');
+        }
+
         $this->redirect('company/roles');
     }
 

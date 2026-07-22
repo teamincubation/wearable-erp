@@ -15,12 +15,56 @@
         <h5 class="pepp-card-title"><i class="fa-solid fa-users text-primary me-2"></i> Company Employees</h5>
     </div>
     <div class="pepp-card-body p-0">
+        <!-- Search and Filter Panel -->
+        <div class="p-3 border-bottom bg-light">
+            <form method="GET" action="<?= base_url('company/users') ?>" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold text-dark">Search Employees</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white"><i class="fa-solid fa-search text-secondary"></i></span>
+                        <input type="text" name="search" class="form-control text-dark" placeholder="Search by name, ID, phone..." value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small fw-bold text-dark">Designation</label>
+                    <select name="filter_designation" class="form-select form-select-sm text-dark">
+                        <option value="">All Designations</option>
+                        <?php foreach ($designations as $desgOpt): ?>
+                            <option value="<?= htmlspecialchars($desgOpt['title']) ?>" <?= (($_GET['filter_designation'] ?? '') === $desgOpt['title']) ? 'selected' : '' ?>><?= htmlspecialchars($desgOpt['title']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small fw-bold text-dark">Role Privilege</label>
+                    <select name="filter_role" class="form-select form-select-sm text-dark">
+                        <option value="">All Roles</option>
+                        <?php foreach ($roles as $rOpt): ?>
+                            <option value="<?= $rOpt['id'] ?>" <?= (($_GET['filter_role'] ?? '') == $rOpt['id']) ? 'selected' : '' ?>><?= htmlspecialchars($rOpt['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small fw-bold text-dark">Active Status</label>
+                    <select name="filter_status" class="form-select form-select-sm text-dark">
+                        <option value="">All Statuses</option>
+                        <option value="active" <?= (($_GET['filter_status'] ?? '') === 'active') ? 'selected' : '' ?>>Active</option>
+                        <option value="inactive" <?= (($_GET['filter_status'] ?? '') === 'inactive') ? 'selected' : '' ?>>Inactive</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-sm btn-pepp-primary px-3 w-50"><i class="fa-solid fa-filter me-1"></i> Filter</button>
+                    <a href="<?= base_url('company/users') ?>" class="btn btn-sm btn-light border px-3 w-50"><i class="fa-solid fa-rotate-left me-1"></i> Reset</a>
+                </div>
+            </form>
+        </div>
+
         <div class="table-responsive border-0">
             <table class="table pepp-table">
                 <thead>
                     <tr>
                         <th>Employee ID</th>
                         <th>Name</th>
+                        <th>Designation</th>
                         <th>Email / Username</th>
                         <th>Phone</th>
                         <th>Role Privileges</th>
@@ -34,7 +78,7 @@
                     <?php if (!empty($users)): ?>
                         <?php foreach ($users as $u): ?>
                             <tr>
-                                <td><span class="badge bg-secondary"><?= htmlspecialchars($u['employee_code'] ?? 'N/A') ?></span></td>
+                                <td><span class="badge bg-secondary font-monospace"><?= htmlspecialchars($u['employee_code'] ?? 'N/A') ?></span></td>
                                 <td>
                                     <div class="d-flex align-items-center">
                                         <div class="user-avatar bg-light text-primary me-3 fw-bold">
@@ -42,10 +86,11 @@
                                         </div>
                                         <div>
                                             <strong class="text-dark"><?= htmlspecialchars($u['name']) ?></strong>
-                                            <div class="text-secondary" style="font-size: 11px;"><?= htmlspecialchars($u['designation'] ?? 'Staff') ?> | ID: <?= htmlspecialchars($u['employee_code'] ?? 'N/A') ?></div>
+                                            <div class="text-secondary" style="font-size: 11px;">ID: <?= htmlspecialchars($u['employee_code'] ?? 'N/A') ?></div>
                                         </div>
                                     </div>
                                 </td>
+                                <td><span class="badge bg-light text-secondary"><?= htmlspecialchars($u['designation'] ?: 'Staff') ?></span></td>
                                 <td><?= htmlspecialchars($u['email']) ?></td>
                                 <td><?= htmlspecialchars($u['phone'] ?: 'N/A') ?></td>
                                 <td>
@@ -81,7 +126,7 @@
                                         </button>
                                     <?php endif; ?>
 
-                                    <?php if (\App\Core\Auth::hasPermission('company.users.delete')): ?>
+                                    <?php if (\App\Core\Auth::hasPermission('company.users.delete') && $u['id'] != \App\Core\Session::get('user_id')): ?>
                                         <form action="<?= base_url('company/users/delete/' . $u['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to deactivate this employee?');">
                                             <?= \App\Core\Session::csrfField() ?>
                                             <button type="submit" class="btn btn-sm btn-light border text-danger">
@@ -105,23 +150,23 @@
                                             <div class="modal-body">
                                                 <div class="mb-3">
                                                     <label class="form-label fw-semibold">Employee ID <span class="text-danger">*</span></label>
-                                                    <input type="text" name="employee_code" class="form-control" value="<?= htmlspecialchars($u['employee_code'] ?? '') ?>" required>
+                                                    <input type="text" name="employee_code" class="form-control text-dark" value="<?= htmlspecialchars($u['employee_code'] ?? '') ?>" required>
                                                 </div>
                                                 <div class="mb-3">
                                                     <label class="form-label fw-semibold">Employee Name <span class="text-danger">*</span></label>
-                                                    <input type="text" name="name" class="form-control" value="<?= htmlspecialchars($u['name']) ?>" required>
+                                                    <input type="text" name="name" class="form-control text-dark" value="<?= htmlspecialchars($u['name']) ?>" required>
                                                 </div>
                                                 <div class="mb-3">
                                                     <label class="form-label fw-semibold">Email / Username <span class="text-danger">*</span></label>
-                                                    <input type="text" name="email" class="form-control" value="<?= htmlspecialchars($u['email']) ?>" required>
+                                                    <input type="text" name="email" class="form-control text-dark" value="<?= htmlspecialchars($u['email']) ?>" required>
                                                 </div>
                                                 <div class="mb-3">
                                                     <label class="form-label fw-semibold">Contact Phone</label>
-                                                    <input type="text" name="phone" class="form-control" value="<?= htmlspecialchars($u['phone'] ?? '') ?>">
+                                                    <input type="text" name="phone" class="form-control text-dark" value="<?= htmlspecialchars($u['phone'] ?? '') ?>">
                                                 </div>
                                                 <div class="mb-3">
                                                      <label class="form-label fw-semibold">Assigned Role <span class="text-danger">*</span></label>
-                                                     <select name="role_id" class="form-select" required>
+                                                     <select name="role_id" class="form-select text-dark" required>
                                                          <?php foreach ($roles as $role): ?>
                                                              <option value="<?= $role['id'] ?>" <?= ($role['id'] == $u['role_id']) ? 'selected' : '' ?>>
                                                                  <?= htmlspecialchars($role['name']) ?>
@@ -131,7 +176,7 @@
                                                  </div>
                                                   <div class="mb-3">
                                                       <label class="form-label fw-semibold">Salary Package (Base Monthly Salary - <?= get_currency_symbol() ?>) <span class="text-danger">*</span></label>
-                                                      <input type="number" step="0.01" name="base_salary" class="form-control" value="<?= htmlspecialchars($u['base_salary'] ?? '0.00') ?>" required>
+                                                      <input type="number" step="0.01" name="base_salary" class="form-control text-dark" value="<?= htmlspecialchars($u['base_salary'] ?? '0.00') ?>" required>
                                                   </div>
                                                   <div class="mb-3">
                                                       <label class="form-label fw-semibold">Designation / Role Title <span class="text-danger">*</span></label>
@@ -154,10 +199,35 @@
                                                 </div>
                                                 <div class="mb-3">
                                                     <label class="form-label fw-semibold">Account Status</label>
-                                                    <select name="status" class="form-select">
+                                                    <select name="status" class="form-select text-dark" onchange="toggleInactivitySection(this, '<?= $u['id'] ?>')">
                                                         <option value="active" <?= ($u['status'] === 'active') ? 'selected' : '' ?>>Active</option>
                                                         <option value="inactive" <?= ($u['status'] === 'inactive') ? 'selected' : '' ?>>Inactive</option>
                                                     </select>
+                                                </div>
+
+                                                <!-- Inactivity details section (only shown if status is set to inactive) -->
+                                                <div id="inactivitySection-<?= $u['id'] ?>" style="display: <?= ($u['status'] === 'inactive') ? 'block' : 'none' ?>; background-color: #fef2f2; border: 1px solid #fca5a5; padding: 15px; border-radius: 8px;" class="mb-3 text-start">
+                                                    <h6 class="fw-bold text-danger mb-3"><i class="fa-solid fa-triangle-exclamation me-1"></i> Inactivity Details</h6>
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-semibold text-dark text-start d-block">Inactive Type <span class="text-danger">*</span></label>
+                                                        <select name="inactive_reason" id="inactive_reason-<?= $u['id'] ?>" class="form-select text-dark" <?= ($u['status'] === 'inactive') ? 'required' : '' ?>>
+                                                            <option value="" disabled <?= empty($u['inactive_reason']) ? 'selected' : '' ?>>-- Select Type --</option>
+                                                            <option value="resigned" <?= ($u['inactive_reason'] === 'resigned') ? 'selected' : '' ?>>Resigned</option>
+                                                            <option value="terminated" <?= ($u['inactive_reason'] === 'terminated') ? 'selected' : '' ?>>Terminated</option>
+                                                            <option value="contract expired" <?= ($u['inactive_reason'] === 'contract expired') ? 'selected' : '' ?>>Contract Expired</option>
+                                                            <option value="deceased" <?= ($u['inactive_reason'] === 'deceased') ? 'selected' : '' ?>>Deceased</option>
+                                                            <option value="retirement" <?= ($u['inactive_reason'] === 'retirement') ? 'selected' : '' ?>>Retirement</option>
+                                                            <option value="disability or medical separation" <?= ($u['inactive_reason'] === 'disability or medical separation') ? 'selected' : '' ?>>Disability or Medical Separation</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-semibold text-dark text-start d-block">Date of Inactivity Affected From <span class="text-danger">*</span></label>
+                                                        <input type="date" name="inactivity_date" id="inactivity_date-<?= $u['id'] ?>" class="form-control text-dark" max="<?= date('Y-m-d') ?>" value="<?= htmlspecialchars($u['inactivity_date'] ?? '') ?>" <?= ($u['status'] === 'inactive') ? 'required' : '' ?>>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-semibold text-dark text-start d-block">Note / Remarks</label>
+                                                        <textarea name="inactivity_remarks" class="form-control text-dark" rows="2" placeholder="Provide description..."><?= htmlspecialchars($u['inactivity_remarks'] ?? '') ?></textarea>
+                                                    </div>
                                                 </div>
                                             </div>
                                             <div class="modal-footer border-0">
@@ -248,3 +318,21 @@
         </form>
     </div>
 </div>
+
+<script>
+function toggleInactivitySection(selectEl, userId) {
+    const section = document.getElementById('inactivitySection-' + userId);
+    const reasonInput = document.getElementById('inactive_reason-' + userId);
+    const dateInput = document.getElementById('inactivity_date-' + userId);
+    
+    if (selectEl.value === 'inactive') {
+        section.style.display = 'block';
+        reasonInput.setAttribute('required', 'required');
+        dateInput.setAttribute('required', 'required');
+    } else {
+        section.style.display = 'none';
+        reasonInput.removeAttribute('required');
+        dateInput.removeAttribute('required');
+    }
+}
+</script>

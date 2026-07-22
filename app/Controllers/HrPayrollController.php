@@ -34,14 +34,14 @@ class HrPayrollController extends Controller {
             $stmt = $db->prepare("SELECT att.*, u.name as employee_name 
                                  FROM employee_attendance att
                                  JOIN users u ON att.employee_id = u.id
-                                 WHERE att.company_id = ? AND att.deleted_at IS NULL
+                                 WHERE att.company_id = ? AND u.role_id != 1 AND att.deleted_at IS NULL
                                  ORDER BY att.date DESC, att.id DESC LIMIT 500");
             $stmt->execute([$companyId]);
         } else {
             $stmt = $db->prepare("SELECT att.*, u.name as employee_name 
                                  FROM employee_attendance att
                                  JOIN users u ON att.employee_id = u.id
-                                 WHERE att.company_id = ? AND att.date = ? AND att.deleted_at IS NULL
+                                 WHERE att.company_id = ? AND att.date = ? AND u.role_id != 1 AND att.deleted_at IS NULL
                                  ORDER BY att.id DESC");
             $stmt->execute([$companyId, $filterDate]);
         }
@@ -49,7 +49,7 @@ class HrPayrollController extends Controller {
 
         // Fetch active employees
         $userModel = new User();
-        $employees = $userModel->all();
+        $employees = $userModel->getActiveCompanyEmployees();
 
         // Fetch shifts
         $stmt = $db->prepare("SELECT id, name, start_time, end_time FROM shifts WHERE company_id = ? AND deleted_at IS NULL");
@@ -168,14 +168,14 @@ class HrPayrollController extends Controller {
         $stmt = $db->prepare("SELECT pr.*, u.name as employee_name, u.employee_code, u.designation 
                              FROM payroll_records pr
                              JOIN users u ON pr.employee_id = u.id
-                             WHERE pr.company_id = ? AND pr.deleted_at IS NULL
+                             WHERE pr.company_id = ? AND u.role_id != 1 AND pr.deleted_at IS NULL
                              ORDER BY pr.year DESC, pr.month DESC");
         $stmt->execute([$companyId]);
         $payroll = $stmt->fetchAll() ?: [];
 
         // Fetch active employees
         $userModel = new User();
-        $employees = $userModel->all();
+        $employees = $userModel->getActiveCompanyEmployees();
 
         // Fetch payment accounts
         $stmtAccounts = $db->prepare("SELECT * FROM payment_accounts WHERE company_id = ? AND deleted_at IS NULL");
@@ -501,13 +501,13 @@ class HrPayrollController extends Controller {
 
         // Fetch active employees
         $userModel = new User();
-        $employees = $userModel->all();
+        $employees = $userModel->getActiveCompanyEmployees();
 
         // Fetch employee loans
         $stmtLoans = $db->prepare("SELECT el.*, u.name as employee_name, u.base_salary 
                                   FROM employee_loans el
                                   JOIN users u ON el.employee_id = u.id
-                                  WHERE el.company_id = ? AND el.deleted_at IS NULL
+                                  WHERE el.company_id = ? AND u.role_id != 1 AND el.deleted_at IS NULL
                                   ORDER BY el.id DESC");
         $stmtLoans->execute([$companyId]);
         $loans = $stmtLoans->fetchAll() ?: [];

@@ -180,6 +180,18 @@ $router->post('/company/roles/edit/{id}', [CompanyController::class, 'editRole']
        ->middleware(PermissionMiddleware::class)
        ->permission('company.roles.manage');
 
+$router->post('/company/roles/delete/{id}', [CompanyController::class, 'deleteRole'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.roles.manage');
+
+$router->post('/company/roles/bulk-delete', [CompanyController::class, 'bulkDeleteRoles'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.roles.manage');
+
 // Audit Trails
 $router->get('/company/logs', [CompanyController::class, 'logs'])
        ->middleware(AuthMiddleware::class)

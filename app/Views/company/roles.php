@@ -14,51 +14,66 @@
     <!-- Role listing & details -->
     <div class="col-md-8">
         <div class="pepp-card">
-            <div class="pepp-card-header">
-                <h5 class="pepp-card-title"><i class="fa-solid fa-shield-halved text-primary me-2"></i> Current Access Roles</h5>
+            <div class="pepp-card-header d-flex justify-content-between align-items-center">
+                <h5 class="pepp-card-title m-0"><i class="fa-solid fa-shield-halved text-primary me-2"></i> Current Access Roles</h5>
+                <?php if (\App\Core\Auth::hasPermission('company.roles.manage')): ?>
+                    <button type="button" id="bulkDeleteRolesBtn" class="btn btn-sm btn-outline-danger rounded-pill px-3" style="display:none;" onclick="submitBulkDeleteRoles()">
+                        <i class="fa-solid fa-trash-can me-1"></i> Delete Selected
+                    </button>
+                <?php endif; ?>
             </div>
             <div class="pepp-card-body">
-                <div class="row g-4">
-                    <?php foreach ($roles as $role): ?>
-                        <div class="col-md-6">
-                            <div class="card h-100 p-3 shadow-sm border" style="border-radius: var(--border-radius-md);">
-                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                    <div>
-                                        <h5 class="fw-bold text-dark mb-1"><?= htmlspecialchars($role['name']) ?></h5>
-                                        <p class="text-secondary" style="font-size: 13px;"><?= htmlspecialchars($role['description'] ?: 'No description provided') ?></p>
-                                    </div>
-                                    <?php if ($role['is_system']): ?>
-                                        <span class="badge bg-light text-secondary"><i class="fa-solid fa-lock me-1"></i> System</span>
-                                    <?php endif; ?>
-                                </div>
-                                <div class="mb-3">
-                                    <h6 class="fw-bold text-primary mb-2" style="font-size: 12px; text-transform: uppercase;">Permissions Granted:</h6>
-                                    <div class="d-flex flex-wrap gap-1" style="max-height: 120px; overflow-y: auto;">
-                                        <?php 
-                                            $rolePermIds = $role_permissions[$role['id']] ?? [];
-                                            if (!empty($rolePermIds)):
-                                                foreach ($permissions as $p):
-                                                    if (in_array($p['id'], $rolePermIds)):
-                                        ?>
-                                                        <span class="badge bg-light text-dark" style="font-size: 11px;"><?= htmlspecialchars($p['name']) ?></span>
-                                        <?php 
-                                                    endif;
-                                                endforeach;
-                                            else:
-                                        ?>
-                                                <span class="text-secondary" style="font-size: 12px;">No privileges mapped.</span>
+                <form id="rolesForm" action="<?= base_url('company/roles/bulk-delete') ?>" method="POST">
+                    <?= \App\Core\Session::csrfField() ?>
+                    <div class="row g-4">
+                        <?php foreach ($roles as $role): ?>
+                            <div class="col-md-6">
+                                <div class="card h-100 p-3 shadow-sm border" style="border-radius: var(--border-radius-md);">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div class="d-flex align-items-start">
+                                            <?php if (!$role['is_system'] && \App\Core\Auth::hasPermission('company.roles.manage')): ?>
+                                                <input type="checkbox" name="role_ids[]" value="<?= $role['id'] ?>" class="role-select-checkbox form-check-input me-2 mt-1" style="width: 17px; height: 17px;" onclick="toggleBulkDeleteBtn()">
+                                            <?php endif; ?>
+                                            <div>
+                                                <h5 class="fw-bold text-dark mb-1"><?= htmlspecialchars($role['name']) ?></h5>
+                                                <p class="text-secondary mb-0" style="font-size: 13px;"><?= htmlspecialchars($role['description'] ?: 'No description provided') ?></p>
+                                            </div>
+                                        </div>
+                                        <?php if ($role['is_system']): ?>
+                                            <span class="badge bg-light text-secondary"><i class="fa-solid fa-lock me-1"></i> System</span>
                                         <?php endif; ?>
                                     </div>
-                                </div>
-                                <?php if (!$role['is_system'] && \App\Core\Auth::hasPermission('company.roles.manage')): ?>
-                                    <div class="mt-auto border-top pt-2 text-end">
-                                        <button class="btn btn-sm btn-light border" data-bs-toggle="modal" data-bs-target="#editRoleModal-<?= $role['id'] ?>">
-                                            <i class="fa-regular fa-pen-to-square"></i> Configure Role
-                                        </button>
+                                    <div class="mb-3">
+                                        <h6 class="fw-bold text-primary mb-2" style="font-size: 12px; text-transform: uppercase;">Permissions Granted:</h6>
+                                        <div class="d-flex flex-wrap gap-1" style="max-height: 120px; overflow-y: auto;">
+                                            <?php 
+                                                $rolePermIds = $role_permissions[$role['id']] ?? [];
+                                                if (!empty($rolePermIds)):
+                                                    foreach ($permissions as $p):
+                                                        if (in_array($p['id'], $rolePermIds)):
+                                            ?>
+                                                            <span class="badge bg-light text-dark" style="font-size: 11px;"><?= htmlspecialchars($p['name']) ?></span>
+                                            <?php 
+                                                        endif;
+                                                    endforeach;
+                                                else:
+                                            ?>
+                                                    <span class="text-secondary" style="font-size: 12px;">No privileges mapped.</span>
+                                            <?php endif; ?>
+                                        </div>
                                     </div>
-                                <?php endif; ?>
+                                    <?php if (!$role['is_system'] && \App\Core\Auth::hasPermission('company.roles.manage')): ?>
+                                        <div class="mt-auto border-top pt-2 d-flex justify-content-between align-items-center">
+                                            <button type="button" class="btn btn-sm btn-outline-danger border-0" onclick="submitSingleDeleteRole(<?= $role['id'] ?>)">
+                                                <i class="fa-solid fa-trash-can"></i> Delete
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-light border" data-bs-toggle="modal" data-bs-target="#editRoleModal-<?= $role['id'] ?>">
+                                                <i class="fa-regular fa-pen-to-square"></i> Configure Role
+                                            </button>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
                             </div>
-                        </div>
 
                         <!-- Edit Role Modal -->
                         <div class="modal fade" id="editRoleModal-<?= $role['id'] ?>" tabindex="-1" aria-hidden="true">
@@ -110,6 +125,7 @@
 
                     <?php endforeach; ?>
                 </div>
+                </form>
             </div>
         </div>
     </div>
@@ -176,3 +192,39 @@
         </form>
     </div>
 </div>
+
+<script>
+function toggleBulkDeleteBtn() {
+    const checkboxes = document.querySelectorAll('.role-select-checkbox:checked');
+    const bulkBtn = document.getElementById('bulkDeleteRolesBtn');
+    if (checkboxes.length > 0) {
+        bulkBtn.style.display = 'inline-block';
+    } else {
+        bulkBtn.style.display = 'none';
+    }
+}
+
+function submitBulkDeleteRoles() {
+    if (confirm('Are you sure you want to delete all selected custom roles?')) {
+        document.getElementById('rolesForm').submit();
+    }
+}
+
+function submitSingleDeleteRole(roleId) {
+    if (confirm('Are you sure you want to delete this custom role?')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '<?= base_url("company/roles/delete/") ?>' + roleId;
+        
+        // CSRF Token
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = '<?= \App\Core\Session::csrfTokenName() ?>';
+        csrfInput.value = '<?= \App\Core\Session::csrfToken() ?>';
+        form.appendChild(csrfInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>

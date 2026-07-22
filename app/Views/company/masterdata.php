@@ -972,3 +972,37 @@
         </form>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const activeTab = urlParams.get('tab');
+    if (activeTab) {
+        const tabButton = document.getElementById(activeTab + '-tab');
+        if (tabButton) {
+            // Remove active state from other buttons
+            document.querySelectorAll('#masterDataTabs .nav-link').forEach(btn => {
+                btn.classList.remove('active');
+                btn.setAttribute('aria-selected', 'false');
+            });
+            // Hide other panes
+            document.querySelectorAll('#masterDataTabsContent .tab-pane').forEach(pane => {
+                pane.classList.remove('show', 'active');
+            });
+            
+            // Set clicked button to active
+            tabButton.classList.add('active');
+            tabButton.setAttribute('aria-selected', 'true');
+            
+            // Show target tab pane
+            const targetPaneId = tabButton.getAttribute('data-bs-target');
+            if (targetPaneId) {
+                const targetPane = document.querySelector(targetPaneId);
+                if (targetPane) {
+                    targetPane.classList.add('show', 'active');
+                }
+            }
+        }
+    }
+});
+</script>

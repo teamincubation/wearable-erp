@@ -649,4 +649,9 @@ CREATE TABLE IF NOT EXISTS `designations` (
   CONSTRAINT `fk_designation_company` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 37. ALTER USERS FOR INACTIVITY DETAILS
+ALTER TABLE `users` ADD COLUMN `inactive_reason` VARCHAR(150) DEFAULT NULL;
+ALTER TABLE `users` ADD COLUMN `inactivity_date` DATE DEFAULT NULL;
+ALTER TABLE `users` ADD COLUMN `inactivity_remarks` TEXT DEFAULT NULL;
+
 SET FOREIGN_KEY_CHECKS = 1;

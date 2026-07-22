@@ -123,7 +123,7 @@ class ProductionController extends Controller {
         $machines = $machineModel->all();
 
         $userModel = new User();
-        $employees = $userModel->all();
+        $employees = $userModel->getActiveCompanyEmployees();
 
         $this->renderView('company/production_stage', [
             'title' => "Stage Logs: {$order['production_no']} | ERP",

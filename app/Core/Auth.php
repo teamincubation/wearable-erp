@@ -57,6 +57,22 @@ class Auth {
             return null;
         }
 
+        // Verify user's role exists and is active (not deleted)
+        if (!empty($user['role_id'])) {
+            $db = Database::getInstance();
+            $stmtRole = $db->prepare("SELECT id FROM roles WHERE id = ? AND deleted_at IS NULL LIMIT 1");
+            $stmtRole->execute([$user['role_id']]);
+            if (!$stmtRole->fetch()) {
+                self::logAuthActivity($user['id'], 'login_blocked_role_deleted', "Login blocked: Assigned role has been deleted", $user['company_id']);
+                return null;
+            }
+        } else {
+            if ($user['company_id'] !== null) {
+                self::logAuthActivity($user['id'], 'login_blocked_no_role', "Login blocked: No role assigned", $user['company_id']);
+                return null;
+            }
+        }
+
         // If the user belongs to a company, verify company status is active
         if ($user['company_id'] !== null) {
             $db = Database::getInstance();
@@ -224,7 +240,8 @@ class Auth {
             $sql = "SELECT p.name FROM permissions p
                     INNER JOIN role_permissions rp ON p.id = rp.permission_id
                     INNER JOIN users u ON rp.role_id = u.role_id
-                    WHERE u.id = ? AND u.deleted_at IS NULL";
+                    INNER JOIN roles r ON u.role_id = r.id
+                    WHERE u.id = ? AND u.deleted_at IS NULL AND r.deleted_at IS NULL";
             
             $stmt = $db->prepare($sql);
             $stmt->execute([$userId]);

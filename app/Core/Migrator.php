@@ -185,6 +185,22 @@ class Migrator {
                 }
             } catch (\PDOException $e) {}
 
+            // Auto-heal users table for inactivity details
+            try {
+                $checkInacReason = $db->query("SHOW COLUMNS FROM `users` LIKE 'inactive_reason'");
+                if (!$checkInacReason || $checkInacReason->rowCount() === 0) {
+                    $db->exec("ALTER TABLE `users` ADD COLUMN `inactive_reason` VARCHAR(150) DEFAULT NULL");
+                }
+                $checkInacDate = $db->query("SHOW COLUMNS FROM `users` LIKE 'inactivity_date'");
+                if (!$checkInacDate || $checkInacDate->rowCount() === 0) {
+                    $db->exec("ALTER TABLE `users` ADD COLUMN `inactivity_date` DATE DEFAULT NULL");
+                }
+                $checkInacRem = $db->query("SHOW COLUMNS FROM `users` LIKE 'inactivity_remarks'");
+                if (!$checkInacRem || $checkInacRem->rowCount() === 0) {
+                    $db->exec("ALTER TABLE `users` ADD COLUMN `inactivity_remarks` TEXT DEFAULT NULL");
+                }
+            } catch (\PDOException $e) {}
+
             // Auto-heal payroll_records table for statistics and payment tracking
             $payrollColumns = [
                 'present_days' => "INT DEFAULT 0",

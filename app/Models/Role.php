@@ -12,6 +12,7 @@ class Role extends Model {
     protected string $table = 'roles';
     protected string $primaryKey = 'id';
     protected bool $isMultiTenant = true; // Tenant isolation enabled
+    protected bool $useSoftDeletes = true; // Soft deletes enabled
 
     /**
      * Retrieve all permission records mapped to a role

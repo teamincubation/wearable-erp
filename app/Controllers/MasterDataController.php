@@ -101,7 +101,7 @@ class MasterDataController extends Controller {
 
         if (empty($type) || empty($name) || empty($code)) {
             Session::setFlash('error', 'Contact Type, Name, and Reference Code are required.');
-            $this->redirect('company/masterdata');
+            $this->redirect('company/masterdata?tab=contacts');
         }
 
         $contactModel = new Contact();
@@ -119,7 +119,7 @@ class MasterDataController extends Controller {
 
         AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'create_contact', 'Contact', $id, null, null, "Created contact: {$name} ({$type})");
         Session::setFlash('success', "Contact '{$name}' created successfully.");
-        $this->redirect('company/masterdata');
+        $this->redirect('company/masterdata?tab=contacts');
     }
 
     /**
@@ -131,7 +131,7 @@ class MasterDataController extends Controller {
 
         if (empty($name) || empty($code)) {
             Session::setFlash('error', 'Category Name and Code are required.');
-            $this->redirect('company/masterdata');
+            $this->redirect('company/masterdata?tab=categories');
         }
 
         $bomCatModel = new BomCategory();
@@ -143,7 +143,7 @@ class MasterDataController extends Controller {
 
         AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'create_bom_category', 'BomCategory', $id, null, null, "Created BOM category: {$name}");
         Session::setFlash('success', "BOM Category '{$name}' added successfully.");
-        $this->redirect('company/masterdata');
+        $this->redirect('company/masterdata?tab=categories');
     }
 
     /**
@@ -155,7 +155,7 @@ class MasterDataController extends Controller {
 
         if (!$cat) {
             Session::setFlash('error', 'BOM Category not found.');
-            $this->redirect('company/masterdata');
+            $this->redirect('company/masterdata?tab=categories');
         }
 
         $name = trim($request->get('name')) ?: $cat['name'];
@@ -169,7 +169,7 @@ class MasterDataController extends Controller {
 
         AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'edit_bom_category', 'BomCategory', (int)$id, null, null, "Updated BOM category: {$name}");
         Session::setFlash('success', "BOM Category '{$name}' updated successfully.");
-        $this->redirect('company/masterdata');
+        $this->redirect('company/masterdata?tab=categories');
     }
 
     /**
@@ -183,7 +183,7 @@ class MasterDataController extends Controller {
 
         if (empty($name) || empty($code) || empty($type)) {
             Session::setFlash('error', 'Warehouse Name, Code, and Storage Type are required.');
-            $this->redirect('company/masterdata');
+            $this->redirect('company/masterdata?tab=locations');
         }
 
         $warehouseModel = new Warehouse();
@@ -198,7 +198,7 @@ class MasterDataController extends Controller {
 
         AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'create_warehouse', 'Warehouse', $id, null, null, "Created warehouse: {$name}");
         Session::setFlash('success', "Warehouse '{$name}' configured successfully.");
-        $this->redirect('company/masterdata');
+        $this->redirect('company/masterdata?tab=locations');
     }
 
     /**
@@ -211,7 +211,7 @@ class MasterDataController extends Controller {
 
         if (empty($name) || empty($code)) {
             Session::setFlash('error', 'Branch Name and Code are required.');
-            $this->redirect('company/masterdata');
+            $this->redirect('company/masterdata?tab=locations');
         }
 
         $branchModel = new Branch();
@@ -225,35 +225,35 @@ class MasterDataController extends Controller {
 
         AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'create_branch', 'Branch', $id, null, null, "Created branch: {$name}");
         Session::setFlash('success', "Branch '{$name}' registered successfully.");
-        $this->redirect('company/masterdata');
+        $this->redirect('company/masterdata?tab=locations');
     }
 
     public function deleteContact(Request $request, Response $response, string $id): void {
         $model = new Contact();
         $model->delete($id, Session::get('user_id'));
         Session::setFlash('success', 'Party contact deleted successfully.');
-        $this->redirect('company/masterdata');
+        $this->redirect('company/masterdata?tab=contacts');
     }
 
     public function deleteBomCategory(Request $request, Response $response, string $id): void {
         $model = new BomCategory();
         $model->delete($id, Session::get('user_id'));
         Session::setFlash('success', 'BOM category deleted successfully.');
-        $this->redirect('company/masterdata');
+        $this->redirect('company/masterdata?tab=categories');
     }
 
     public function deleteWarehouse(Request $request, Response $response, string $id): void {
         $model = new Warehouse();
         $model->delete($id, Session::get('user_id'));
         Session::setFlash('success', 'Warehouse location deleted successfully.');
-        $this->redirect('company/masterdata');
+        $this->redirect('company/masterdata?tab=locations');
     }
 
     public function deleteBranch(Request $request, Response $response, string $id): void {
         $model = new Branch();
         $model->delete($id, Session::get('user_id'));
         Session::setFlash('success', 'Branch office deleted successfully.');
-        $this->redirect('company/masterdata');
+        $this->redirect('company/masterdata?tab=locations');
     }
 
     /**
@@ -263,7 +263,7 @@ class MasterDataController extends Controller {
         $gwh = (int) $request->get('general_working_hours');
         if ($gwh <= 0) {
             Session::setFlash('error', 'Working hours must be a positive integer.');
-            $this->redirect('company/masterdata');
+            $this->redirect('company/masterdata?tab=shifts');
         }
 
         $db = Database::getInstance();
@@ -288,7 +288,7 @@ class MasterDataController extends Controller {
             Session::setFlash('error', 'Failed to update working hours: ' . $e->getMessage());
         }
 
-        $this->redirect('company/masterdata');
+        $this->redirect('company/masterdata?tab=shifts');
     }
 
     /**
@@ -301,7 +301,7 @@ class MasterDataController extends Controller {
 
         if (empty($name) || empty($startTime) || empty($endTime)) {
             Session::setFlash('error', 'Shift Title, Start Time, and End Time are required.');
-            $this->redirect('company/masterdata');
+            $this->redirect('company/masterdata?tab=shifts');
         }
 
         $shiftModel = new \App\Models\Shift();
@@ -314,7 +314,7 @@ class MasterDataController extends Controller {
 
         AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'create_shift', 'Shift', $id, null, null, "Created shift: {$name} ({$startTime} - {$endTime})");
         Session::setFlash('success', "Shift schedule '{$name}' created successfully.");
-        $this->redirect('company/masterdata');
+        $this->redirect('company/masterdata?tab=shifts');
     }
 
     /**
@@ -326,7 +326,7 @@ class MasterDataController extends Controller {
 
         if (!$shift) {
             Session::setFlash('error', 'Shift not found.');
-            $this->redirect('company/masterdata');
+            $this->redirect('company/masterdata?tab=shifts');
         }
 
         $name = trim($request->get('name'));
@@ -335,7 +335,7 @@ class MasterDataController extends Controller {
 
         if (empty($name) || empty($startTime) || empty($endTime)) {
             Session::setFlash('error', 'Shift Title, Start Time, and End Time are required.');
-            $this->redirect('company/masterdata');
+            $this->redirect('company/masterdata?tab=shifts');
         }
 
         $shiftModel->update($id, [
@@ -347,7 +347,7 @@ class MasterDataController extends Controller {
 
         AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'edit_shift', 'Shift', $id, $shift, null, "Updated shift schedule to: {$name} ({$startTime} - {$endTime})");
         Session::setFlash('success', 'Shift schedule updated successfully.');
-        $this->redirect('company/masterdata');
+        $this->redirect('company/masterdata?tab=shifts');
     }
 
     /**
@@ -357,7 +357,7 @@ class MasterDataController extends Controller {
         $shiftModel = new \App\Models\Shift();
         $shiftModel->delete($id, Session::get('user_id'));
         Session::setFlash('success', 'Shift schedule deleted successfully.');
-        $this->redirect('company/masterdata');
+        $this->redirect('company/masterdata?tab=shifts');
     }
 
     /**
@@ -401,7 +401,7 @@ class MasterDataController extends Controller {
             Session::setFlash('error', 'Failed to update HR policies: ' . $e->getMessage());
         }
 
-        $this->redirect('company/masterdata');
+        $this->redirect('company/masterdata?tab=hrpolicies');
     }
 
     /**
@@ -414,7 +414,7 @@ class MasterDataController extends Controller {
 
         if (empty($name) || empty($date)) {
             Session::setFlash('error', 'Holiday Title and Date are required.');
-            $this->redirect('company/masterdata');
+            $this->redirect('company/masterdata?tab=hrpolicies');
         }
 
         $db = Database::getInstance();
@@ -430,7 +430,7 @@ class MasterDataController extends Controller {
             Session::setFlash('error', 'Date already has a registered holiday/weekend.');
         }
 
-        $this->redirect('company/masterdata');
+        $this->redirect('company/masterdata?tab=hrpolicies');
     }
 
     /**
@@ -448,7 +448,7 @@ class MasterDataController extends Controller {
             Session::setFlash('error', 'Failed to delete holiday.');
         }
 
-        $this->redirect('company/masterdata');
+        $this->redirect('company/masterdata?tab=hrpolicies');
     }
 
     /**
@@ -458,7 +458,7 @@ class MasterDataController extends Controller {
         $year = (int)$request->get('year');
         if ($year < 2000 || $year > 2100) {
             Session::setFlash('error', 'Please enter a valid calendar year.');
-            $this->redirect('company/masterdata');
+            $this->redirect('company/masterdata?tab=hrpolicies');
         }
 
         $db = Database::getInstance();
@@ -501,7 +501,7 @@ class MasterDataController extends Controller {
             Session::setFlash('error', 'Failed to generate weekends: ' . $e->getMessage());
         }
 
-        $this->redirect('company/masterdata');
+        $this->redirect('company/masterdata?tab=hrpolicies');
     }
 
     /**
@@ -513,7 +513,7 @@ class MasterDataController extends Controller {
 
         if ($sourceYear < 2000 || $targetYear < 2000 || $sourceYear === $targetYear) {
             Session::setFlash('error', 'Please specify different valid calendar years.');
-            $this->redirect('company/masterdata');
+            $this->redirect('company/masterdata?tab=hrpolicies');
         }
 
         $db = Database::getInstance();
@@ -552,7 +552,7 @@ class MasterDataController extends Controller {
             Session::setFlash('error', 'Failed to clone calendar holidays: ' . $e->getMessage());
         }
 
-        $this->redirect('company/masterdata');
+        $this->redirect('company/masterdata?tab=hrpolicies');
     }
 
     /**
@@ -564,7 +564,7 @@ class MasterDataController extends Controller {
 
         if (empty($title)) {
             Session::setFlash('error', 'Designation Title is required.');
-            $this->redirect('company/masterdata');
+            $this->redirect('company/masterdata?tab=designations');
         }
 
         $companyId = Session::get('company_id');
@@ -574,10 +574,10 @@ class MasterDataController extends Controller {
         try {
             // Check uniqueness
             $stmtCheck = $db->prepare("SELECT id FROM designations WHERE company_id = ? AND title = ? AND deleted_at IS NULL LIMIT 1");
-            $stmtCheck->execute([$companyId, $title]);
+            $stmtCheck->execute([companyId, $title]);
             if ($stmtCheck->fetch()) {
                 Session::setFlash('error', 'This Designation already exists.');
-                $this->redirect('company/masterdata');
+                $this->redirect('company/masterdata?tab=designations');
             }
 
             $stmt = $db->prepare("INSERT INTO designations (company_id, title, description, created_by) VALUES (?, ?, ?, ?)");
@@ -589,7 +589,7 @@ class MasterDataController extends Controller {
             Session::setFlash('error', 'Failed to create designation: ' . $e->getMessage());
         }
 
-        $this->redirect('company/masterdata');
+        $this->redirect('company/masterdata?tab=designations');
     }
 
     /**
@@ -601,7 +601,7 @@ class MasterDataController extends Controller {
 
         if (empty($title)) {
             Session::setFlash('error', 'Designation Title is required.');
-            $this->redirect('company/masterdata');
+            $this->redirect('company/masterdata?tab=designations');
         }
 
         $companyId = Session::get('company_id');
@@ -614,7 +614,7 @@ class MasterDataController extends Controller {
             $stmtCheck->execute([$companyId, $title, $id]);
             if ($stmtCheck->fetch()) {
                 Session::setFlash('error', 'Another Designation with this title already exists.');
-                $this->redirect('company/masterdata');
+                $this->redirect('company/masterdata?tab=designations');
             }
 
             $stmt = $db->prepare("UPDATE designations SET title = ?, description = ? WHERE id = ? AND company_id = ?");
@@ -626,7 +626,7 @@ class MasterDataController extends Controller {
             Session::setFlash('error', 'Failed to update designation: ' . $e->getMessage());
         }
 
-        $this->redirect('company/masterdata');
+        $this->redirect('company/masterdata?tab=designations');
     }
 
     /**
@@ -647,6 +647,6 @@ class MasterDataController extends Controller {
             Session::setFlash('error', 'Failed to delete designation: ' . $e->getMessage());
         }
 
-        $this->redirect('company/masterdata');
+        $this->redirect('company/masterdata?tab=designations');
     }
 }

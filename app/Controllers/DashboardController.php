@@ -43,7 +43,7 @@ class DashboardController extends Controller {
         $company = $companyModel->find($companyId);
 
         $userModel = new User();
-        $usersCount = count($userModel->all());
+        $usersCount = count($userModel->getActiveCompanyEmployees());
 
         $roleModel = new Role();
         $rolesCount = count($roleModel->all());
