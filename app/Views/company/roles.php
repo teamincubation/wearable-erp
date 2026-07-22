@@ -1,4 +1,3 @@
-<!-- DEBUG ROLES VIEW: roles.php is executing! -->
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h3 class="fw-bold">Roles & Privileges</h3>
@@ -214,7 +213,7 @@ function submitBulkDeleteRoles() {
         // CSRF Token
         const csrfInput = document.createElement('input');
         csrfInput.type = 'hidden';
-        csrfInput.name = '<?= \App\Core\Session::csrfTokenName() ?>';
+        csrfInput.name = 'csrf_token';
         csrfInput.value = '<?= \App\Core\Session::csrfToken() ?>';
         form.appendChild(csrfInput);
         
@@ -241,7 +240,7 @@ function submitSingleDeleteRole(roleId) {
         // CSRF Token
         const csrfInput = document.createElement('input');
         csrfInput.type = 'hidden';
-        csrfInput.name = '<?= \App\Core\Session::csrfTokenName() ?>';
+        csrfInput.name = 'csrf_token';
         csrfInput.value = '<?= \App\Core\Session::csrfToken() ?>';
         form.appendChild(csrfInput);
         
@@ -250,4 +249,3 @@ function submitSingleDeleteRole(roleId) {
     }
 }
 </script>
-<!-- DEBUG ROLES VIEW: roles.php finished executing successfully! -->

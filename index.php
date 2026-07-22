@@ -4,11 +4,6 @@
  * Lead Software Architect - Antigravity
  */
 
-// Flush OPCache if enabled
-if (function_exists('opcache_reset')) {
-    opcache_reset();
-}
-
 // 1. Load general configurations
 require_once __DIR__ . '/config/config.php';
 
