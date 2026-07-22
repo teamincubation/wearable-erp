@@ -23,17 +23,15 @@
                 <?php endif; ?>
             </div>
             <div class="pepp-card-body">
-                <form id="rolesForm" action="<?= base_url('company/roles/bulk-delete') ?>" method="POST">
-                    <?= \App\Core\Session::csrfField() ?>
-                    <div class="row g-4">
-                        <?php foreach ($roles as $role): ?>
-                            <div class="col-md-6">
-                                <div class="card h-100 p-3 shadow-sm border" style="border-radius: var(--border-radius-md);">
-                                    <div class="d-flex justify-content-between align-items-start mb-2">
-                                        <div class="d-flex align-items-start">
-                                            <?php if (!$role['is_system'] && \App\Core\Auth::hasPermission('company.roles.manage')): ?>
-                                                <input type="checkbox" name="role_ids[]" value="<?= $role['id'] ?>" class="role-select-checkbox form-check-input me-2 mt-1" style="width: 17px; height: 17px;" onclick="toggleBulkDeleteBtn()">
-                                            <?php endif; ?>
+                <div class="row g-4">
+                    <?php foreach ($roles as $role): ?>
+                        <div class="col-md-6">
+                            <div class="card h-100 p-3 shadow-sm border" style="border-radius: var(--border-radius-md);">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div class="d-flex align-items-start">
+                                        <?php if (!$role['is_system'] && \App\Core\Auth::hasPermission('company.roles.manage')): ?>
+                                            <input type="checkbox" value="<?= $role['id'] ?>" class="role-select-checkbox form-check-input me-2 mt-1" style="width: 17px; height: 17px;" onclick="toggleBulkDeleteBtn()">
+                                        <?php endif; ?>
                                             <div>
                                                 <h5 class="fw-bold text-dark mb-1"><?= htmlspecialchars($role['name']) ?></h5>
                                                 <p class="text-secondary mb-0" style="font-size: 13px;"><?= htmlspecialchars($role['description'] ?: 'No description provided') ?></p>
@@ -125,7 +123,6 @@
 
                     <?php endforeach; ?>
                 </div>
-                </form>
             </div>
         </div>
     </div>
@@ -205,8 +202,32 @@ function toggleBulkDeleteBtn() {
 }
 
 function submitBulkDeleteRoles() {
+    const checkboxes = document.querySelectorAll('.role-select-checkbox:checked');
+    if (checkboxes.length === 0) return;
+    
     if (confirm('Are you sure you want to delete all selected custom roles?')) {
-        document.getElementById('rolesForm').submit();
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '<?= base_url("company/roles/bulk-delete") ?>';
+        
+        // CSRF Token
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = '<?= \App\Core\Session::csrfTokenName() ?>';
+        csrfInput.value = '<?= \App\Core\Session::csrfToken() ?>';
+        form.appendChild(csrfInput);
+        
+        // Checked Role IDs
+        checkboxes.forEach(cb => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'role_ids[]';
+            input.value = cb.value;
+            form.appendChild(input);
+        });
+        
+        document.body.appendChild(form);
+        form.submit();
     }
 }
 
