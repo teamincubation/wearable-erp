@@ -1,6 +1,54 @@
+<!-- Self-contained CDN fallback dependencies for mobile design reliability -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+    body {
+        font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        background-color: #f1f5f9 !important;
+        margin: 0;
+        padding: 0;
+    }
+    .mobile-app-card {
+        min-height: 520px;
+        border-radius: 24px;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.1);
+        border: 1px solid #e2e8f0;
+    }
+    .app-icon-circle {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .bg-light-primary {
+        background-color: #eff6ff;
+    }
+    .scanner-container {
+        width: 100%;
+        background: #000;
+        border-radius: 16px;
+        overflow: hidden;
+        aspect-ratio: 4/3;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    #reader__scan_region {
+        background: #000 !important;
+    }
+    #reader__dashboard {
+        display: none !important; /* Hide html5-qrcode controls */
+    }
+</style>
+
 <!-- Mobile Application Container Wrapper -->
-<div class="d-flex justify-content-center align-items-center py-3 d-print-none" style="min-height: 80vh; background: #f1f5f9;">
-    <div class="mobile-app-card shadow-lg d-flex flex-column" style="width: 100%; max-width: 480px; background: #ffffff; border-radius: 24px; border: 1px solid #e2e8f0; overflow: hidden;">
+<div class="d-flex justify-content-center align-items-center py-3 d-print-none" style="min-height: 90vh; background: #f1f5f9;">
+    <div class="mobile-app-card shadow-lg d-flex flex-column" style="width: 100%; max-width: 480px; background: #ffffff; overflow: hidden;">
         
         <!-- Header Brand -->
         <div class="mobile-app-header bg-dark text-white p-3 text-center position-relative">
@@ -54,8 +102,26 @@
                 </div>
 
                 <!-- Video Scanner Viewport -->
-                <div class="scanner-container mb-3 position-relative">
+                <div class="scanner-container mb-3 position-relative" id="scanner-container">
                     <div id="reader" style="width: 100%; border-radius: 16px; overflow: hidden; border: 3px solid #0f172a; background: #000;"></div>
+                </div>
+
+                <!-- Manual Barcode Input Fallback (Hidden by default, shown if camera fails or clicked) -->
+                <div id="manual-input-container" class="card border border-2 p-3 mb-3 bg-light" style="display: none; border-radius: 16px;">
+                    <div class="text-center">
+                        <label class="form-label small fw-bold text-secondary mb-2"><i class="fa-solid fa-keyboard me-1"></i> MANUAL RFID TAG INPUT</label>
+                        <input type="text" id="manual-code-input" class="form-control form-control-lg text-center font-monospace mb-2" placeholder="e.g. BATCH-001-S-0005" style="border-radius: 10px; border: 2px solid #cbd5e1;">
+                        <button type="button" id="manual-submit-btn" class="btn btn-primary w-100 py-2.5 rounded-pill fw-bold">
+                            <i class="fa-solid fa-circle-check me-1"></i> Submit Scanned Code
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Switch Mode Button Trigger -->
+                <div class="text-center mb-3">
+                    <button type="button" id="toggle-mode-btn" class="btn btn-sm btn-link text-decoration-none text-secondary fw-bold">
+                        <i class="fa-solid fa-keyboard me-1"></i> Switch to Manual Entry Mode
+                    </button>
                 </div>
 
                 <!-- Scanned Result Card -->
@@ -120,6 +186,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const piecesCountEl = document.getElementById('pieces-count');
     const timerEl = document.getElementById('elapsed-timer');
 
+    // Mode Toggle Elements
+    const toggleModeBtn = document.getElementById('toggle-mode-btn');
+    const manualContainer = document.getElementById('manual-input-container');
+    const scannerContainer = document.getElementById('scanner-container');
+    const manualCodeInput = document.getElementById('manual-code-input');
+    const manualSubmitBtn = document.getElementById('manual-submit-btn');
+
     let html5QrCode = null;
     let scanCount = 0;
     let sessionStartTime = null;
@@ -166,6 +239,11 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function initScanner() {
+        // Reset manual UI visibility
+        manualContainer.style.display = 'none';
+        scannerContainer.style.display = 'block';
+        toggleModeBtn.innerHTML = '<i class="fa-solid fa-keyboard me-1"></i> Switch to Manual Entry Mode';
+
         html5QrCode = new Html5Qrcode("reader");
         const config = { fps: 10, qrbox: { width: 250, height: 250 } };
 
@@ -174,9 +252,8 @@ document.addEventListener('DOMContentLoaded', function() {
             config,
             onScanSuccess
         ).catch(err => {
-            console.error('Camera fail: ', err);
-            alert('Unable to access back camera. Please verify camera permissions.');
-            completeBtn.click();
+            console.warn('Camera access denied or unavailable. Falling back to manual entry mode: ', err);
+            switchToManualMode("Camera is not accessible or not supported on this browser/device. Manual input mode enabled.");
         });
     }
 
@@ -190,8 +267,53 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Toggle camera / manual modes
+    toggleModeBtn.addEventListener('click', function() {
+        if (manualContainer.style.display === 'none') {
+            switchToManualMode();
+        } else {
+            manualContainer.style.display = 'none';
+            scannerContainer.style.display = 'block';
+            toggleModeBtn.innerHTML = '<i class="fa-solid fa-keyboard me-1"></i> Switch to Manual Entry Mode';
+            initScanner();
+        }
+    });
+
+    function switchToManualMode(reason = null) {
+        stopScanner();
+        scannerContainer.style.display = 'none';
+        manualContainer.style.display = 'block';
+        toggleModeBtn.innerHTML = '<i class="fa-solid fa-camera me-1"></i> Switch to Camera Mode';
+
+        if (reason) {
+            const toast = document.createElement('div');
+            toast.className = 'alert alert-warning text-center py-2 mb-2 small fw-bold';
+            toast.innerText = reason;
+            manualContainer.parentNode.insertBefore(toast, manualContainer);
+            setTimeout(() => toast.remove(), 4000);
+        }
+        manualCodeInput.value = '';
+        manualCodeInput.focus();
+    }
+
+    // Handle manual entry submit
+    manualSubmitBtn.addEventListener('click', function() {
+        const code = manualCodeInput.value.trim();
+        if (!code) {
+            alert('Please enter or scan a valid code.');
+            return;
+        }
+        onScanSuccess(code);
+    });
+
+    manualCodeInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            manualSubmitBtn.click();
+        }
+    });
+
     function onScanSuccess(decodedText) {
-        // Pause scanning while waiting for pass/fail decision
+        // Pause camera scanning during pass/fail log interaction
         if (html5QrCode) {
             html5QrCode.pause(true);
         }
@@ -251,25 +373,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 scanCount++;
                 piecesCountEl.innerText = scanCount;
                 
-                // Show a brief green flash or alert
+                // Show a brief alert
                 const alertClass = status === 'pass' ? 'alert-success' : 'alert-danger';
                 const toast = document.createElement('div');
                 toast.className = `alert ${alertClass} text-center py-2 mb-2 font-monospace fw-bold`;
                 toast.innerText = data.message;
                 scanResultCard.parentNode.insertBefore(toast, scanResultCard);
-                setTimeout(() => toast.remove(), 2000);
+                setTimeout(() => toast.remove(), 2500);
                 
-                // Reset card & resume scanner
+                // Reset card & input
                 scanResultCard.style.display = 'none';
                 currentScannedCode = null;
+                manualCodeInput.value = '';
                 pieceStartTime = new Date(); // Reset timer for next piece
                 
-                if (html5QrCode) {
+                if (manualContainer.style.display !== 'none') {
+                    manualCodeInput.focus();
+                } else if (html5QrCode) {
                     html5QrCode.resume();
                 }
             } else {
                 alert('Logging Error: ' + data.message);
-                if (html5QrCode) {
+                if (html5QrCode && manualContainer.style.display === 'none') {
                     html5QrCode.resume();
                 }
             }
@@ -277,7 +402,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(err => {
             console.error(err);
             alert('Connection failure. Verify internet connectivity.');
-            if (html5QrCode) {
+            if (html5QrCode && manualContainer.style.display === 'none') {
                 html5QrCode.resume();
             }
         })
@@ -296,44 +421,3 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-
-<style>
-.mobile-app-card {
-    min-height: 520px;
-    border-radius: 24px;
-    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.1);
-}
-
-.app-icon-circle {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.bg-light-primary {
-    background-color: #eff6ff;
-}
-
-.scanner-container {
-    width: 100%;
-    background: #000;
-    border-radius: 16px;
-    overflow: hidden;
-    aspect-ratio: 4/3;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-#reader__scan_region {
-    background: #000 !important;
-}
-
-#reader__dashboard {
-    display: none !important; /* Hide html5-qrcode controls */
-}
-</style>
