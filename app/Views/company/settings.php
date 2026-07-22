@@ -12,7 +12,7 @@
             <div class="pepp-card-body">
                 <form action="<?= base_url('company/settings') ?>" method="POST">
                     <?= \App\Core\Session::csrfField() ?>
-                    <input type="hidden" name="sidebar_menu_order" id="sidebar_menu_order_input" value="<?= htmlspecialchars($settings['sidebar_menu_order'] ?? '') ?>">
+                    <input type="hidden" id="sidebar_menu_order_input" value="<?= htmlspecialchars($settings['sidebar_menu_order'] ?? '') ?>">
 
                     <h6 class="fw-bold text-primary mb-3"><i class="fa-solid fa-id-card me-1"></i> General Details</h6>
                     <div class="row g-3 mb-4">
@@ -126,6 +126,64 @@
                         <i class="fa-solid fa-circle-check me-1"></i> Save Sidebar Navigation Order
                     </button>
                 </div>
+            </div>
+        </div>
+
+        <!-- WIP Operational Stages Configuration -->
+        <div class="pepp-card mt-4">
+            <div class="pepp-card-header">
+                <h5 class="pepp-card-title"><i class="fa-solid fa-list-check text-primary me-2"></i> WIP Operational Stages Configuration</h5>
+            </div>
+            <div class="pepp-card-body">
+                <p class="text-secondary small mb-3">Select which manufacturing stages are active for your company process. Deactivated stages will not be shown in the production tracking page.</p>
+                
+                <form action="<?= base_url('company/settings/wip-stages') ?>" method="POST">
+                    <?= \App\Core\Session::csrfField() ?>
+                    <?php
+                    $allStages = [
+                        'knitting' => 'Knitting',
+                        'dyeing' => 'Dyeing',
+                        'compacting' => 'Compacting',
+                        'relaxing' => 'Relaxing',
+                        'spreading' => 'Spreading',
+                        'cutting' => 'Cutting',
+                        'bundling' => 'Bundling',
+                        'printing' => 'Printing',
+                        'embroidery' => 'Embroidery',
+                        'sewing' => 'Sewing',
+                        'checking' => 'Checking / Trim',
+                        'thread_cutting' => 'Thread Cutting',
+                        'washing' => 'Washing',
+                        'ironing' => 'Ironing / Pressing',
+                        'packing' => 'Packing',
+                        'carton_packing' => 'Carton Packing',
+                        'shipment' => 'Shipment'
+                    ];
+                    
+                    $activeStagesRaw = $settings['active_production_stages'] ?? null;
+                    $activeStages = $activeStagesRaw ? json_decode(html_entity_decode($activeStagesRaw), true) : array_keys($allStages);
+                    if (!is_array($activeStages)) {
+                        $activeStages = array_keys($allStages);
+                    }
+                    ?>
+                    <div class="row row-cols-2 row-cols-md-3 g-3">
+                        <?php foreach ($allStages as $key => $label): ?>
+                            <div class="col">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="active_stages[]" value="<?= htmlspecialchars($key) ?>" id="stage-<?= $key ?>" <?= in_array($key, $activeStages) ? 'checked' : '' ?>>
+                                    <label class="form-check-label text-dark small" for="stage-<?= $key ?>">
+                                        <?= htmlspecialchars($label) ?>
+                                    </label>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <div class="text-end mt-4">
+                        <button type="submit" class="btn btn-pepp-primary">
+                            <i class="fa-solid fa-circle-check me-1"></i> Save Active WIP Stages
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -353,35 +411,45 @@ document.addEventListener('DOMContentLoaded', function() {
         menuList.addEventListener('dragstart', function(e) {
             draggedItem = e.target.closest('.draggable-menu-item');
             if (draggedItem) {
-                draggedItem.style.opacity = '0.5';
-                draggedItem.style.background = '#eff6ff';
+                draggedItem.classList.add('dragging');
+                draggedItem.style.opacity = '0.4';
+                e.dataTransfer.effectAllowed = 'move';
             }
         });
 
         menuList.addEventListener('dragend', function(e) {
             if (draggedItem) {
+                draggedItem.classList.remove('dragging');
                 draggedItem.style.opacity = '';
-                draggedItem.style.background = '#f8fafc';
             }
+            draggedItem = null;
             saveNewOrder();
         });
 
         menuList.addEventListener('dragover', function(e) {
             e.preventDefault();
-        });
-
-        menuList.addEventListener('dragenter', function(e) {
-            const targetItem = e.target.closest('.draggable-menu-item');
-            if (targetItem && targetItem !== draggedItem) {
-                const bounding = targetItem.getBoundingClientRect();
-                const offset = e.clientY - bounding.top - (bounding.height / 2);
-                if (offset > 0) {
-                    targetItem.after(draggedItem);
+            const afterElement = getDragAfterElement(menuList, e.clientY);
+            if (draggedItem) {
+                if (afterElement == null) {
+                    menuList.appendChild(draggedItem);
                 } else {
-                    targetItem.before(draggedItem);
+                    menuList.insertBefore(draggedItem, afterElement);
                 }
             }
         });
+
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.draggable-menu-item:not(.dragging)')];
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
 
         function saveNewOrder() {
             const items = menuList.querySelectorAll('.draggable-menu-item');

@@ -10,6 +10,19 @@
     <?php endif; ?>
 </div>
 
+<ul class="nav nav-tabs mb-4 border-bottom-0">
+    <li class="nav-item">
+        <a class="nav-link active fw-semibold text-primary" href="<?= base_url('company/merchandising/costsheets') ?>">
+            <i class="fa-solid fa-calculator me-1"></i> Cost Sheet Estimates
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link text-secondary" href="<?= base_url('company/merchandising/buyerpos') ?>">
+            <i class="fa-solid fa-file-contract me-1"></i> Buyer POs (Contracts)
+        </a>
+    </li>
+</ul>
+
 <div class="pepp-card">
     <div class="pepp-card-header">
         <h5 class="pepp-card-title"><i class="fa-solid fa-file-invoice-dollar text-primary me-2"></i> Style Cost Sheet Estimates</h5>

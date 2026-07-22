@@ -125,13 +125,25 @@ class ProductionController extends Controller {
         $userModel = new User();
         $employees = $userModel->getActiveCompanyEmployees();
 
+        // Fetch active production stages settings
+        $stmtStageSettings = $db->prepare("SELECT setting_value FROM system_settings WHERE company_id = ? AND setting_key = 'active_production_stages' AND deleted_at IS NULL ORDER BY id DESC LIMIT 1");
+        $stmtStageSettings->execute([$companyId]);
+        $activeStagesRaw = $stmtStageSettings->fetchColumn();
+        
+        $allStagesDefault = ['knitting', 'dyeing', 'compacting', 'relaxing', 'spreading', 'cutting', 'bundling', 'printing', 'embroidery', 'sewing', 'checking', 'thread_cutting', 'washing', 'ironing', 'packing', 'carton_packing', 'shipment'];
+        $stagesList = $activeStagesRaw ? json_decode(html_entity_decode($activeStagesRaw), true) : $allStagesDefault;
+        if (!is_array($stagesList) || empty($stagesList)) {
+            $stagesList = $allStagesDefault;
+        }
+
         $this->renderView('company/production_stage', [
             'title' => "Stage Logs: {$order['production_no']} | ERP",
             'order' => $order,
             'wip_summary' => $wipSummary,
             'history' => $history,
             'machines' => $machines,
-            'employees' => $employees
+            'employees' => $employees,
+            'stagesList' => $stagesList
         ]);
     }
 

@@ -366,24 +366,30 @@ $orderedMenuKeys = array_merge($savedOrder, array_diff(array_keys($defaultMenu),
         const toggleIcon = document.getElementById('sidebar-toggle-icon');
 
         // 1. Initial State Loading from LocalStorage
-        const savedWidth = localStorage.getItem('sidebar-width');
-        if (savedWidth) {
-            document.documentElement.style.setProperty('--sidebar-width', savedWidth);
-        }
-
         const isCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
         if (isCollapsed) {
             document.body.classList.add('sidebar-collapsed');
+            document.documentElement.style.setProperty('--sidebar-width', '70px');
             if (toggleIcon) {
                 toggleIcon.classList.remove('fa-circle-chevron-left');
                 toggleIcon.classList.add('fa-circle-chevron-right');
             }
+        } else {
+            const savedWidth = localStorage.getItem('sidebar-width') || '260px';
+            document.documentElement.style.setProperty('--sidebar-width', savedWidth);
         }
 
         // 2. Collapse / Expand Action
         function toggleSidebar() {
             const currentlyCollapsed = document.body.classList.toggle('sidebar-collapsed');
             localStorage.setItem('sidebar-collapsed', currentlyCollapsed ? 'true' : 'false');
+            
+            if (currentlyCollapsed) {
+                document.documentElement.style.setProperty('--sidebar-width', '70px');
+            } else {
+                const savedWidth = localStorage.getItem('sidebar-width') || '260px';
+                document.documentElement.style.setProperty('--sidebar-width', savedWidth);
+            }
             
             if (toggleIcon) {
                 if (currentlyCollapsed) {

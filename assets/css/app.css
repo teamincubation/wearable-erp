@@ -406,12 +406,18 @@ body.sidebar-collapsed .sidebar-badge-container {
     display: none !important;
 }
 body.sidebar-collapsed .sidebar-brand-container {
+    flex-direction: column !important;
     justify-content: center !important;
-    padding: 24px 10px !important;
+    align-items: center !important;
+    padding: 15px 10px !important;
+    gap: 12px !important;
 }
-body.sidebar-collapsed .sidebar-brand-container span,
-body.sidebar-collapsed #sidebar-toggle-btn {
+body.sidebar-collapsed .sidebar-brand-container span {
     display: none !important;
+}
+body.sidebar-collapsed #sidebar-toggle-btn {
+    display: block !important;
+    margin-left: 0 !important;
 }
 body.sidebar-collapsed .sidebar-brand img,
 body.sidebar-collapsed .sidebar-brand i {

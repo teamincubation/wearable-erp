@@ -3,7 +3,10 @@
         <h3 class="fw-bold">Production Orders</h3>
         <p class="text-secondary m-0">Plan, launch, and monitor active garment manufacturing batches</p>
     </div>
-    <div class="d-flex">
+    <div class="d-flex align-items-center">
+        <button class="btn btn-outline-info rounded-pill px-3 me-2 fw-semibold" data-bs-toggle="modal" data-bs-target="#productionWorkflowHelpModal" style="border-width: 2px;" type="button">
+            <i class="fa-solid fa-circle-question me-1"></i> How It Works?
+        </button>
         <a href="<?= base_url('company/production/quality') ?>" class="btn btn-outline-secondary rounded-pill px-4 me-2">
             <i class="fa-solid fa-clipboard-check me-1"></i> Quality Inspections
         </a>
@@ -140,3 +143,120 @@
         </div>
     </div>
 <?php endif; ?>
+
+<!-- Production Workflow Help Modal -->
+<div class="modal fade" id="productionWorkflowHelpModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content text-start" style="border-radius: 16px; border: none; box-shadow: var(--shadow-lg);">
+            <div class="modal-header bg-info text-white" style="border-top-left-radius: 16px; border-top-right-radius: 16px;">
+                <h5 class="modal-title fw-bold"><i class="fa-solid fa-circle-question me-2"></i> How Production Planning Works - Step-by-Step</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-dark p-4">
+                <p class="text-secondary small mb-4">Follow this step-by-step workflow to plan, track, and complete a garment manufacturing batch in the ERP. Click on any shortcut to navigate directly to that section.</p>
+                
+                <div class="row g-4 position-relative">
+                    <!-- Step 1 -->
+                    <div class="col-md-6">
+                        <div class="pepp-card h-100 border-start border-info border-3">
+                            <div class="pepp-card-body p-3">
+                                <div class="d-flex align-items-center mb-2">
+                                    <span class="badge bg-info text-white me-2 rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; font-size: 13px;">1</span>
+                                    <h6 class="fw-bold mb-0 text-dark">Register Buyer / Client</h6>
+                                </div>
+                                <p class="text-secondary small mb-2">Add the buyer/client details first to establish customer profiles in the ERP database.</p>
+                                <a href="<?= base_url('company/buyers') ?>" class="btn btn-sm btn-outline-info rounded-pill px-3">
+                                    <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Go to Buyers Master
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2 -->
+                    <div class="col-md-6">
+                        <div class="pepp-card h-100 border-start border-info border-3">
+                            <div class="pepp-card-body p-3">
+                                <div class="d-flex align-items-center mb-2">
+                                    <span class="badge bg-info text-white me-2 rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; font-size: 13px;">2</span>
+                                    <h6 class="fw-bold mb-0 text-dark">Define Styles in Style Master</h6>
+                                </div>
+                                <p class="text-secondary small mb-2">Register style codes, style names, and design specifics for the items you plan to manufacture.</p>
+                                <a href="<?= base_url('company/styles') ?>" class="btn btn-sm btn-outline-info rounded-pill px-3">
+                                    <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Go to Style Master
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3 -->
+                    <div class="col-md-6">
+                        <div class="pepp-card h-100 border-start border-info border-3">
+                            <div class="pepp-card-body p-3">
+                                <div class="d-flex align-items-center mb-2">
+                                    <span class="badge bg-info text-white me-2 rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; font-size: 13px;">3</span>
+                                    <h6 class="fw-bold mb-0 text-dark">Book & Approve Buyer PO</h6>
+                                </div>
+                                <p class="text-secondary small mb-2">Create a Buyer Purchase Order (Contract) under Merchandising, link it to a Style, and set its status to **Approved**.</p>
+                                <a href="<?= base_url('company/merchandising/buyerpos') ?>" class="btn btn-sm btn-outline-info rounded-pill px-3">
+                                    <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Go to Buyer POs
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 4 -->
+                    <div class="col-md-6">
+                        <div class="pepp-card h-100 border-start border-info border-3">
+                            <div class="pepp-card-body p-3">
+                                <div class="d-flex align-items-center mb-2">
+                                    <span class="badge bg-info text-white me-2 rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; font-size: 13px;">4</span>
+                                    <h6 class="fw-bold mb-0 text-dark">Configure Active WIP Stages</h6>
+                                </div>
+                                <p class="text-secondary small mb-2">Determine which manufacturing/WIP operational stages should be active or inactive in ERP settings.</p>
+                                <a href="<?= base_url('company/settings') ?>" class="btn btn-sm btn-outline-info rounded-pill px-3">
+                                    <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Go to ERP Settings
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 5 -->
+                    <div class="col-md-6">
+                        <div class="pepp-card h-100 border-start border-info border-3">
+                            <div class="pepp-card-body p-3">
+                                <div class="d-flex align-items-center mb-2">
+                                    <span class="badge bg-info text-white me-2 rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; font-size: 13px;">5</span>
+                                    <h6 class="fw-bold mb-0 text-dark">Plan & Launch Production Batch</h6>
+                                </div>
+                                <p class="text-secondary small mb-2">Click **Plan New Batch** on this page, link it to the Approved Buyer PO, and assign a unique Batch Code number.</p>
+                                <button type="button" class="btn btn-sm btn-info text-white rounded-pill px-3" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#addProductionOrderModal">
+                                    <i class="fa-solid fa-plus me-1"></i> Plan New Batch Now
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 6 -->
+                    <div class="col-md-6">
+                        <div class="pepp-card h-100 border-start border-info border-3">
+                            <div class="pepp-card-body p-3">
+                                <div class="d-flex align-items-center mb-2">
+                                    <span class="badge bg-info text-white me-2 rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; font-size: 13px;">6</span>
+                                    <h6 class="fw-bold mb-0 text-dark">Move WIP Pipelines & Inspect</h6>
+                                </div>
+                                <p class="text-secondary small mb-2">Track garment quantities through the active operational stages and log Quality Inspections to finalize the batch.</p>
+                                <a href="<?= base_url('company/production/quality') ?>" class="btn btn-sm btn-outline-info rounded-pill px-3">
+                                    <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Go to Quality Control
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="border-bottom-left-radius: 16px; border-bottom-right-radius: 16px;">
+                <button type="button" class="btn btn-light border rounded-pill px-4" data-bs-dismiss="modal">Got It, Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+

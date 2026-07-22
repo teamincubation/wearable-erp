@@ -486,10 +486,7 @@ class CompanyController extends Controller {
             'timezone' => $request->get('timezone') ?: 'Asia/Kolkata'
         ];
 
-        $menuOrder = $request->get('sidebar_menu_order');
-        if (!empty($menuOrder)) {
-            $settings['sidebar_menu_order'] = html_entity_decode($menuOrder);
-        }
+
 
         foreach ($settings as $key => $val) {
             $stmtCheck = $db->prepare("SELECT id FROM system_settings WHERE company_id = ? AND setting_key = ? AND deleted_at IS NULL LIMIT 1");
@@ -619,5 +616,30 @@ class CompanyController extends Controller {
         }
 
         $response->json(['success' => true]);
+    }
+
+    /**
+     * Save active WIP stages settings
+     */
+    public function saveWipStages(Request $request, Response $response): void {
+        $companyId = Session::get('company_id');
+        $activeStages = $request->get('active_stages') ?: [];
+        $stagesJson = json_encode($activeStages);
+
+        $db = Database::getInstance();
+        $stmtCheck = $db->prepare("SELECT id FROM system_settings WHERE company_id = ? AND setting_key = 'active_production_stages' AND deleted_at IS NULL LIMIT 1");
+        $stmtCheck->execute([$companyId]);
+        $existingId = $stmtCheck->fetchColumn();
+
+        if ($existingId) {
+            $stmtUpdate = $db->prepare("UPDATE system_settings SET setting_value = ?, updated_by = ?, updated_at = NOW() WHERE id = ?");
+            $stmtUpdate->execute([$stagesJson, Session::get('user_id'), $existingId]);
+        } else {
+            $stmtInsert = $db->prepare("INSERT INTO system_settings (company_id, setting_key, setting_value, created_by) VALUES (?, 'active_production_stages', ?, ?)");
+            $stmtInsert->execute([$companyId, $stagesJson, Session::get('user_id')]);
+        }
+
+        Session::setFlash('success', 'Active WIP stages configuration saved successfully.');
+        $this->redirect('company/settings');
     }
 }

@@ -19,21 +19,44 @@
             <div class="pepp-card-body">
                 <div class="row row-cols-2 row-cols-md-6 g-3">
                     <?php 
-                        $stagesList = ['knitting', 'dyeing', 'compacting', 'relaxing', 'spreading', 'cutting', 'bundling', 'printing', 'embroidery', 'sewing', 'checking', 'thread_cutting', 'washing', 'ironing', 'packing', 'carton_packing', 'shipment'];
+                        $stagesList = $stagesList ?? ['knitting', 'dyeing', 'compacting', 'relaxing', 'spreading', 'cutting', 'bundling', 'printing', 'embroidery', 'sewing', 'checking', 'thread_cutting', 'washing', 'ironing', 'packing', 'carton_packing', 'shipment'];
                         foreach ($stagesList as $stg):
                             $inVal = $wip_summary[$stg]['in'] ?? 0;
                             $outVal = $wip_summary[$stg]['out'] ?? 0;
                             $wasteVal = $wip_summary[$stg]['waste'] ?? 0;
                             $balance = $wip_summary[$stg]['wip_balance'] ?? 0;
+
+                            // Determine status & color scheme
+                            if ($inVal == 0 && $outVal == 0) {
+                                $statusLabel = 'Not Started';
+                                $badgeClass = 'bg-secondary-subtle text-secondary';
+                                $cardClass = 'bg-light-subtle border-light-subtle';
+                                $borderStyle = 'border-top: 4px solid #cbd5e1;';
+                            } elseif ($balance > 0) {
+                                $statusLabel = 'In Progress';
+                                $badgeClass = 'bg-warning-subtle text-warning-emphasis';
+                                $cardClass = 'bg-warning-subtle border-warning-subtle';
+                                $borderStyle = 'border-top: 4px solid #f59e0b;';
+                            } else {
+                                $statusLabel = 'Completed';
+                                $badgeClass = 'bg-success-subtle text-success';
+                                $cardClass = 'bg-success-subtle border-success-subtle';
+                                $borderStyle = 'border-top: 4px solid #10b981;';
+                            }
                     ?>
                         <div class="col">
-                            <div class="border rounded p-3 text-center h-100 bg-light-subtle shadow-sm">
-                                <div class="text-uppercase small text-secondary fw-bold" style="font-size: 10px;"><?= str_replace('_', ' ', $stg) ?></div>
-                                <div class="fs-4 fw-bold font-monospace my-2 text-dark"><?= number_format($balance) ?></div>
-                                <div class="text-secondary small" style="font-size: 9px;">
-                                    In: <?= $inVal ?><br>
-                                    Out: <?= $outVal ?><br>
-                                    Waste: <?= $wasteVal ?>
+                            <div class="card h-100 shadow-sm border-0 <?= $cardClass ?>" style="<?= $borderStyle ?> border-radius: 12px; transition: transform 0.2s;">
+                                <div class="card-body p-3 text-center d-flex flex-column justify-content-between">
+                                    <div>
+                                        <div class="text-uppercase small text-secondary fw-bold" style="font-size: 10px; letter-spacing: 0.5px;"><?= str_replace('_', ' ', $stg) ?></div>
+                                        <div class="fs-3 fw-bold font-monospace my-2 text-dark"><?= number_format($balance) ?></div>
+                                        <span class="badge <?= $badgeClass ?> small mb-2" style="font-size: 10px;"><?= $statusLabel ?></span>
+                                    </div>
+                                    <div class="text-secondary small border-top pt-2 mt-2" style="font-size: 10px; border-color: rgba(0,0,0,0.05) !important;">
+                                        <div class="d-flex justify-content-between"><span>In:</span> <strong class="font-monospace text-dark"><?= number_format($inVal) ?></strong></div>
+                                        <div class="d-flex justify-content-between"><span>Out:</span> <strong class="font-monospace text-dark"><?= number_format($outVal) ?></strong></div>
+                                        <div class="d-flex justify-content-between"><span>Waste:</span> <strong class="font-monospace text-danger"><?= number_format($wasteVal) ?></strong></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

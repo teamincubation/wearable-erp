@@ -617,6 +617,12 @@ $router->post('/company/settings/menu-order', [CompanyController::class, 'saveMe
        ->middleware(PermissionMiddleware::class)
        ->permission('company.settings');
 
+$router->post('/company/settings/wip-stages', [CompanyController::class, 'saveWipStages'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.settings');
+
 // Generic Item Deletion Endpoints for Super Admin & Authorized Roles
 $router->post('/company/masterdata/contacts/delete/{id}', [\App\Controllers\MasterDataController::class, 'deleteContact'])
        ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
