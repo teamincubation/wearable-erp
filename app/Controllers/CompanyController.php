@@ -254,16 +254,28 @@ class CompanyController extends Controller {
         $this->redirect('company/users');
     }
 
-    /**
-     * Custom Roles & Permission Manager List
-     */
     public function roles(Request $request, Response $response): void {
         $roleModel = new Role();
         $roles = $roleModel->all();
 
-        // Load permissions list
+        // Load permissions list and restrict to active feature flags for this tenant
         $db = Database::getInstance();
-        $permissions = $db->query("SELECT * FROM permissions WHERE module = 'tenant'")->fetchAll();
+        $companyId = Session::get('company_id');
+        
+        $permissionsRaw = $db->query("SELECT * FROM permissions WHERE module = 'tenant'")->fetchAll();
+
+        // Fetch enabled feature flags for this company
+        $stmtFlags = $db->prepare("SELECT feature_key FROM feature_flags WHERE company_id = ? AND status = 'enabled' AND deleted_at IS NULL");
+        $stmtFlags->execute([$companyId]);
+        $enabledKeys = $stmtFlags->fetchAll(\PDO::FETCH_COLUMN) ?: [];
+
+        // Filter permissions
+        $permissions = [];
+        foreach ($permissionsRaw as $p) {
+            if (in_array($p['name'], $enabledKeys)) {
+                $permissions[] = $p;
+            }
+        }
 
         // Get permissions mapped to each role
         $rolePermissions = [];

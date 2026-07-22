@@ -71,6 +71,18 @@ class DeveloperController extends Controller {
 
         $plans = $db->query("SELECT * FROM subscription_plans WHERE deleted_at IS NULL")->fetchAll();
 
+        // Ensure company.production.rfid_tracking permission exists dynamically
+        $stmtCheckRFID = $db->prepare("SELECT id FROM permissions WHERE name = ?");
+        $stmtCheckRFID->execute(['company.production.rfid_tracking']);
+        if (!$stmtCheckRFID->fetchColumn()) {
+            try {
+                $db->exec("INSERT INTO permissions (id, name, description, module) VALUES (25, 'company.production.rfid_tracking', 'Access RFID Production Tracking mobile scanner page', 'tenant')");
+                $db->exec("INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (2, 25)");
+            } catch (\Exception $ex) {
+                // Ignore duplicate errors
+            }
+        }
+
         // Fetch all tenant permissions
         $tenantPermissions = $db->query("SELECT * FROM permissions WHERE module = 'tenant' ORDER BY name ASC")->fetchAll();
 
