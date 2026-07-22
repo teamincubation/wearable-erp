@@ -202,16 +202,20 @@ class PurchaseController extends Controller {
         $supplierId = (int)$request->get('supplier_id');
         $poNo = trim($request->get('po_no'));
         $date = $request->get('date');
-        $status = $request->get('status') ?: 'active';
-        
-        $itemNames = $request->get('item_name') ?: [];
-        $itemTypes = $request->get('item_type') ?: [];
-        $quantities = $request->get('quantity') ?: [];
-        $prices = $request->get('unit_price') ?: [];
+        $status = $request->get('status') ?: 'draft';
+        $paymentAccountId = $request->get('payment_account_id') ? (int)$request->get('payment_account_id') : null;
+        $paymentDate = $request->get('payment_date') ?: null;
 
         if (empty($supplierId) || empty($poNo) || empty($date)) {
             Session::setFlash('error', 'Supplier details, PO Number, and Date are required.');
             $this->redirect('company/purchase/orders');
+            return;
+        }
+
+        if ($status === 'grn_completed' && (empty($paymentAccountId) || empty($paymentDate))) {
+            Session::setFlash('error', 'Payment Account and Payment Date are mandatory for GRN Completed status.');
+            $this->redirect('company/purchase/orders');
+            return;
         }
 
         $db = Database::getInstance();
@@ -232,6 +236,8 @@ class PurchaseController extends Controller {
                 'po_no' => $poNo,
                 'date' => $date,
                 'status' => $status,
+                'payment_account_id' => $status === 'grn_completed' ? $paymentAccountId : null,
+                'payment_date' => $status === 'grn_completed' ? $paymentDate : null,
                 'updated_by' => Session::get('user_id')
             ]);
 
@@ -438,7 +444,7 @@ class PurchaseController extends Controller {
     }
 
     /**
-     * Instantly toggle PO status between 'draft' and 'active'
+     * Update PO status dynamically (e.g. approve or mark as GRN Completed with payment)
      */
     public function updateStatus(Request $request, Response $response, string $id): void {
         $poModel = new PurchaseOrder();
@@ -450,11 +456,40 @@ class PurchaseController extends Controller {
             return;
         }
 
-        $newStatus = ($po['status'] === 'draft') ? 'active' : 'draft';
-        $poModel->update($id, ['status' => $newStatus]);
+        $newStatus = $request->get('status');
+        if (empty($newStatus)) {
+            $newStatus = ($po['status'] === 'draft') ? 'approved' : 'draft';
+        }
 
-        AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'update_po_status', 'PurchaseOrder', $id, $po['status'], $newStatus, "Toggled PO status to {$newStatus}");
-        Session::setFlash('success', "Purchase Order status updated to {$newStatus} successfully.");
+        $paymentAccountId = $request->get('payment_account_id') ? (int)$request->get('payment_account_id') : null;
+        $paymentDate = $request->get('payment_date') ?: null;
+
+        if ($newStatus === 'grn_completed') {
+            if (empty($paymentAccountId) || empty($paymentDate)) {
+                Session::setFlash('error', 'Payment Account and Payment Date are mandatory to complete Purchase Order.');
+                $this->redirect('company/purchase/orders');
+                return;
+            }
+        }
+
+        $poModel->update($id, [
+            'status' => $newStatus,
+            'payment_account_id' => $newStatus === 'grn_completed' ? $paymentAccountId : null,
+            'payment_date' => $newStatus === 'grn_completed' ? $paymentDate : null
+        ]);
+
+        AuditLog::log(
+            Session::get('company_id'), 
+            Session::get('user_id'), 
+            'update_po_status', 
+            'PurchaseOrder', 
+            $id, 
+            ['status' => $po['status']], 
+            ['status' => $newStatus], 
+            "Updated PO status to {$newStatus}"
+        );
+
+        Session::setFlash('success', "Purchase Order status updated to " . ($newStatus === 'approved' ? 'Pending' : ucfirst($newStatus)) . " successfully.");
         $this->redirect('company/purchase/orders');
     }
 }

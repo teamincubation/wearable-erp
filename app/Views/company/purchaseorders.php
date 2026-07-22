@@ -1,3 +1,9 @@
+<?php
+$dbAccounts = \App\Core\Database::getInstance();
+$stmtAccs = $dbAccounts->prepare("SELECT * FROM payment_accounts WHERE company_id = ? AND deleted_at IS NULL");
+$stmtAccs->execute([\App\Core\Session::get('company_id')]);
+$paymentAccountsList = $stmtAccs->fetchAll() ?: [];
+?>
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h3 class="fw-bold">Supplier Purchase Orders</h3>
@@ -43,22 +49,25 @@
                                             <?php 
                                                 if ($o['status'] === 'grn_completed') echo 'badge-success';
                                                 elseif ($o['status'] === 'draft') echo 'badge-warning';
-                                                elseif ($o['status'] === 'active') echo 'badge-info';
-                                                else echo 'badge-info';
+                                                elseif ($o['status'] === 'approved') echo 'badge-info';
+                                                else echo 'badge-secondary';
                                             ?>">
-                                            <?= htmlspecialchars(str_replace('_', ' ', ucfirst($o['status']))) ?>
+                                            <?= ($o['status'] === 'approved') ? 'Pending' : (($o['status'] === 'grn_completed') ? 'GRN Completed' : htmlspecialchars(ucfirst($o['status']))) ?>
                                         </span>
-                                        <?php if ($o['status'] === 'draft' || $o['status'] === 'active'): ?>
+                                        <?php if ($o['status'] === 'draft'): ?>
                                             <form action="<?= base_url('company/purchase/orders/update-status/' . $o['id']) ?>" method="POST" class="d-inline ms-2">
                                                 <?= \App\Core\Session::csrfField() ?>
-                                                <button type="submit" class="btn btn-sm btn-link p-0 text-primary border-0 bg-transparent" title="<?= $o['status'] === 'draft' ? 'Activate Purchase Order' : 'Mark as Draft' ?>">
-                                                    <?php if ($o['status'] === 'draft'): ?>
-                                                        <i class="fa-solid fa-circle-play fs-6"></i>
-                                                    <?php else: ?>
-                                                        <i class="fa-solid fa-circle-pause fs-6 text-secondary"></i>
-                                                    <?php endif; ?>
+                                                <input type="hidden" name="status" value="approved">
+                                                <button type="submit" class="btn btn-sm btn-link p-0 text-primary border-0 bg-transparent" title="Approve & Mark Pending">
+                                                    <i class="fa-solid fa-circle-play fs-6"></i>
                                                 </button>
                                             </form>
+                                        <?php elseif ($o['status'] === 'approved'): ?>
+                                            <button type="button" class="btn btn-sm btn-link p-0 text-success border-0 bg-transparent ms-2 po-payment-trigger-btn" 
+                                                    data-po-id="<?= $o['id'] ?>" 
+                                                    title="Mark GRN Completed & Add Payment">
+                                                <i class="fa-solid fa-circle-check fs-6"></i>
+                                            </button>
                                         <?php endif; ?>
                                     </div>
                                 </td>
@@ -210,12 +219,26 @@ if (!empty($categories)) {
                             <div class="row g-3 mb-3">
                                 <div class="col-md-4">
                                     <label class="form-label small fw-bold">Order Status</label>
-                                    <select name="status" class="form-select text-dark">
-                                        <option value="active" <?= ($o['status'] === 'active') ? 'selected' : '' ?>>Active</option>
-                                        <option value="pending" <?= ($o['status'] === 'pending') ? 'selected' : '' ?>>Pending</option>
-                                        <option value="grn_completed" <?= ($o['status'] === 'grn_completed') ? 'selected' : '' ?>>GRN Completed</option>
+                                    <select name="status" class="form-select text-dark edit-po-status-select" data-po-id="<?= $o['id'] ?>">
                                         <option value="draft" <?= ($o['status'] === 'draft') ? 'selected' : '' ?>>Draft</option>
+                                        <option value="approved" <?= ($o['status'] === 'approved') ? 'selected' : '' ?>>Pending</option>
+                                        <option value="grn_completed" <?= ($o['status'] === 'grn_completed') ? 'selected' : '' ?>>GRN Completed</option>
                                     </select>
+                                </div>
+                                <div class="col-md-8 edit-po-payment-container-<?= $o['id'] ?>" style="display: <?= ($o['status'] === 'grn_completed') ? 'flex' : 'none' ?>; gap: 15px;">
+                                    <div class="flex-grow-1">
+                                        <label class="form-label small fw-bold">Payment Account <span class="text-danger">*</span></label>
+                                        <select name="payment_account_id" class="form-select text-dark edit-po-payment-account" <?= ($o['status'] === 'grn_completed') ? 'required' : '' ?>>
+                                            <option value="">-- Choose Account --</option>
+                                            <?php foreach ($paymentAccountsList as $acc): ?>
+                                                <option value="<?= $acc['id'] ?>" <?= ($acc['id'] == $o['payment_account_id']) ? 'selected' : '' ?>><?= htmlspecialchars($acc['name']) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div style="width: 180px;">
+                                        <label class="form-label small fw-bold">Payment Date <span class="text-danger">*</span></label>
+                                        <input type="date" name="payment_date" class="form-control text-dark edit-po-payment-date" value="<?= $o['payment_date'] ?: date('Y-m-d') ?>" <?= ($o['status'] === 'grn_completed') ? 'required' : '' ?>>
+                                    </div>
                                 </div>
                             </div>
 
@@ -276,6 +299,44 @@ if (!empty($categories)) {
     <?php endforeach; ?>
 <?php endif; ?>
 
+<!-- Complete PO Payment Modal -->
+<div class="modal fade" id="poPaymentModal" tabindex="-1" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog">
+        <form id="poPaymentForm" method="POST" action="">
+            <?= \App\Core\Session::csrfField() ?>
+            <input type="hidden" name="status" value="grn_completed">
+            <div class="modal-content text-start" style="border-radius: 12px;">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-file-invoice-dollar me-2"></i> Complete PO & Mark Payment</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-dark">
+                    <p class="text-secondary small mb-3">To mark this Purchase Order as <strong>GRN Completed</strong>, select the payment account and booking date.</p>
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Payment Account <span class="text-danger">*</span></label>
+                        <select name="payment_account_id" class="form-select text-dark" required>
+                            <option value="">-- Choose Account --</option>
+                            <?php foreach ($paymentAccountsList as $acc): ?>
+                                <option value="<?= $acc['id'] ?>"><?= htmlspecialchars($acc['name']) ?> (<?= htmlspecialchars($acc['type']) ?>)</option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Payment Date <span class="text-danger">*</span></label>
+                        <input type="date" name="payment_date" class="form-control text-dark" value="<?= date('Y-m-d') ?>" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success px-4">Submit & Complete GRN</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const itemsTable = document.getElementById('poItemsTable').querySelector('tbody');
@@ -328,5 +389,40 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     bindPoRemoveButtons();
+
+    // Trigger Payment Modal from table checkmark button
+    const poPaymentModalEl = document.getElementById('poPaymentModal');
+    const poPaymentForm = document.getElementById('poPaymentForm');
+    const bsPoPaymentModal = new bootstrap.Modal(poPaymentModalEl);
+
+    document.querySelectorAll('.po-payment-trigger-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const poId = this.getAttribute('data-po-id');
+            poPaymentForm.setAttribute('action', `<?= base_url('company/purchase/orders/update-status/') ?>` + poId);
+            bsPoPaymentModal.show();
+        });
+    });
+
+    // Dynamic fields toggle in edit modal status select
+    document.querySelectorAll('.edit-po-status-select').forEach(select => {
+        select.addEventListener('change', function() {
+            const poId = this.getAttribute('data-po-id');
+            const container = document.querySelector('.edit-po-payment-container-' + poId);
+            if (!container) return;
+            const accSelect = container.querySelector('.edit-po-payment-account');
+            const dateInput = container.querySelector('.edit-po-payment-date');
+            
+            if (this.value === 'grn_completed') {
+                container.style.display = 'flex';
+                accSelect.required = true;
+                dateInput.required = true;
+            } else {
+                container.style.display = 'none';
+                accSelect.required = false;
+                dateInput.required = false;
+            }
+        });
+    });
 });
 </script>

@@ -492,12 +492,17 @@ class CompanyController extends Controller {
         }
 
         foreach ($settings as $key => $val) {
-            $stmt = $db->prepare(
-                "INSERT INTO system_settings (company_id, setting_key, setting_value, updated_by) 
-                 VALUES (?, ?, ?, ?)
-                 ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_by = VALUES(updated_by)"
-            );
-            $stmt->execute([$companyId, $key, $val, Session::get('user_id')]);
+            $stmtCheck = $db->prepare("SELECT id FROM system_settings WHERE company_id = ? AND setting_key = ? AND deleted_at IS NULL LIMIT 1");
+            $stmtCheck->execute([$companyId, $key]);
+            $existingId = $stmtCheck->fetchColumn();
+
+            if ($existingId) {
+                $stmtUpdate = $db->prepare("UPDATE system_settings SET setting_value = ?, updated_by = ?, updated_at = NOW() WHERE id = ?");
+                $stmtUpdate->execute([$val, Session::get('user_id'), $existingId]);
+            } else {
+                $stmtInsert = $db->prepare("INSERT INTO system_settings (company_id, setting_key, setting_value, created_by) VALUES (?, ?, ?, ?)");
+                $stmtInsert->execute([$companyId, $key, $val, Session::get('user_id')]);
+            }
         }
 
         AuditLog::log($companyId, Session::get('user_id'), 'update_company_settings', 'Company', $companyId, null, null, "Updated company profile card & settings.");
@@ -600,12 +605,18 @@ class CompanyController extends Controller {
 
         $companyId = Session::get('company_id');
         $db = Database::getInstance();
-        $stmt = $db->prepare(
-            "INSERT INTO system_settings (company_id, setting_key, setting_value, updated_by) 
-             VALUES (?, 'sidebar_menu_order', ?, ?)
-             ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_by = VALUES(updated_by)"
-        );
-        $stmt->execute([$companyId, $orderJson, Session::get('user_id')]);
+        
+        $stmtCheck = $db->prepare("SELECT id FROM system_settings WHERE company_id = ? AND setting_key = 'sidebar_menu_order' AND deleted_at IS NULL LIMIT 1");
+        $stmtCheck->execute([$companyId]);
+        $existingId = $stmtCheck->fetchColumn();
+
+        if ($existingId) {
+            $stmtUpdate = $db->prepare("UPDATE system_settings SET setting_value = ?, updated_by = ?, updated_at = NOW() WHERE id = ?");
+            $stmtUpdate->execute([$orderJson, Session::get('user_id'), $existingId]);
+        } else {
+            $stmtInsert = $db->prepare("INSERT INTO system_settings (company_id, setting_key, setting_value, created_by) VALUES (?, 'sidebar_menu_order', ?, ?)");
+            $stmtInsert->execute([$companyId, $orderJson, Session::get('user_id')]);
+        }
 
         $response->json(['success' => true]);
     }

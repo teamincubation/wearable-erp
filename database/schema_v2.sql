@@ -672,4 +672,9 @@ CREATE TABLE IF NOT EXISTS `cik_history` (
   CONSTRAINT `fk_cik_history_company` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 40. ALTER PURCHASE ORDERS FOR PAYMENT DETAILS
+ALTER TABLE `purchase_orders` ADD COLUMN `payment_account_id` INT DEFAULT NULL;
+ALTER TABLE `purchase_orders` ADD COLUMN `payment_date` DATE DEFAULT NULL;
+ALTER TABLE `purchase_orders` ADD CONSTRAINT `fk_po_payment_account` FOREIGN KEY (`payment_account_id`) REFERENCES `payment_accounts` (`id`) ON DELETE SET NULL;
+
 SET FOREIGN_KEY_CHECKS = 1;

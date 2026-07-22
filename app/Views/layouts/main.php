@@ -54,7 +54,7 @@ if (!$isCompanyExpired && $currentPagePermission) {
 $savedOrderRaw = null;
 if ($company) {
     $db = \App\Core\Database::getInstance();
-    $stmtMenu = $db->prepare("SELECT setting_value FROM system_settings WHERE company_id = ? AND setting_key = 'sidebar_menu_order' AND deleted_at IS NULL LIMIT 1");
+    $stmtMenu = $db->prepare("SELECT setting_value FROM system_settings WHERE company_id = ? AND setting_key = 'sidebar_menu_order' AND deleted_at IS NULL ORDER BY id DESC LIMIT 1");
     $stmtMenu->execute([$company['id']]);
     $savedOrderRaw = $stmtMenu->fetchColumn();
 }
@@ -106,19 +106,19 @@ $orderedMenuKeys = array_merge($savedOrder, array_diff(array_keys($defaultMenu),
             <!-- Sidebar Drag-to-Resize Handle -->
             <div class="sidebar-resize-handle" id="sidebar-resize-handle"></div>
 
-            <a href="<?= base_url('company/dashboard') ?>" class="sidebar-brand d-flex align-items-center justify-content-between">
-                <div class="d-flex align-items-center text-truncate">
+            <div class="sidebar-brand-container d-flex align-items-center justify-content-between">
+                <a href="<?= base_url('company/dashboard') ?>" class="sidebar-brand d-flex align-items-center text-decoration-none">
                     <?php if ($company && !empty($company['logo'])): ?>
                         <img src="<?= base_url($company['logo']) ?>" alt="Logo" class="rounded me-2" style="max-height: 28px; width: auto; object-fit: contain; background: white; padding: 2px;">
                     <?php else: ?>
                         <i class="fa-solid fa-shirt me-2"></i>
                     <?php endif; ?>
-                    <span class="text-truncate" style="max-width: 120px;"><?= $company ? htmlspecialchars($company['name']) : 'Wearable ERP' ?></span>
-                </div>
-                <button id="sidebar-toggle-btn" class="btn text-white p-0 border-0" style="box-shadow: none; background: transparent;" type="button" title="Toggle Sidebar">
+                    <span class="text-truncate" style="max-width: 120px; font-weight: 700; color: white;"><?= $company ? htmlspecialchars($company['name']) : 'Wearable ERP' ?></span>
+                </a>
+                <button id="sidebar-toggle-btn" class="btn text-white p-0 border-0 ms-2" style="box-shadow: none; background: transparent;" type="button" title="Toggle Sidebar">
                     <i class="fa-solid fa-circle-chevron-left fs-5" id="sidebar-toggle-icon"></i>
                 </button>
-            </a>
+            </div>
             
             <ul class="sidebar-menu">
                 <?php 
@@ -404,9 +404,9 @@ $orderedMenuKeys = array_merge($savedOrder, array_diff(array_keys($defaultMenu),
             });
         }
 
-        const sidebarBrand = document.querySelector('.sidebar-brand');
-        if (sidebarBrand) {
-            sidebarBrand.addEventListener('click', function(e) {
+        const sidebarBrandContainer = document.querySelector('.sidebar-brand-container');
+        if (sidebarBrandContainer) {
+            sidebarBrandContainer.addEventListener('click', function(e) {
                 if (document.body.classList.contains('sidebar-collapsed')) {
                     e.preventDefault();
                     e.stopPropagation();
