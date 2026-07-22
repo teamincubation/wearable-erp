@@ -526,10 +526,8 @@ class ProductionController extends Controller {
             exit;
         }
 
-        // Fetch operator link
-        $stmtEmp = $db->prepare("SELECT id FROM employees WHERE user_id = ? AND company_id = ? AND deleted_at IS NULL LIMIT 1");
-        $stmtEmp->execute([$userId, $companyId]);
-        $employeeId = $stmtEmp->fetchColumn() ?: null;
+        // Logged-in user is the operator / employee
+        $employeeId = $userId;
 
         // Map Pass/Fail logic
         $qtyIn = 1;
