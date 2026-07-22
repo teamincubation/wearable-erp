@@ -413,6 +413,13 @@ class ProductionController extends Controller {
         $companyId = Session::get('company_id');
         $id = (int)$request->get('id');
 
+        // Ensure database table has sizes_json column
+        try {
+            $db->query("SELECT sizes_json FROM buyer_pos LIMIT 1");
+        } catch (\Exception $e) {
+            $db->exec("ALTER TABLE buyer_pos ADD COLUMN sizes_json JSON DEFAULT NULL AFTER total_amount");
+        }
+
         $stmt = $db->prepare("
             SELECT pro.*, 
                    s.style_no, s.name as style_name, s.category as style_category, s.composition as fabric_composition, s.brand as style_brand,
