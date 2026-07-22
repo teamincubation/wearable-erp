@@ -37,9 +37,24 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        border: 3px solid #0f172a;
+    }
+    #reader {
+        width: 100% !important;
+        height: 100% !important;
+        border: none !important;
+        background: #000 !important;
+    }
+    #reader video {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+        display: block !important;
     }
     #reader__scan_region {
         background: #000 !important;
+        width: 100% !important;
+        height: 100% !important;
     }
     #reader__dashboard {
         display: none !important; /* Hide html5-qrcode controls */
@@ -111,7 +126,7 @@
 
                 <!-- Video Scanner Viewport -->
                 <div class="scanner-container mb-3 position-relative" id="scanner-container">
-                    <div id="reader" style="width: 100%; border-radius: 16px; overflow: hidden; border: 3px solid #0f172a; background: #000;"></div>
+                    <div id="reader"></div>
                 </div>
 
                 <!-- Manual Barcode Input Fallback (Hidden by default, shown if camera fails or clicked) -->
