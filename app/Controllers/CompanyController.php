@@ -44,6 +44,7 @@ class CompanyController extends Controller {
         $password = $request->get('password');
         $roleId = (int) $request->get('role_id');
         $baseSalary = (float)$request->get('base_salary');
+        $designation = trim($request->get('designation'));
 
         if (empty($name) || empty($email) || empty($employeeCode) || empty($password) || empty($roleId)) {
             Session::setFlash('error', 'All fields are required, including Employee ID.');
@@ -77,6 +78,7 @@ class CompanyController extends Controller {
             'role_id' => $roleId,
             'status' => 'active',
             'base_salary' => $baseSalary,
+            'designation' => $designation ?: 'Staff',
             'email_verified_at' => date('Y-m-d H:i:s'),
             'created_by' => Session::get('user_id')
         ]);
@@ -106,6 +108,7 @@ class CompanyController extends Controller {
         $status = $request->get('status');
         $password = $request->get('password');
         $baseSalary = (float)$request->get('base_salary');
+        $designation = trim($request->get('designation'));
 
         if (empty($name) || empty($email) || empty($employeeCode) || empty($roleId)) {
             Session::setFlash('error', 'Name, Email/Username, Employee ID, and Role are required.');
@@ -138,6 +141,7 @@ class CompanyController extends Controller {
             'role_id' => $roleId,
             'status' => $status,
             'base_salary' => $baseSalary,
+            'designation' => $designation ?: 'Staff',
             'updated_by' => Session::get('user_id')
         ];
 
@@ -309,10 +313,16 @@ class CompanyController extends Controller {
             $settings[$setting['setting_key']] = $setting['setting_value'];
         }
 
+        // Fetch company specific payment accounts
+        $stmtPay = $db->prepare("SELECT * FROM payment_accounts WHERE company_id = ? AND deleted_at IS NULL ORDER BY id DESC");
+        $stmtPay->execute([$companyId]);
+        $paymentAccounts = $stmtPay->fetchAll() ?: [];
+
         $this->renderView('company/settings', [
             'title' => 'Company Settings | ERP',
             'company' => $company,
-            'settings' => $settings
+            'settings' => $settings,
+            'paymentAccounts' => $paymentAccounts
         ]);
     }
 
@@ -352,6 +362,89 @@ class CompanyController extends Controller {
 
         AuditLog::log($companyId, Session::get('user_id'), 'update_company_settings', 'Company', $companyId, null, null, "Updated company profile card & settings.");
         Session::setFlash('success', 'Company profile and settings updated successfully.');
+        $this->redirect('company/settings');
+    }
+
+    /**
+     * Create a payment account
+     */
+    public function createPaymentAccount(Request $request, Response $response): void {
+        $name = trim($request->get('name'));
+        $type = trim($request->get('type'));
+        $gstAccount = $request->get('gst_account') === 'Yes' ? 'Yes' : 'No';
+        $gstPercent = (float)$request->get('gst_percent');
+
+        if (empty($name) || empty($type)) {
+            Session::setFlash('error', 'Account Name and Type are required.');
+            $this->redirect('company/settings');
+        }
+
+        $companyId = Session::get('company_id');
+        $userId = Session::get('user_id');
+        $db = Database::getInstance();
+
+        try {
+            $stmt = $db->prepare("INSERT INTO payment_accounts (company_id, name, type, gst_account, gst_percent, created_by) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$companyId, $name, $type, $gstAccount, $gstPercent, $userId]);
+
+            AuditLog::log($companyId, $userId, 'create_payment_account', 'PaymentAccount', $db->lastInsertId(), null, null, "Created payment account '{$name}' (Type: {$type})");
+            Session::setFlash('success', "Payment account '{$name}' added successfully.");
+        } catch (\Exception $e) {
+            Session::setFlash('error', 'Failed to create payment account: ' . $e->getMessage());
+        }
+
+        $this->redirect('company/settings');
+    }
+
+    /**
+     * Edit a payment account
+     */
+    public function editPaymentAccount(Request $request, Response $response, string $id): void {
+        $name = trim($request->get('name'));
+        $type = trim($request->get('type'));
+        $gstAccount = $request->get('gst_account') === 'Yes' ? 'Yes' : 'No';
+        $gstPercent = (float)$request->get('gst_percent');
+
+        if (empty($name) || empty($type)) {
+            Session::setFlash('error', 'Account Name and Type are required.');
+            $this->redirect('company/settings');
+        }
+
+        $companyId = Session::get('company_id');
+        $userId = Session::get('user_id');
+        $db = Database::getInstance();
+
+        try {
+            $stmt = $db->prepare("UPDATE payment_accounts SET name = ?, type = ?, gst_account = ?, gst_percent = ? WHERE id = ? AND company_id = ?");
+            $stmt->execute([$name, $type, $gstAccount, $gstPercent, $id, $companyId]);
+
+            AuditLog::log($companyId, $userId, 'edit_payment_account', 'PaymentAccount', $id, null, null, "Updated payment account '{$name}'");
+            Session::setFlash('success', "Payment account updated successfully.");
+        } catch (\Exception $e) {
+            Session::setFlash('error', 'Failed to update payment account: ' . $e->getMessage());
+        }
+
+        $this->redirect('company/settings');
+    }
+
+    /**
+     * Delete a payment account (soft delete)
+     */
+    public function deletePaymentAccount(Request $request, Response $response, string $id): void {
+        $companyId = Session::get('company_id');
+        $userId = Session::get('user_id');
+        $db = Database::getInstance();
+
+        try {
+            $stmt = $db->prepare("UPDATE payment_accounts SET deleted_at = NOW() WHERE id = ? AND company_id = ?");
+            $stmt->execute([$id, $companyId]);
+
+            AuditLog::log($companyId, $userId, 'delete_payment_account', 'PaymentAccount', $id, null, null, "Soft-deleted payment account ID {$id}");
+            Session::setFlash('success', "Payment account deleted successfully.");
+        } catch (\Exception $e) {
+            Session::setFlash('error', 'Failed to delete payment account: ' . $e->getMessage());
+        }
+
         $this->redirect('company/settings');
     }
 }

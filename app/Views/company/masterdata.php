@@ -475,6 +475,13 @@
                                     <span class="input-group-text bg-light text-secondary">%</span>
                                 </div>
                                 <div class="form-text small">Deduction rate of standard daily pay for a half-day working session (default 50%).</div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Overtime Pay/Hour Charge (<?= get_currency_symbol() ?>)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light text-secondary"><?= get_currency_symbol() ?></span>
+                                    <input type="number" step="0.01" name="overtime_pay_hour_charge" class="form-control text-dark" value="<?= htmlspecialchars($policySettings['overtime_pay_hour_charge'] ?? '150.00') ?>" required>
+                                </div>
+                                <div class="form-text small">Standard rate paid per hour of overtime worked (default <?= get_currency_symbol() ?>150.00).</div>
                             </div>
 
                             <button type="submit" class="btn btn-danger w-100 mt-2"><i class="fa-solid fa-save me-1"></i> Save Policies & Allocations</button>

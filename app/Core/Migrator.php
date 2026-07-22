@@ -179,15 +179,25 @@ class Migrator {
                 if (!$checkSal || $checkSal->rowCount() === 0) {
                     $db->exec("ALTER TABLE `users` ADD COLUMN `base_salary` DECIMAL(12, 2) NOT NULL DEFAULT 0.00");
                 }
+                $checkDes = $db->query("SHOW COLUMNS FROM `users` LIKE 'designation'");
+                if (!$checkDes || $checkDes->rowCount() === 0) {
+                    $db->exec("ALTER TABLE `users` ADD COLUMN `designation` VARCHAR(150) DEFAULT 'Staff'");
+                }
             } catch (\PDOException $e) {}
 
-            // Auto-heal payroll_records table for statistics
+            // Auto-heal payroll_records table for statistics and payment tracking
             $payrollColumns = [
                 'present_days' => "INT DEFAULT 0",
                 'absent_days' => "INT DEFAULT 0",
                 'leave_days' => "INT DEFAULT 0",
                 'holiday_days' => "INT DEFAULT 0",
-                'overtime_hours' => "DECIMAL(8, 2) DEFAULT 0.00"
+                'half_days' => "INT DEFAULT 0",
+                'overtime_hours' => "DECIMAL(8, 2) DEFAULT 0.00",
+                'paid_from_account_id' => "INT DEFAULT NULL",
+                'paid_amount' => "DECIMAL(12, 2) DEFAULT 0.00",
+                'balance_amount' => "DECIMAL(12, 2) DEFAULT 0.00",
+                'paid_date' => "DATE DEFAULT NULL",
+                'paid_by_user_id' => "INT DEFAULT NULL"
             ];
             foreach ($payrollColumns as $col => $type) {
                 try {
@@ -197,6 +207,16 @@ class Migrator {
                     }
                 } catch (\PDOException $e) {}
             }
+
+            // Modify payroll status column to include pending/paid
+            try {
+                $db->exec("ALTER TABLE `payroll_records` MODIFY COLUMN `status` ENUM('pending', 'paid') NOT NULL DEFAULT 'pending'");
+            } catch (\PDOException $e) {}
+
+            // Modify employee_attendance status column to include half_day
+            try {
+                $db->exec("ALTER TABLE `employee_attendance` MODIFY COLUMN `status` ENUM('present', 'absent', 'leave', 'holiday', 'half_day') NOT NULL DEFAULT 'present'");
+            } catch (\PDOException $e) {}
 
             // Auto-heal company_holidays table creation
             try {
@@ -211,6 +231,44 @@ class Migrator {
                       `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                       CONSTRAINT `fk_holiday_company` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE,
                       UNIQUE KEY `uq_company_holiday_date` (`company_id`, `date`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                ");
+            } catch (\PDOException $e) {}
+
+            // Auto-heal payment_accounts table creation
+            try {
+                $db->exec("
+                    CREATE TABLE IF NOT EXISTS `payment_accounts` (
+                      `id` INT AUTO_INCREMENT PRIMARY KEY,
+                      `company_id` INT NOT NULL,
+                      `name` VARCHAR(150) NOT NULL,
+                      `type` ENUM('Bank', 'Cash', 'Digital Wallet', 'Other') NOT NULL DEFAULT 'Bank',
+                      `gst_account` ENUM('Yes', 'No') NOT NULL DEFAULT 'No',
+                      `gst_percent` DECIMAL(5, 2) DEFAULT 0.00,
+                      `created_by` INT DEFAULT NULL,
+                      `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                      `deleted_at` TIMESTAMP NULL DEFAULT NULL,
+                      CONSTRAINT `fk_pay_acc_company` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                ");
+            } catch (\PDOException $e) {}
+
+            // Auto-heal employee_loans table creation
+            try {
+                $db->exec("
+                    CREATE TABLE IF NOT EXISTS `employee_loans` (
+                      `id` INT AUTO_INCREMENT PRIMARY KEY,
+                      `company_id` INT NOT NULL,
+                      `employee_id` INT NOT NULL,
+                      `amount` DECIMAL(12, 2) NOT NULL,
+                      `month` INT NOT NULL,
+                      `year` INT NOT NULL,
+                      `status` ENUM('pending', 'deducted') NOT NULL DEFAULT 'pending',
+                      `created_by` INT DEFAULT NULL,
+                      `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                      `deleted_at` TIMESTAMP NULL DEFAULT NULL,
+                      CONSTRAINT `fk_loan_company` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE,
+                      CONSTRAINT `fk_loan_employee` FOREIGN KEY (`employee_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
                 ");
             } catch (\PDOException $e) {}

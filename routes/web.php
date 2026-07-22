@@ -472,12 +472,30 @@ $router->post('/company/hr/attendance/clock', [\App\Controllers\HrPayrollControl
        ->middleware(PermissionMiddleware::class)
        ->permission('company.users.create');
 
+$router->post('/company/hr/loans/create', [\App\Controllers\HrPayrollController::class, 'createLoan'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.users.create');
+
+$router->post('/company/hr/loans/delete/{id}', [\App\Controllers\HrPayrollController::class, 'deleteLoan'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.users.create');
+
 $router->get('/company/hr/payroll', [\App\Controllers\HrPayrollController::class, 'payroll'])
        ->middleware(AuthMiddleware::class)
        ->middleware(PermissionMiddleware::class)
        ->permission('company.users.view');
 
 $router->post('/company/hr/payroll/process', [\App\Controllers\HrPayrollController::class, 'processPayroll'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.users.create');
+
+$router->post('/company/hr/payroll/pay/{id}', [\App\Controllers\HrPayrollController::class, 'payPayroll'])
        ->middleware(AuthMiddleware::class)
        ->middleware(CsrfMiddleware::class)
        ->middleware(PermissionMiddleware::class)
@@ -517,6 +535,24 @@ $router->get('/company/settings', [CompanyController::class, 'settings'])
        ->permission('company.settings');
 
 $router->post('/company/settings', [CompanyController::class, 'saveSettings'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.settings');
+
+$router->post('/company/settings/payment-accounts/create', [CompanyController::class, 'createPaymentAccount'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.settings');
+
+$router->post('/company/settings/payment-accounts/edit/{id}', [CompanyController::class, 'editPaymentAccount'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.settings');
+
+$router->post('/company/settings/payment-accounts/delete/{id}', [CompanyController::class, 'deletePaymentAccount'])
        ->middleware(AuthMiddleware::class)
        ->middleware(CsrfMiddleware::class)
        ->middleware(PermissionMiddleware::class)

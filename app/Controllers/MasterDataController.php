@@ -52,7 +52,8 @@ class MasterDataController extends Controller {
             'leave_allocation_el' => '15',
             'cut_policy_absent' => '100',
             'cut_policy_lop' => '100',
-            'cut_policy_halfday' => '50'
+            'cut_policy_halfday' => '50',
+            'overtime_pay_hour_charge' => '150.00'
         ];
         $policySettings = [];
         foreach ($settingsKeys as $key => $default) {
@@ -367,7 +368,8 @@ class MasterDataController extends Controller {
             'leave_allocation_el',
             'cut_policy_absent',
             'cut_policy_lop',
-            'cut_policy_halfday'
+            'cut_policy_halfday',
+            'overtime_pay_hour_charge'
         ];
 
         try {

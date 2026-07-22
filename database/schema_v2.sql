@@ -588,12 +588,53 @@ ALTER TABLE `companies` ADD COLUMN `currency` VARCHAR(10) DEFAULT 'INR';
 
 -- 31. ALTER USERS FOR BASE SALARY
 ALTER TABLE `users` ADD COLUMN `base_salary` DECIMAL(12, 2) NOT NULL DEFAULT 0.00;
+ALTER TABLE `users` ADD COLUMN `designation` VARCHAR(150) DEFAULT 'Staff';
 
 -- 32. ALTER PAYROLL RECORDS FOR STATS
 ALTER TABLE `payroll_records` ADD COLUMN `present_days` INT DEFAULT 0;
 ALTER TABLE `payroll_records` ADD COLUMN `absent_days` INT DEFAULT 0;
 ALTER TABLE `payroll_records` ADD COLUMN `leave_days` INT DEFAULT 0;
 ALTER TABLE `payroll_records` ADD COLUMN `holiday_days` INT DEFAULT 0;
+ALTER TABLE `payroll_records` ADD COLUMN `half_days` INT DEFAULT 0;
 ALTER TABLE `payroll_records` ADD COLUMN `overtime_hours` DECIMAL(8, 2) DEFAULT 0.00;
+ALTER TABLE `payroll_records` ADD COLUMN `paid_from_account_id` INT DEFAULT NULL;
+ALTER TABLE `payroll_records` ADD COLUMN `paid_amount` DECIMAL(12, 2) DEFAULT 0.00;
+ALTER TABLE `payroll_records` ADD COLUMN `balance_amount` DECIMAL(12, 2) DEFAULT 0.00;
+ALTER TABLE `payroll_records` ADD COLUMN `paid_date` DATE DEFAULT NULL;
+ALTER TABLE `payroll_records` ADD COLUMN `paid_by_user_id` INT DEFAULT NULL;
+ALTER TABLE `payroll_records` MODIFY COLUMN `status` ENUM('pending', 'paid') NOT NULL DEFAULT 'pending';
+
+-- 33. ALTER ATTENDANCE STATUS
+ALTER TABLE `employee_attendance` MODIFY COLUMN `status` ENUM('present', 'absent', 'leave', 'holiday', 'half_day') NOT NULL DEFAULT 'present';
+
+-- 34. PAYMENT ACCOUNTS TABLE
+CREATE TABLE IF NOT EXISTS `payment_accounts` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `company_id` INT NOT NULL,
+  `name` VARCHAR(150) NOT NULL,
+  `type` ENUM('Bank', 'Cash', 'Digital Wallet', 'Other') NOT NULL DEFAULT 'Bank',
+  `gst_account` ENUM('Yes', 'No') NOT NULL DEFAULT 'No',
+  `gst_percent` DECIMAL(5, 2) DEFAULT 0.00,
+  `created_by` INT DEFAULT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `deleted_at` TIMESTAMP NULL DEFAULT NULL,
+  CONSTRAINT `fk_pay_acc_company` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 35. EMPLOYEE LOANS TABLE
+CREATE TABLE IF NOT EXISTS `employee_loans` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `company_id` INT NOT NULL,
+  `employee_id` INT NOT NULL,
+  `amount` DECIMAL(12, 2) NOT NULL,
+  `month` INT NOT NULL,
+  `year` INT NOT NULL,
+  `status` ENUM('pending', 'deducted') NOT NULL DEFAULT 'pending',
+  `created_by` INT DEFAULT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `deleted_at` TIMESTAMP NULL DEFAULT NULL,
+  CONSTRAINT `fk_loan_company` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_loan_employee` FOREIGN KEY (`employee_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;

@@ -51,13 +51,23 @@ class HrPayrollController extends Controller {
         $stmtH->execute([$companyId]);
         $blockedDates = $stmtH->fetchAll(\PDO::FETCH_COLUMN) ?: [];
 
+        // Fetch employee loans
+        $stmtLoans = $db->prepare("SELECT el.*, u.name as employee_name 
+                                  FROM employee_loans el
+                                  JOIN users u ON el.employee_id = u.id
+                                  WHERE el.company_id = ? AND el.deleted_at IS NULL
+                                  ORDER BY el.id DESC");
+        $stmtLoans->execute([$companyId]);
+        $loans = $stmtLoans->fetchAll() ?: [];
+
         $this->renderView('company/attendance', [
             'title' => 'Attendance Register | ERP',
             'attendance' => $attendance,
             'employees' => $employees,
             'shifts' => $shifts,
             'gwh' => $gwh,
-            'blocked_dates' => $blockedDates
+            'blocked_dates' => $blockedDates,
+            'loans' => $loans
         ]);
     }
 
@@ -148,8 +158,8 @@ class HrPayrollController extends Controller {
         $db = Database::getInstance();
         $companyId = Session::get('company_id');
 
-        // Fetch payroll records
-        $stmt = $db->prepare("SELECT pr.*, u.name as employee_name 
+        // Fetch payroll records with employee designation & code
+        $stmt = $db->prepare("SELECT pr.*, u.name as employee_name, u.employee_code, u.designation 
                              FROM payroll_records pr
                              JOIN users u ON pr.employee_id = u.id
                              WHERE pr.company_id = ? AND pr.deleted_at IS NULL
@@ -161,16 +171,19 @@ class HrPayrollController extends Controller {
         $userModel = new User();
         $employees = $userModel->all();
 
+        // Fetch payment accounts
+        $stmtAccounts = $db->prepare("SELECT * FROM payment_accounts WHERE company_id = ? AND deleted_at IS NULL");
+        $stmtAccounts->execute([$companyId]);
+        $paymentAccounts = $stmtAccounts->fetchAll() ?: [];
+
         $this->renderView('company/payroll', [
             'title' => 'Payroll Processing | ERP',
             'payroll' => $payroll,
-            'employees' => $employees
+            'employees' => $employees,
+            'paymentAccounts' => $paymentAccounts
         ]);
     }
 
-    /**
-     * Process Payroll for an Employee
-     */
     public function processPayroll(Request $request, Response $response): void {
         $employeeId = (int)$request->get('employee_id');
         $month = (int)$request->get('month');
@@ -184,6 +197,7 @@ class HrPayrollController extends Controller {
         $absentDays = (int)$request->get('absent_days');
         $leaveDays = (int)$request->get('leave_days');
         $holidayDays = (int)$request->get('holiday_days');
+        $halfDays = (int)$request->get('half_days');
         $otHours = (float)$request->get('overtime_hours');
         $otPay = (float)$request->get('overtime_pay');
         $netSalary = (float)$request->get('net_salary');
@@ -213,10 +227,13 @@ class HrPayrollController extends Controller {
             'absent_days' => $absentDays,
             'leave_days' => $leaveDays,
             'holiday_days' => $holidayDays,
+            'half_days' => $halfDays,
             'overtime_hours' => $otHours,
-            'status' => 'paid',
+            'status' => 'pending',
             'updated_by' => Session::get('user_id')
         ];
+
+        $db = Database::getInstance();
 
         if ($existing) {
             $payrollModel->update($existing['id'], $payrollData);
@@ -229,6 +246,10 @@ class HrPayrollController extends Controller {
             $payrollData['created_by'] = Session::get('user_id');
             $payrollId = $payrollModel->insert($payrollData);
         }
+
+        // Mark employee loans as deducted
+        $stmtDeduct = $db->prepare("UPDATE employee_loans SET status = 'deducted' WHERE company_id = ? AND employee_id = ? AND month = ? AND year = ? AND status = 'pending'");
+        $stmtDeduct->execute([$companyId, $employeeId, $month, $year]);
 
         AuditLog::log($companyId, Session::get('user_id'), 'process_payroll', 'PayrollRecord', $payrollId, null, null, "Processed payroll for employee {$employeeId} for {$month}/{$year}");
         Session::setFlash('success', 'Payroll salary record processed successfully.');
@@ -257,6 +278,11 @@ class HrPayrollController extends Controller {
         $stmtP->execute([$companyId, $employeeId, $month, $year]);
         $present = (int)$stmtP->fetchColumn();
 
+        // Half Day
+        $stmtHD = $db->prepare("SELECT COUNT(*) FROM employee_attendance WHERE company_id = ? AND employee_id = ? AND MONTH(date) = ? AND YEAR(date) = ? AND status = 'half_day' AND deleted_at IS NULL");
+        $stmtHD->execute([$companyId, $employeeId, $month, $year]);
+        $halfDays = (int)$stmtHD->fetchColumn();
+
         // Absent
         $stmtA = $db->prepare("SELECT COUNT(*) FROM employee_attendance WHERE company_id = ? AND employee_id = ? AND MONTH(date) = ? AND YEAR(date) = ? AND status = 'absent' AND deleted_at IS NULL");
         $stmtA->execute([$companyId, $employeeId, $month, $year]);
@@ -272,8 +298,8 @@ class HrPayrollController extends Controller {
         $stmtH->execute([$companyId, $employeeId, $month, $year]);
         $holiday = (int)$stmtH->fetchColumn();
 
-        // Total Overtime Hours
-        $stmtOt = $db->prepare("SELECT SUM(overtime_hours) FROM employee_attendance WHERE company_id = ? AND employee_id = ? AND MONTH(date) = ? AND YEAR(date) = ? AND status = 'present' AND deleted_at IS NULL");
+        // Total Overtime Hours (include present and half_day overtime)
+        $stmtOt = $db->prepare("SELECT SUM(overtime_hours) FROM employee_attendance WHERE company_id = ? AND employee_id = ? AND MONTH(date) = ? AND YEAR(date) = ? AND status IN ('present', 'half_day') AND deleted_at IS NULL");
         $stmtOt->execute([$companyId, $employeeId, $month, $year]);
         $otHours = (float)($stmtOt->fetchColumn() ?: 0.00);
 
@@ -284,7 +310,8 @@ class HrPayrollController extends Controller {
             'leave_allocation_el' => '15',
             'cut_policy_absent' => '100',
             'cut_policy_lop' => '100',
-            'cut_policy_halfday' => '50'
+            'cut_policy_halfday' => '50',
+            'overtime_pay_hour_charge' => '150.00'
         ];
         $policies = [];
         foreach ($settingsKeys as $key => $default) {
@@ -294,19 +321,85 @@ class HrPayrollController extends Controller {
             $policies[$key] = $val !== false ? (float)$val : (float)$default;
         }
 
+        // Fetch pending employee loans for this month/year
+        $stmtLoan = $db->prepare("SELECT SUM(amount) FROM employee_loans WHERE company_id = ? AND employee_id = ? AND month = ? AND year = ? AND status = 'pending' AND deleted_at IS NULL");
+        $stmtLoan->execute([$companyId, $employeeId, $month, $year]);
+        $pendingLoan = (float)($stmtLoan->fetchColumn() ?: 0.00);
+
         // Return JSON
         header('Content-Type: application/json');
         echo json_encode([
             'success' => true,
             'base_salary' => $baseSalary,
             'present_days' => $present,
+            'half_days' => $halfDays,
             'absent_days' => $absent,
             'leave_days' => $leave,
             'holiday_days' => $holiday,
             'overtime_hours' => $otHours,
+            'pending_loan' => $pendingLoan,
             'policies' => $policies
         ]);
         exit;
+    }
+
+    /**
+     * Mark a Payroll Record as Paid with specific Payment Account
+     */
+    public function payPayroll(Request $request, Response $response, string $id): void {
+        $companyId = Session::get('company_id');
+        $userId = Session::get('user_id');
+        $db = Database::getInstance();
+
+        $paidFromAccount = (int)$request->get('paid_from_account_id');
+        $paidAmount = (float)$request->get('paid_amount');
+        $paidDate = $request->get('paid_date') ?: date('Y-m-d');
+
+        $payrollModel = new PayrollRecord();
+        $payroll = $payrollModel->find($id);
+
+        if (!$payroll) {
+            Session::setFlash('error', 'Payroll record not found.');
+            $this->redirect('company/hr/payroll');
+        }
+
+        if ($paidAmount <= 0) {
+            Session::setFlash('error', 'Paid amount must be positive.');
+            $this->redirect('company/hr/payroll');
+        }
+
+        // Validate paid amount cannot exceed net salary
+        if ($paidAmount > $payroll['net_salary']) {
+            Session::setFlash('error', 'Paid amount cannot exceed the net salary payable.');
+            $this->redirect('company/hr/payroll');
+        }
+
+        $balanceAmount = $payroll['net_salary'] - $paidAmount;
+        $status = $balanceAmount <= 0 ? 'paid' : 'pending';
+
+        // Fetch admin user name to log who paid
+        $stmtUser = $db->prepare("SELECT name FROM users WHERE id = ? LIMIT 1");
+        $stmtUser->execute([$userId]);
+        $adminName = $stmtUser->fetchColumn() ?: 'Admin';
+
+        try {
+            $payrollModel->update($id, [
+                'status' => $status,
+                'paid_from_account_id' => $paidFromAccount,
+                'paid_amount' => $paidAmount,
+                'balance_amount' => $balanceAmount,
+                'paid_date' => $paidDate,
+                'paid_by_user_id' => $userId,
+                'updated_by' => $userId
+            ]);
+
+            AuditLog::log($companyId, $userId, 'pay_payroll', 'PayrollRecord', $id, null, null, "Logged payment of {$paidAmount} from account {$paidFromAccount} for payroll ID {$id} by {$adminName}");
+            Session::setFlash('success', 'Payroll payment logged successfully.');
+        } catch (\Exception $e) {
+            Session::setFlash('error', 'Failed to log payment: ' . $e->getMessage());
+        }
+
+        $this->redirect('company/hr/payroll');
     }
 
     public function deleteAttendance(Request $request, Response $response, string $id): void {
@@ -321,5 +414,75 @@ class HrPayrollController extends Controller {
         $model->delete($id, Session::get('user_id'));
         Session::setFlash('success', 'Payroll record deleted successfully.');
         $this->redirect('company/hr/payroll');
+    }
+
+    /**
+     * Issue an Employee Loan
+     */
+    public function createLoan(Request $request, Response $response): void {
+        $employeeId = (int)$request->get('employee_id');
+        $amount = (float)$request->get('amount');
+        $month = (int)$request->get('month');
+        $year = (int)$request->get('year');
+
+        if (empty($employeeId) || $amount <= 0 || empty($month) || empty($year)) {
+            Session::setFlash('error', 'All fields are required and loan amount must be positive.');
+            $this->redirect('company/hr/attendance');
+        }
+
+        $db = Database::getInstance();
+        $companyId = Session::get('company_id');
+
+        // Fetch employee details to validate base salary
+        $stmtEmp = $db->prepare("SELECT base_salary FROM users WHERE id = ? AND company_id = ? AND deleted_at IS NULL LIMIT 1");
+        $stmtEmp->execute([$employeeId, $companyId]);
+        $baseSalary = (float)($stmtEmp->fetchColumn() ?: 0.00);
+
+        if ($amount > $baseSalary) {
+            Session::setFlash('error', 'Loan amount cannot exceed the employee\'s basic monthly salary.');
+            $this->redirect('company/hr/attendance');
+        }
+
+        // Validate month & year are current or upcoming
+        $currentYear = (int)date('Y');
+        $currentMonth = (int)date('n');
+
+        if ($year < $currentYear || ($year === $currentYear && $month < $currentMonth)) {
+            Session::setFlash('error', 'Loan can only be issued for the current or upcoming months.');
+            $this->redirect('company/hr/attendance');
+        }
+
+        try {
+            $stmt = $db->prepare("INSERT INTO employee_loans (company_id, employee_id, amount, month, year, status, created_by) VALUES (?, ?, ?, ?, ?, 'pending', ?)");
+            $stmt->execute([$companyId, $employeeId, $amount, $month, $year, Session::get('user_id')]);
+
+            AuditLog::log($companyId, Session::get('user_id'), 'create_loan', 'EmployeeLoan', $db->lastInsertId(), null, null, "Issued loan of {$amount} to employee {$employeeId} for {$month}/{$year}");
+            Session::setFlash('success', 'Employee loan record saved successfully.');
+        } catch (\Exception $e) {
+            Session::setFlash('error', 'Failed to save loan record: ' . $e->getMessage());
+        }
+
+        $this->redirect('company/hr/attendance');
+    }
+
+    /**
+     * Soft delete an employee loan
+     */
+    public function deleteLoan(Request $request, Response $response, string $id): void {
+        $companyId = Session::get('company_id');
+        $db = Database::getInstance();
+
+        try {
+            // Only allow deleting pending loans to avoid tampering with already deducted ones
+            $stmt = $db->prepare("UPDATE employee_loans SET deleted_at = NOW() WHERE id = ? AND company_id = ? AND status = 'pending'");
+            $stmt->execute([$id, $companyId]);
+
+            AuditLog::log($companyId, Session::get('user_id'), 'delete_loan', 'EmployeeLoan', $id, null, null, "Soft-deleted employee loan ID {$id}");
+            Session::setFlash('success', 'Employee loan cancelled successfully.');
+        } catch (\Exception $e) {
+            Session::setFlash('error', 'Failed to delete loan record: ' . $e->getMessage());
+        }
+
+        $this->redirect('company/hr/attendance');
     }
 }

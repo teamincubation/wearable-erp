@@ -110,3 +110,183 @@
         </div>
     </div>
 </div>
+
+<!-- Payment Accounts Card -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="pepp-card">
+            <div class="pepp-card-header d-flex justify-content-between align-items-center">
+                <h5 class="pepp-card-title m-0"><i class="fa-solid fa-file-invoice-dollar text-primary me-2"></i> Payment Accounts (ERP Cashbooks)</h5>
+                <button class="btn btn-sm btn-pepp-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#addAccountModal">
+                    <i class="fa-solid fa-plus-circle me-1"></i> Add Payment Account
+                </button>
+            </div>
+            <div class="pepp-card-body p-0">
+                <div class="table-responsive border-0">
+                    <table class="table table-hover pepp-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Account Name</th>
+                                <th>Account Type</th>
+                                <th>GST Account</th>
+                                <th>GST %</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (!empty($paymentAccounts)): ?>
+                                <?php foreach ($paymentAccounts as $acc): ?>
+                                    <tr>
+                                        <td><strong class="text-dark"><?= htmlspecialchars($acc['name']) ?></strong></td>
+                                        <td>
+                                            <span class="badge bg-light text-dark font-monospace"><?= htmlspecialchars($acc['type']) ?></span>
+                                        </td>
+                                        <td>
+                                            <span class="badge <?= $acc['gst_account'] === 'Yes' ? 'bg-success text-white' : 'bg-secondary text-white' ?>">
+                                                <?= htmlspecialchars($acc['gst_account']) ?>
+                                            </span>
+                                        </td>
+                                        <td class="font-monospace">
+                                            <?= $acc['gst_account'] === 'Yes' ? number_format($acc['gst_percent'], 1) . '%' : '--' ?>
+                                        </td>
+                                        <td class="text-end">
+                                            <button class="btn btn-sm btn-outline-secondary me-1 rounded-pill" data-bs-toggle="modal" data-bs-target="#editAccountModal-<?= $acc['id'] ?>">
+                                                <i class="fa-solid fa-edit"></i> Edit
+                                            </button>
+                                            <form action="<?= base_url('company/settings/payment-accounts/delete/' . $acc['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this payment account?');">
+                                                <?= \App\Core\Session::csrfField() ?>
+                                                <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Edit Account Modal -->
+                                    <div class="modal fade" id="editAccountModal-<?= $acc['id'] ?>" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <form action="<?= base_url('company/settings/payment-accounts/edit/' . $acc['id']) ?>" method="POST">
+                                                <?= \App\Core\Session::csrfField() ?>
+                                                <div class="modal-content text-start" style="border-radius: 12px;">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title fw-bold"><i class="fa-solid fa-edit text-primary me-2"></i> Edit Payment Account</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body text-start">
+                                                        <div class="mb-3">
+                                                            <label class="form-label small fw-bold">Account Name <span class="text-danger">*</span></label>
+                                                            <input type="text" name="name" class="form-control text-dark" value="<?= htmlspecialchars($acc['name']) ?>" required>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label small fw-bold">Account Type <span class="text-danger">*</span></label>
+                                                            <select name="type" class="form-select text-dark" required>
+                                                                <option value="Bank" <?= $acc['type'] === 'Bank' ? 'selected' : '' ?>>Bank</option>
+                                                                <option value="Cash" <?= $acc['type'] === 'Cash' ? 'selected' : '' ?>>Cash</option>
+                                                                <option value="Digital Wallet" <?= $acc['type'] === 'Digital Wallet' ? 'selected' : '' ?>>Digital Wallet</option>
+                                                                <option value="Other" <?= $acc['type'] === 'Other' ? 'selected' : '' ?>>Other</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label small fw-bold">GST Account <span class="text-danger">*</span></label>
+                                                            <select name="gst_account" class="form-select text-dark edit-gst-trigger" data-id="<?= $acc['id'] ?>" required>
+                                                                <option value="No" <?= $acc['gst_account'] === 'No' ? 'selected' : '' ?>>No</option>
+                                                                <option value="Yes" <?= $acc['gst_account'] === 'Yes' ? 'selected' : '' ?>>Yes</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="mb-3 edit-gst-field-container-<?= $acc['id'] ?>" style="<?= $acc['gst_account'] === 'Yes' ? '' : 'display: none;' ?>">
+                                                            <label class="form-label small fw-bold">GST %</label>
+                                                            <input type="number" step="0.01" name="gst_percent" class="form-control text-dark" value="<?= htmlspecialchars($acc['gst_percent'] ?? '0.00') ?>">
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
+                                                        <button type="submit" class="btn btn-pepp-primary px-4">Save Changes</button>
+                                                    </div>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="5" class="text-center p-5 text-secondary">
+                                        <i class="fa-solid fa-building-columns fs-1 mb-3 text-light"></i>
+                                        <p class="m-0">No payment accounts configured yet.</p>
+                                    </td>
+                                </tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Account Modal -->
+<div class="modal fade" id="addAccountModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form action="<?= base_url('company/settings/payment-accounts/create') ?>" method="POST">
+            <?= \App\Core\Session::csrfField() ?>
+            <div class="modal-content text-start" style="border-radius: 12px;">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-plus-circle text-primary me-2"></i> Add Payment Account</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-start">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Account Name <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control text-dark" placeholder="e.g. HDFC Bank Main A/c" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Account Type <span class="text-danger">*</span></label>
+                        <select name="type" class="form-select text-dark" required>
+                            <option value="Bank">Bank</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Digital Wallet">Digital Wallet</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">GST Account <span class="text-danger">*</span></label>
+                        <select name="gst_account" id="add_gst_account" class="form-select text-dark" required>
+                            <option value="No">No</option>
+                            <option value="Yes">Yes</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="add_gst_field_container" style="display: none;">
+                        <label class="form-label small fw-bold">GST %</label>
+                        <input type="number" step="0.01" name="gst_percent" class="form-control text-dark" value="18.00">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-pepp-primary px-4">Create Account</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add form GST toggle
+    const addGstSelect = document.getElementById('add_gst_account');
+    const addGstContainer = document.getElementById('add_gst_field_container');
+    if (addGstSelect && addGstContainer) {
+        addGstSelect.addEventListener('change', function() {
+            addGstContainer.style.display = this.value === 'Yes' ? 'block' : 'none';
+        });
+    }
+
+    // Edit form GST toggle
+    const editGstSelects = document.querySelectorAll('.edit-gst-trigger');
+    editGstSelects.forEach(select => {
+        select.addEventListener('change', function() {
+            const accId = this.getAttribute('data-id');
+            const editGstContainer = document.querySelector('.edit-gst-field-container-' + accId);
+            if (editGstContainer) {
+                editGstContainer.style.display = this.value === 'Yes' ? 'block' : 'none';
+            }
+        });
+    });
+});
+</script>

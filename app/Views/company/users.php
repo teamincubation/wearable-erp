@@ -42,7 +42,7 @@
                                         </div>
                                         <div>
                                             <strong class="text-dark"><?= htmlspecialchars($u['name']) ?></strong>
-                                            <div class="text-secondary" style="font-size: 11px;">User ID: <?= $u['id'] ?></div>
+                                            <div class="text-secondary" style="font-size: 11px;"><?= htmlspecialchars($u['designation'] ?? 'Staff') ?> | ID: <?= htmlspecialchars($u['employee_code'] ?? 'N/A') ?></div>
                                         </div>
                                     </div>
                                 </td>
@@ -129,10 +129,14 @@
                                                          <?php endforeach; ?>
                                                      </select>
                                                  </div>
-                                                 <div class="mb-3">
-                                                     <label class="form-label fw-semibold">Salary Package (Base Monthly Salary - <?= get_currency_symbol() ?>) <span class="text-danger">*</span></label>
-                                                     <input type="number" step="0.01" name="base_salary" class="form-control" value="<?= htmlspecialchars($u['base_salary'] ?? '0.00') ?>" required>
-                                                 </div>
+                                                  <div class="mb-3">
+                                                      <label class="form-label fw-semibold">Salary Package (Base Monthly Salary - <?= get_currency_symbol() ?>) <span class="text-danger">*</span></label>
+                                                      <input type="number" step="0.01" name="base_salary" class="form-control" value="<?= htmlspecialchars($u['base_salary'] ?? '0.00') ?>" required>
+                                                  </div>
+                                                  <div class="mb-3">
+                                                      <label class="form-label fw-semibold">Designation / Role Title <span class="text-danger">*</span></label>
+                                                      <input type="text" name="designation" class="form-control" value="<?= htmlspecialchars($u['designation'] ?? 'Staff') ?>" required>
+                                                  </div>
                                                 <div class="mb-3">
                                                     <label class="form-label fw-semibold">Reset Password (Leave blank to keep current)</label>
                                                     <input type="password" name="password" class="form-control" placeholder="••••••••">
@@ -208,6 +212,10 @@
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Salary Package (Base Monthly Salary - <?= get_currency_symbol() ?>) <span class="text-danger">*</span></label>
                         <input type="number" step="0.01" name="base_salary" class="form-control" placeholder="e.g. 20000.00" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Designation / Role Title <span class="text-danger">*</span></label>
+                        <input type="text" name="designation" class="form-control" placeholder="e.g. Line Operator" value="Staff" required>
                     </div>
                 </div>
                 <div class="modal-footer border-0">
