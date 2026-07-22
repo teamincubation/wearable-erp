@@ -6,7 +6,7 @@
             background-color: #0f172a !important;
         }
         .live-card {
-            background: rgba(30, 41, 59, 0.45);
+            background: #1e293b !important;
             backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 16px;
@@ -16,6 +16,25 @@
         .live-card:hover {
             border-color: rgba(99, 102, 241, 0.3);
             transform: translateY(-2px);
+        }
+        /* Specific overrides for live report table background & text contrast */
+        .live-card .table-responsive {
+            background-color: transparent !important;
+            border: none !important;
+        }
+        .live-card table {
+            --bs-table-bg: transparent !important;
+            color: #cbd5e1 !important;
+        }
+        .live-card table th {
+            color: #94a3b8 !important;
+            font-weight: 600 !important;
+        }
+        .live-card table td {
+            color: #e2e8f0 !important;
+        }
+        .live-card table tr:hover {
+            background-color: rgba(255, 255, 255, 0.03) !important;
         }
         .stat-icon {
             width: 52px;
@@ -376,20 +395,20 @@
                 scales: {
                     x: {
                         grid: {
-                            color: 'rgba(255, 255, 255, 0.05)',
+                            color: 'rgba(255, 255, 255, 0.08)',
                         },
                         ticks: {
-                            color: '#94a3b8',
-                            font: { family: 'Outfit', size: 11 }
+                            color: '#cbd5e1',
+                            font: { family: 'Outfit', size: 11, weight: 'bold' }
                         }
                     },
                     y: {
                         grid: {
-                            color: 'rgba(255, 255, 255, 0.05)',
+                            color: 'rgba(255, 255, 255, 0.08)',
                         },
                         ticks: {
-                            color: '#94a3b8',
-                            font: { family: 'Outfit', size: 11 }
+                            color: '#cbd5e1',
+                            font: { family: 'Outfit', size: 11, weight: 'bold' }
                         },
                         beginAtZero: true
                     }
