@@ -296,45 +296,46 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function startCameraScanner() {
-        html5QrCode = new Html5Qrcode("reader");
-        const config = { 
-            fps: 20, 
-            qrbox: { width: 250, height: 250 },
-            formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ]
-        };
-
-        // Try back environment camera first
-        html5QrCode.start(
-            { facingMode: "environment" },
-            config,
-            onScanSuccess
-        ).catch(err => {
-            console.warn("Back camera failed or not present. Retrying with front camera...", err);
-            // Retry with user camera (front facing / laptop camera)
-            html5QrCode.start(
-                { facingMode: "user" },
-                config,
-                onScanSuccess
-            ).catch(err2 => {
-                console.warn("Front camera failed. Checking for any available camera device...", err2);
-                // Get list of devices and pick the first available camera
-                Html5Qrcode.getCameras().then(devices => {
-                    if (devices && devices.length > 0) {
-                        html5QrCode.start(
-                            devices[0].id,
-                            config,
-                            onScanSuccess
-                        ).catch(err3 => {
-                            console.error("All camera initialization attempts failed: ", err3);
-                            switchToManualMode("Camera Permission Request Denied or Blocked by Browser. Switching to Manual Input Mode.");
-                        });
-                    } else {
-                        switchToManualMode("No camera devices found on this hardware.");
+        // Enumerate devices static method first to avoid state conflicts on instantiation
+        Html5Qrcode.getCameras().then(devices => {
+            if (devices && devices.length > 0) {
+                // Default to the first camera in list
+                let cameraId = devices[0].id;
+                
+                // Scan devices list for any camera labeled back/rear/environment
+                for (let i = 0; i < devices.length; i++) {
+                    const label = devices[i].label.toLowerCase();
+                    if (label.indexOf('back') !== -1 || 
+                        label.indexOf('rear') !== -1 || 
+                        label.indexOf('environment') !== -1) {
+                        cameraId = devices[i].id;
+                        break;
                     }
-                }).catch(ex => {
+                }
+
+                // Initialize Html5Qrcode on the reader node
+                html5QrCode = new Html5Qrcode("reader");
+
+                const config = { 
+                    fps: 20, 
+                    qrbox: { width: 250, height: 250 }
+                };
+
+                // Start scanning with selected camera device ID
+                html5QrCode.start(
+                    cameraId,
+                    config,
+                    onScanSuccess
+                ).catch(err => {
+                    console.error("Camera startup failure: ", err);
                     switchToManualMode("Camera Permission Request Denied or Blocked by Browser. Switching to Manual Input Mode.");
                 });
-            });
+            } else {
+                switchToManualMode("No camera devices detected on this hardware.");
+            }
+        }).catch(err => {
+            console.error("Failed to query camera hardware list: ", err);
+            switchToManualMode("Camera Permission Request Denied or Blocked by Browser. Switching to Manual Input Mode.");
         });
     }
 
