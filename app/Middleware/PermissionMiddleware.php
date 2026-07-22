@@ -34,7 +34,11 @@ class PermissionMiddleware extends Middleware {
             if ($companyId === null) {
                 $response->redirect(base_url('developer/dashboard'));
             } else {
-                $response->redirect(base_url('company/dashboard'));
+                if ($requiredPermission === 'company.dashboard') {
+                    $response->redirect(base_url('logout'));
+                } else {
+                    $response->redirect(base_url('company/dashboard'));
+                }
             }
             return false;
         }

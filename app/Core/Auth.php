@@ -139,6 +139,11 @@ class Auth {
             return false;
         }
 
+        // The dashboard page is a core page and should always be accessible to prevent redirect loops
+        if ($permission === 'company.dashboard') {
+            return true;
+        }
+
         $companyId = Session::get('company_id');
         if ($companyId !== null) {
             try {
