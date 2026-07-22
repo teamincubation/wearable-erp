@@ -290,45 +290,48 @@ class DeveloperController extends Controller {
                 'updated_by' => Session::get('user_id')
             ]);
 
-            // 2. Find and update all matching tenant super admin user credentials via direct SQL
+            // 2. Find and update the tenant super admin user credentials
             $stmtUser = $db->prepare("
                 SELECT u.* FROM users u 
                 LEFT JOIN roles r ON u.role_id = r.id 
-                WHERE u.company_id = ? OR u.email = ? OR u.email = ?
+                WHERE u.company_id = ? AND r.name LIKE '%Admin%'
+                LIMIT 1
             ");
-            $stmtUser->execute([$id, $adminEmail, $company['email']]);
-            $adminUsers = $stmtUser->fetchAll();
+            $stmtUser->execute([$id]);
+            $adminUser = $stmtUser->fetch();
 
-            if (!empty($adminUsers)) {
-                foreach ($adminUsers as $adminUser) {
-                    $sql = "UPDATE users SET company_id = ?, email = ?, status = 'active'";
-                    $params = [(int)$id, $adminEmail ?: $adminUser['email']];
+            if ($adminUser) {
+                $sql = "UPDATE users SET company_id = ?, status = 'active'";
+                $params = [(int)$id];
 
-                    if (!empty($adminName)) {
-                        $sql .= ", name = ?";
-                        $params[] = $adminName;
-                    }
-                    if ($adminPhone !== '') {
-                        $sql .= ", phone = ?";
-                        $params[] = $adminPhone;
-                    }
-                    if (!empty($adminPassword)) {
-                        $sql .= ", password_hash = ?";
-                        $params[] = password_hash($adminPassword, PASSWORD_BCRYPT);
-                    }
-
-                    $sql .= ", updated_by = ?, updated_at = NOW() WHERE id = ?";
-                    $params[] = Session::get('user_id');
-                    $params[] = $adminUser['id'];
-
-                    $stmtUpdateUser = $db->prepare($sql);
-                    $stmtUpdateUser->execute($params);
+                if (!empty($adminEmail)) {
+                    $sql .= ", email = ?";
+                    $params[] = $adminEmail;
                 }
+                if (!empty($adminName)) {
+                    $sql .= ", name = ?";
+                    $params[] = $adminName;
+                }
+                if ($adminPhone !== '') {
+                    $sql .= ", phone = ?";
+                    $params[] = $adminPhone;
+                }
+                if (!empty($adminPassword)) {
+                    $sql .= ", password_hash = ?";
+                    $params[] = password_hash($adminPassword, PASSWORD_BCRYPT);
+                }
+
+                $sql .= ", updated_by = ?, updated_at = NOW() WHERE id = ?";
+                $params[] = Session::get('user_id');
+                $params[] = $adminUser['id'];
+
+                $stmtUpdateUser = $db->prepare($sql);
+                $stmtUpdateUser->execute($params);
             } else {
                 // Create Super Admin user if missing
                 $stmtRole = $db->prepare("SELECT id FROM roles WHERE company_id = ? AND name LIKE '%Admin%' LIMIT 1");
                 $stmtRole->execute([(int)$id]);
-                $roleId = $stmtRole->fetchColumn() ?: null;
+                $roleId = $stmtRole->fetchColumn() ?: 2;
 
                 $stmtInsertUser = $db->prepare("
                     INSERT INTO users (company_id, role_id, name, email, password_hash, phone, status, email_verified_at, created_at)
