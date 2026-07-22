@@ -38,28 +38,39 @@ class CompanyController extends Controller {
      */
     public function createUser(Request $request, Response $response): void {
         $name = $request->get('name');
-        $email = $request->get('email');
+        $email = trim($request->get('email'));
+        $employeeCode = trim($request->get('employee_code'));
         $phone = $request->get('phone');
         $password = $request->get('password');
         $roleId = (int) $request->get('role_id');
 
-        if (empty($name) || empty($email) || empty($password) || empty($roleId)) {
-            Session::setFlash('error', 'All fields are required.');
+        if (empty($name) || empty($email) || empty($employeeCode) || empty($password) || empty($roleId)) {
+            Session::setFlash('error', 'All fields are required, including Employee ID.');
             $this->redirect('company/users');
         }
 
         $userModel = new User();
 
-        // Ensure email uniqueness globally
-        $existing = $userModel->findGlobalByEmail($email);
+        // Ensure Employee ID is unique per company
+        $db = Database::getInstance();
+        $stmtCheck = $db->prepare("SELECT id FROM users WHERE company_id = ? AND employee_code = ? AND deleted_at IS NULL LIMIT 1");
+        $stmtCheck->execute([Session::get('company_id'), $employeeCode]);
+        if ($stmtCheck->fetch()) {
+            Session::setFlash('error', 'This Employee ID is already registered for this company.');
+            $this->redirect('company/users');
+        }
+
+        // Ensure email/username uniqueness globally
+        $existing = $userModel->findGlobalByIdentifier($email);
         if ($existing) {
-            Session::setFlash('error', 'This email is already registered.');
+            Session::setFlash('error', 'This Email/Username is already registered.');
             $this->redirect('company/users');
         }
 
         $userId = $userModel->insert([
             'name' => $name,
             'email' => $email,
+            'employee_code' => $employeeCode,
             'phone' => $phone,
             'password_hash' => password_hash($password, PASSWORD_BCRYPT),
             'role_id' => $roleId,
@@ -68,7 +79,7 @@ class CompanyController extends Controller {
             'created_by' => Session::get('user_id')
         ]);
 
-        AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'create_employee', 'User', $userId, null, null, "Created new employee account: {$name}");
+        AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'create_employee', 'User', $userId, null, null, "Created new employee account: {$name} (ID: {$employeeCode})");
         Session::setFlash('success', 'Employee account created successfully.');
         $this->redirect('company/users');
     }
@@ -86,13 +97,40 @@ class CompanyController extends Controller {
         }
 
         $name = $request->get('name');
+        $email = trim($request->get('email'));
+        $employeeCode = trim($request->get('employee_code'));
         $phone = $request->get('phone');
         $roleId = (int) $request->get('role_id');
         $status = $request->get('status');
         $password = $request->get('password');
 
+        if (empty($name) || empty($email) || empty($employeeCode) || empty($roleId)) {
+            Session::setFlash('error', 'Name, Email/Username, Employee ID, and Role are required.');
+            $this->redirect('company/users');
+        }
+
+        $db = Database::getInstance();
+
+        // Ensure Employee ID uniqueness (excluding current user)
+        $stmtCheck = $db->prepare("SELECT id FROM users WHERE company_id = ? AND employee_code = ? AND id != ? AND deleted_at IS NULL LIMIT 1");
+        $stmtCheck->execute([Session::get('company_id'), $employeeCode, $id]);
+        if ($stmtCheck->fetch()) {
+            Session::setFlash('error', 'This Employee ID is already registered for another user in this company.');
+            $this->redirect('company/users');
+        }
+
+        // Ensure Email/Username uniqueness (excluding current user)
+        $stmtCheckEmail = $db->prepare("SELECT id FROM users WHERE email = ? AND id != ? AND deleted_at IS NULL LIMIT 1");
+        $stmtCheckEmail->execute([$email, $id]);
+        if ($stmtCheckEmail->fetch()) {
+            Session::setFlash('error', 'This Email/Username is already registered.');
+            $this->redirect('company/users');
+        }
+
         $updates = [
             'name' => $name,
+            'email' => $email,
+            'employee_code' => $employeeCode,
             'phone' => $phone,
             'role_id' => $roleId,
             'status' => $status,

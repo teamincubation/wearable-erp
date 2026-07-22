@@ -19,8 +19,9 @@
             <table class="table pepp-table">
                 <thead>
                     <tr>
+                        <th>Employee ID</th>
                         <th>Name</th>
-                        <th>Email</th>
+                        <th>Email / Username</th>
                         <th>Phone</th>
                         <th>Role Privileges</th>
                         <th>Verification</th>
@@ -32,6 +33,7 @@
                     <?php if (!empty($users)): ?>
                         <?php foreach ($users as $u): ?>
                             <tr>
+                                <td><span class="badge bg-secondary"><?= htmlspecialchars($u['employee_code'] ?? 'N/A') ?></span></td>
                                 <td>
                                     <div class="d-flex align-items-center">
                                         <div class="user-avatar bg-light text-primary me-3 fw-bold">
@@ -98,15 +100,23 @@
                                             </div>
                                             <div class="modal-body">
                                                 <div class="mb-3">
-                                                    <label class="form-label fw-semibold">Employee Name</label>
+                                                    <label class="form-label fw-semibold">Employee ID <span class="text-danger">*</span></label>
+                                                    <input type="text" name="employee_code" class="form-control" value="<?= htmlspecialchars($u['employee_code'] ?? '') ?>" required>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-semibold">Employee Name <span class="text-danger">*</span></label>
                                                     <input type="text" name="name" class="form-control" value="<?= htmlspecialchars($u['name']) ?>" required>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-semibold">Email / Username <span class="text-danger">*</span></label>
+                                                    <input type="text" name="email" class="form-control" value="<?= htmlspecialchars($u['email']) ?>" required>
                                                 </div>
                                                 <div class="mb-3">
                                                     <label class="form-label fw-semibold">Contact Phone</label>
                                                     <input type="text" name="phone" class="form-control" value="<?= htmlspecialchars($u['phone'] ?? '') ?>">
                                                 </div>
                                                 <div class="mb-3">
-                                                    <label class="form-label fw-semibold">Assigned Role</label>
+                                                    <label class="form-label fw-semibold">Assigned Role <span class="text-danger">*</span></label>
                                                     <select name="role_id" class="form-select" required>
                                                         <?php foreach ($roles as $role): ?>
                                                             <option value="<?= $role['id'] ?>" <?= ($role['id'] == $u['role_id']) ? 'selected' : '' ?>>
@@ -159,12 +169,16 @@
                 </div>
                 <div class="modal-body p-4">
                     <div class="mb-3">
+                        <label class="form-label fw-semibold">Employee ID <span class="text-danger">*</span></label>
+                        <input type="text" name="employee_code" class="form-control" placeholder="e.g. EMP001" required>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label fw-semibold">Full Name <span class="text-danger">*</span></label>
                         <input type="text" name="name" class="form-control" placeholder="e.g. Ramesh Kumar" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Email Address <span class="text-danger">*</span></label>
-                        <input type="email" name="email" class="form-control" placeholder="ramesh@toccoexports.com" required>
+                        <label class="form-label fw-semibold">Email / Username <span class="text-danger">*</span></label>
+                        <input type="text" name="email" class="form-control" placeholder="ramesh or ramesh@toccoexports.com" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Phone Number</label>

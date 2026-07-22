@@ -12,14 +12,27 @@ class User extends Model {
     protected string $primaryKey = 'id';
     protected bool $isMultiTenant = true; // Tenant isolation enabled
 
-    /**
-     * Bypasses the multi-tenant scope to search for users globally (e.g., during general login)
-     */
     public function findGlobalByEmail(string $email): ?array {
         $originalTenantScope = $this->isMultiTenant;
         $this->isMultiTenant = false;
         
         $user = $this->findOneBy(['email' => $email]);
+        
+        $this->isMultiTenant = $originalTenantScope;
+        return $user;
+    }
+
+    /**
+     * Search globally by email/username or by employee code
+     */
+    public function findGlobalByIdentifier(string $identifier): ?array {
+        $originalTenantScope = $this->isMultiTenant;
+        $this->isMultiTenant = false;
+        
+        $db = \App\Core\Database::getInstance();
+        $stmt = $db->prepare("SELECT * FROM users WHERE (email = ? OR employee_code = ?) AND deleted_at IS NULL LIMIT 1");
+        $stmt->execute([$identifier, $identifier]);
+        $user = $stmt->fetch() ?: null;
         
         $this->isMultiTenant = $originalTenantScope;
         return $user;

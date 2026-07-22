@@ -38,10 +38,10 @@ class Auth {
         }
 
         $userModel = new User();
-        $user = $userModel->findGlobalByEmail(trim($email));
+        $user = $userModel->findGlobalByIdentifier(trim($email));
 
         if (!$user) {
-            self::logAuthActivity(null, 'login_failed_email', "Failed login attempt for email: {$email}");
+            self::logAuthActivity(null, 'login_failed_email', "Failed login attempt for identifier: {$email}");
             return null;
         }
 

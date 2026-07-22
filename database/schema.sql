@@ -93,6 +93,7 @@ CREATE TABLE `users` (
   `role_id` INT DEFAULT NULL,
   `name` VARCHAR(255) NOT NULL,
   `email` VARCHAR(150) NOT NULL UNIQUE,
+  `employee_code` VARCHAR(100) DEFAULT NULL,
   `password_hash` VARCHAR(255) NOT NULL,
   `phone` VARCHAR(30) DEFAULT NULL,
   `avatar` VARCHAR(255) DEFAULT NULL,
@@ -108,6 +109,7 @@ CREATE TABLE `users` (
   `deleted_at` TIMESTAMP NULL DEFAULT NULL,
   CONSTRAINT `fk_user_company` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_user_role` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `uq_company_employee_code` UNIQUE (`company_id`, `employee_code`),
   INDEX `idx_user_company` (`company_id`),
   INDEX `idx_user_email` (`email`),
   INDEX `idx_user_status` (`status`)

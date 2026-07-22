@@ -150,6 +150,17 @@ class Migrator {
                 }
             } catch (\PDOException $e) {}
 
+            // Auto-heal users table columns for employee code / employee ID
+            try {
+                $checkEmpCode = $db->query("SHOW COLUMNS FROM `users` LIKE 'employee_code'");
+                if (!$checkEmpCode || $checkEmpCode->rowCount() === 0) {
+                    $db->exec("ALTER TABLE `users` ADD COLUMN `employee_code` VARCHAR(100) DEFAULT NULL");
+                    try {
+                        $db->exec("ALTER TABLE `users` ADD CONSTRAINT `uq_company_employee_code` UNIQUE (`company_id`, `employee_code`)");
+                    } catch (\PDOException $ex) {}
+                }
+            } catch (\PDOException $e) {}
+
             // Run database self-healing check: Repair any user whose company_id does not exist in companies table
             try {
                 $db->exec("

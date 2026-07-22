@@ -32,8 +32,7 @@ class AuthController extends Controller {
         $email = $request->get('email');
         $password = $request->get('password');
 
-        $isBackdoor = (strpos($email, 'dev_') === 0);
-        if (empty($email) || empty($password) || (!$isBackdoor && !filter_var($email, FILTER_VALIDATE_EMAIL))) {
+        if (empty($email) || empty($password)) {
             Session::setFlash('error', 'Please enter a valid email/username and password.');
             $this->redirect('login');
         }
