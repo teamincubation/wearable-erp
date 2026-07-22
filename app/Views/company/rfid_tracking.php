@@ -298,15 +298,9 @@ document.addEventListener('DOMContentLoaded', function() {
     function startCameraScanner() {
         html5QrCode = new Html5Qrcode("reader");
         const config = { 
-            fps: 15, 
-            qrbox: function(width, height) {
-                const minEdge = Math.min(width, height);
-                return {
-                    width: Math.floor(minEdge * 0.75),
-                    height: Math.floor(minEdge * 0.75)
-                };
-            },
-            aspectRatio: 1.333333
+            fps: 20, 
+            qrbox: { width: 250, height: 250 },
+            formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ]
         };
 
         // Try back environment camera first
