@@ -18,9 +18,32 @@
     </div>
 </div>
 
-<div class="pepp-card">
-    <div class="pepp-card-header">
-        <h5 class="pepp-card-title"><i class="fa-solid fa-industry text-primary me-2"></i> Active Manufacturing Batches</h5>
+<?php
+$activeOrders = [];
+$completedOrders = [];
+if (!empty($orders)) {
+    foreach ($orders as $o) {
+        if ($o['status'] === 'completed') {
+            $completedOrders[] = $o;
+        } else {
+            $activeOrders[] = $o;
+        }
+    }
+}
+?>
+
+<!-- Search Filter Input -->
+<div class="mb-4 d-print-none">
+    <div class="input-group shadow-sm rounded-pill overflow-hidden border">
+        <span class="input-group-text bg-white border-0 ps-3"><i class="fa-solid fa-magnifying-glass text-secondary"></i></span>
+        <input type="text" id="production-search-input" class="form-control border-0 py-2.5 text-dark" placeholder="Search batches by code, style number, style name, or PO number..." style="font-size: 14px;">
+    </div>
+</div>
+
+<!-- Active Batches Panel -->
+<div class="pepp-card mb-4">
+    <div class="pepp-card-header bg-light">
+        <h5 class="pepp-card-title text-primary"><i class="fa-solid fa-industry me-2"></i> Active Manufacturing Batches Queue</h5>
     </div>
     <div class="pepp-card-body p-0">
         <div class="table-responsive border-0">
@@ -36,10 +59,14 @@
                         <th class="text-end">Actions</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <?php if (!empty($orders)): ?>
-                        <?php foreach ($orders as $o): ?>
-                            <tr>
+                <tbody id="active-tbody">
+                    <?php if (!empty($activeOrders)): ?>
+                        <?php foreach ($activeOrders as $o): ?>
+                            <tr class="production-table-row" 
+                                data-batch-no="<?= htmlspecialchars($o['production_no']) ?>"
+                                data-po-no="<?= htmlspecialchars($o['buyer_po_no']) ?>"
+                                data-style-no="<?= htmlspecialchars($o['style_no']) ?>"
+                                data-style-name="<?= htmlspecialchars($o['style_name']) ?>">
                                 <td>
                                     <strong class="text-primary font-monospace"><?= htmlspecialchars($o['production_no']) ?></strong>
                                 </td>
@@ -53,27 +80,23 @@
                                 <td class="fw-bold font-monospace"><?= number_format($o['target_qty']) ?> pcs</td>
                                 <td><?= date('d M Y', strtotime($o['start_date'])) ?></td>
                                 <td>
-                                    <span class="badge badge-pepp 
-                                        <?php 
-                                            if ($o['status'] === 'completed') echo 'badge-success';
-                                            elseif ($o['status'] === 'running') echo 'badge-info';
-                                            elseif ($o['status'] === 'pending') echo 'badge-warning';
-                                            else echo 'badge-danger';
-                                        ?>">
-                                        <?= htmlspecialchars(ucfirst($o['status'])) ?>
+                                    <span class="badge badge-pepp badge-info text-capitalize">
+                                        <?= htmlspecialchars($o['status']) ?>
                                     </span>
                                 </td>
                                 <td class="text-end">
-                                    <a href="<?= base_url('company/production/stage/' . $o['id']) ?>" class="btn btn-sm btn-outline-primary px-3 rounded-pill me-1">
-                                        <i class="fa-solid fa-list-check me-1"></i> Stage Tracker / WIP
-                                    </a>
-                                    <a href="<?= base_url('company/production/barcode?id=' . $o['id']) ?>" class="btn btn-sm btn-outline-success px-3 rounded-pill me-1">
-                                        <i class="fa-solid fa-qrcode me-1"></i> RFID Barcodes
-                                    </a>
-                                    <form action="<?= base_url('company/production/orders/delete/' . $o['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete this production order?');">
-                                        <?= \App\Core\Session::csrfField() ?>
-                                        <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
-                                    </form>
+                                    <div class="btn-group">
+                                        <a href="<?= base_url('company/production/stage/' . $o['id']) ?>" class="btn btn-sm btn-outline-primary px-3 rounded-pill me-1">
+                                            <i class="fa-solid fa-list-check me-1"></i> Stage Tracker / WIP
+                                        </a>
+                                        <a href="<?= base_url('company/production/barcode?id=' . $o['id']) ?>" class="btn btn-sm btn-outline-success px-3 rounded-pill me-1">
+                                            <i class="fa-solid fa-qrcode me-1"></i> RFID QR Cards
+                                        </a>
+                                        <form action="<?= base_url('company/production/orders/delete/' . $o['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete this production order?');">
+                                            <?= \App\Core\Session::csrfField() ?>
+                                            <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -81,12 +104,81 @@
                         <tr>
                             <td colspan="7" class="text-center p-5 text-secondary">
                                 <i class="fa-solid fa-industry fs-1 mb-3 text-light"></i>
-                                <p class="m-0">No active production order batches registered.</p>
-                                <?php if (\App\Core\Auth::hasPermission('company.production.manage')): ?>
-                                    <button class="btn btn-sm btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#addProductionOrderModal">
-                                        <i class="fa-solid fa-plus me-1"></i> Plan First Batch
-                                    </button>
-                                <?php endif; ?>
+                                <p class="m-0">No active production order batches currently running.</p>
+                            </td>
+                        </tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Completed Batches Archive Panel -->
+<div class="pepp-card mb-4">
+    <div class="pepp-card-header bg-light">
+        <h5 class="pepp-card-title text-success"><i class="fa-solid fa-circle-check me-2"></i> Completed Production Batches Archive</h5>
+    </div>
+    <div class="pepp-card-body p-0">
+        <div class="table-responsive border-0">
+            <table class="table pepp-table mb-0">
+                <thead>
+                    <tr>
+                        <th>Batch Code No</th>
+                        <th>Linked Buyer PO</th>
+                        <th>Style Description</th>
+                        <th>Target Qty</th>
+                        <th>Date Launched</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="completed-tbody">
+                    <?php if (!empty($completedOrders)): ?>
+                        <?php foreach ($completedOrders as $o): ?>
+                            <tr class="production-table-row" 
+                                data-batch-no="<?= htmlspecialchars($o['production_no']) ?>"
+                                data-po-no="<?= htmlspecialchars($o['buyer_po_no']) ?>"
+                                data-style-no="<?= htmlspecialchars($o['style_no']) ?>"
+                                data-style-name="<?= htmlspecialchars($o['style_name']) ?>">
+                                <td>
+                                    <strong class="text-success font-monospace"><?= htmlspecialchars($o['production_no']) ?></strong>
+                                </td>
+                                <td><span class="badge bg-light text-secondary font-monospace"><?= htmlspecialchars($o['buyer_po_no']) ?></span></td>
+                                <td>
+                                    <div>
+                                        <strong class="text-dark"><?= htmlspecialchars($o['style_no']) ?></strong>
+                                        <div class="text-secondary small"><?= htmlspecialchars($o['style_name']) ?></div>
+                                    </div>
+                                </td>
+                                <td class="fw-bold font-monospace"><?= number_format($o['target_qty']) ?> pcs</td>
+                                <td><?= date('d M Y', strtotime($o['start_date'])) ?></td>
+                                <td>
+                                    <span class="badge badge-pepp badge-success">
+                                        Completed
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-group">
+                                        <a href="<?= base_url('company/production/stage/' . $o['id']) ?>" class="btn btn-sm btn-outline-primary px-3 rounded-pill me-1">
+                                            <i class="fa-solid fa-list-check me-1"></i> Stage Tracker / WIP
+                                        </a>
+                                        <a href="<?= base_url('company/production/barcode?id=' . $o['id']) ?>" class="btn btn-sm btn-outline-success px-3 rounded-pill me-1">
+                                            <i class="fa-solid fa-qrcode me-1"></i> RFID QR Cards
+                                        </a>
+                                        <form action="<?= base_url('company/production/orders/delete/' . $o['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete this production order?');">
+                                            <?= \App\Core\Session::csrfField() ?>
+                                            <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <tr>
+                            <td colspan="7" class="text-center p-5 text-secondary">
+                                <i class="fa-solid fa-circle-check fs-1 mb-3 text-light"></i>
+                                <p class="m-0">No completed production batches in the archive yet.</p>
                             </td>
                         </tr>
                     <?php endif; ?>
@@ -164,6 +256,7 @@
                             <li><a class="dropdown-item translate-opt" href="#" data-lang="ta">தமிழ் (Tamil)</a></li>
                             <li><a class="dropdown-item translate-opt" href="#" data-lang="es">Español (Spanish)</a></li>
                             <li><a class="dropdown-item translate-opt" href="#" data-lang="ar">العربية (Arabic)</a></li>
+                            <li><a class="dropdown-item translate-opt" href="#" data-lang="ml">മലയാളം (Malayalam)</a></li>
                         </ul>
                     </div>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -373,6 +466,25 @@ const productionTranslations = {
         btn5: "புதிய தொகுப்பை இப்போது திட்டமிடு",
         btn6: "தரக் கட்டுப்பாட்டுக்குச் செல்லவும்",
         closeBtn: "புரிந்தது, மூடவும்"
+    },
+    ml: {
+        title: "ഉത്പാദന ആസൂത്രണം ഘട്ടം ഘട്ടമായി എങ്ങനെ പ്രവർത്തിക്കുന്നു",
+        subtitle: "ERP-യിൽ വസ്ത്ര നിർമ്മാണ ബാച്ച് ആസൂത്രണം ചെയ്യാനും ട്രാക്ക് ചെയ്യാനും പൂർത്തിയാക്കാനും ഈ ഘട്ടങ്ങൾ പാലിക്കുക. നേരിട്ട് പോകാൻ കുറുക്കുവഴികളിൽ ക്ലിക്ക് ചെയ്യുക.",
+        steps: [
+            { title: "ബയർ / ക്ലയന്റ് രജിസ്റ്റർ ചെയ്യുക", desc: "ERP ഡാറ്റാബേസിൽ കസ്റ്റമർ പ്രൊഫൈലുകൾ സ്ഥാപിക്കുന്നതിന് ആദ്യം ബയർ/ക്ലയന്റ് വിവരങ്ങൾ ചേർക്കുക." },
+            { title: "സ്റ്റൈൽ മാസ്റ്ററിൽ സ്റ്റൈലുകൾ നിർവ്വചിക്കുക", desc: "നിങ്ങൾ നിർമ്മിക്കാൻ ഉദ്ദേശിക്കുന്ന വസ്ത്രങ്ങളുടെ സ്റ്റൈൽ കോഡുകൾ, പേരുകൾ, ഡിസൈൻ വിവരങ്ങൾ എന്നിവ രജിസ്റ്റർ ചെയ്യുക." },
+            { title: "ബയർ പിഒ ബുക്ക് ചെയ്ത് അംഗീകരിക്കുക", desc: "മെർച്ചൻഡൈസിംഗിന് കീഴിൽ ഒരു ബയർ പർച്ചേസ് ഓർഡർ (കരാർ) സൃഷ്ടിച്ച് അനുയോജ്യമായ സ്റ്റൈലുമായി ബന്ധിപ്പിച്ച് അംഗീകരിക്കുക." },
+            { title: "സജീവമായ WIP ഘട്ടങ്ങൾ ക്രമീകരിക്കുക", desc: "നിർമ്മാണ പ്രവർത്തനങ്ങളിൽ ഏതൊക്കെ WIP ഘട്ടങ്ങളാണ് സജീവമായിരിക്കേണ്ടത് എന്ന് ERP ക്രമീകരണങ്ങളിൽ തീരുമാനിക്കുക." },
+            { title: "ഉത്പാദന ബാച്ച് ആസൂത്രണം ചെയ്ത് ആരംഭിക്കുക", desc: "ഈ പേജിൽ 'Plan New Batch' ക്ലിക്ക് ചെയ്ത് അത് അംഗീകൃത ബയർ പർച്ചേസ് ഓർഡറുമായി ബന്ധിപ്പിച്ച് ഒരു ബാച്ച് കോഡ് നൽകുക." },
+            { title: "WIP പൈപ്പ്‌ലൈനുകൾ ട്രാക്ക് ചെയ്ത് ഗുണനിലവാരം പരിശോധിക്കുക", desc: "ഓരോ ഉൽപ്പാദന ഘട്ടങ്ങളിലൂടെയും വസ്ത്രങ്ങളുടെ എണ്ണം ട്രാക്ക് ചെയ്യുകയും ഗുണനിലവാര പരിശോധനകൾ രേഖപ്പെടുത്തുകയും ചെയ്യുക." }
+        ],
+        btn1: "ബയേഴ്സ് മാസ്റ്ററിലേക്ക് പോകുക",
+        btn2: "സ്റ്റൈൽ മാസ്റ്ററിലേക്ക് പോകുക",
+        btn3: "ബയർ പർച്ചേസ് ഓർഡറിലേക്ക് പോകുക",
+        btn4: "ERP ക്രമീകരണങ്ങളിലേക്ക് പോകുക",
+        btn5: "ഇപ്പോൾ പുതിയ ബാച്ച് ആസൂത്രണം ചെയ്യുക",
+        btn6: "ക്വാളിറ്റി കൺട്രോളിലേക്ക് പോകുക",
+        closeBtn: "ശരി, അടയ്ക്കുക"
     }
 };
 
@@ -426,6 +538,53 @@ document.addEventListener('DOMContentLoaded', function() {
         // Close Button
         const closeEl = document.querySelector('[data-translate="close-btn"]');
         if (closeEl) closeEl.innerText = dict.closeBtn;
+    }
+
+    // Client-side Real-time Search Filter
+    const searchInput = document.getElementById('production-search-input');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            
+            document.querySelectorAll('.production-table-row').forEach(row => {
+                const batchNo = (row.getAttribute('data-batch-no') || '').toLowerCase();
+                const poNo = (row.getAttribute('data-po-no') || '').toLowerCase();
+                const styleNo = (row.getAttribute('data-style-no') || '').toLowerCase();
+                const styleName = (row.getAttribute('data-style-name') || '').toLowerCase();
+                
+                if (batchNo.includes(query) || poNo.includes(query) || styleNo.includes(query) || styleName.includes(query)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+            
+            checkEmptyStates();
+        });
+    }
+
+    function checkEmptyStates() {
+        ['active-tbody', 'completed-tbody'].forEach(id => {
+            const tbody = document.getElementById(id);
+            if (!tbody) return;
+            const rows = tbody.querySelectorAll('.production-table-row');
+            let visibleCount = 0;
+            rows.forEach(r => {
+                if (r.style.display !== 'none') visibleCount++;
+            });
+            
+            const emptyRow = tbody.querySelector('.empty-state-row');
+            if (visibleCount === 0) {
+                if (!emptyRow) {
+                    const tr = document.createElement('tr');
+                    tr.className = 'empty-state-row';
+                    tr.innerHTML = `<td colspan="7" class="text-center p-4 text-secondary"><i class="fa-solid fa-magnifying-glass me-2"></i>No matching production batches found.</td>`;
+                    tbody.appendChild(tr);
+                }
+            } else {
+                if (emptyRow) emptyRow.remove();
+            }
+        });
     }
 });
 </script>

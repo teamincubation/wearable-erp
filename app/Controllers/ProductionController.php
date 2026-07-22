@@ -449,4 +449,136 @@ class ProductionController extends Controller {
             'end' => $endSerial
         ]);
     }
+
+    /**
+     * Mobile RFID QR Code production tracking scanner page
+     */
+    public function rfidTracking(Request $request, Response $response): void {
+        $db = Database::getInstance();
+        $companyId = Session::get('company_id');
+
+        // Self-healing permission injection
+        $stmtPerm = $db->prepare("SELECT id FROM permissions WHERE name = ?");
+        $stmtPerm->execute(['company.production.rfid_tracking']);
+        $permId = $stmtPerm->fetchColumn();
+        if (!$permId) {
+            try {
+                $db->exec("INSERT INTO permissions (id, name, description, module) VALUES (25, 'company.production.rfid_tracking', 'Access RFID Production Tracking mobile scanner page', 'tenant')");
+                $db->exec("INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (2, 25)");
+            } catch (\Exception $e) {
+                // Ignore if exists
+            }
+        }
+
+        // Fetch active WIP stages configured for this company from system_settings
+        $stmtWip = $db->prepare("SELECT setting_value FROM system_settings WHERE company_id = ? AND setting_key = 'active_wip_stages' AND deleted_at IS NULL ORDER BY id DESC LIMIT 1");
+        $stmtWip->execute([$companyId]);
+        $activeWipRaw = $stmtWip->fetchColumn();
+        
+        $activeWipStages = $activeWipRaw ? json_decode($activeWipRaw, true) : [];
+        if (!is_array($activeWipStages) || empty($activeWipStages)) {
+            $activeWipStages = ['cutting', 'embellishment', 'sewing', 'washing', 'finishing', 'packing'];
+        }
+
+        $this->renderView('company/rfid_tracking', [
+            'title' => 'Mobile RFID Tracking | ERP',
+            'stages' => $activeWipStages
+        ]);
+    }
+
+    /**
+     * AJAX Endpoint to log scanned RFID QR Code activity
+     */
+    public function logRfidActivity(Request $request, Response $response): void {
+        header('Content-Type: application/json');
+        
+        $db = Database::getInstance();
+        $companyId = Session::get('company_id');
+        $userId = Session::get('user_id');
+
+        $qrCode = trim($request->get('qr_code'));
+        $stage = trim($request->get('stage'));
+        $status = trim($request->get('status')); // 'pass' or 'fail'
+        $durationSeconds = (int)$request->get('duration_seconds');
+
+        if (empty($qrCode) || empty($stage) || empty($status)) {
+            echo json_encode(['success' => false, 'message' => 'Missing scanned QR code, stage, or pass/fail status.']);
+            exit;
+        }
+
+        // Parse QR Code e.g. BATCH-TOCCO-001-S-0005
+        $parts = explode('-', $qrCode);
+        if (count($parts) < 3) {
+            echo json_encode(['success' => false, 'message' => 'Invalid tag format. QR code must match: [BATCH_CODE]-[SIZE]-[SERIAL].']);
+            exit;
+        }
+        $serial = (int)array_pop($parts);
+        $size = array_pop($parts);
+        $batchNo = implode('-', $parts);
+
+        // Fetch production order details
+        $stmtBatch = $db->prepare("SELECT * FROM production_orders WHERE production_no = ? AND company_id = ? AND deleted_at IS NULL");
+        $stmtBatch->execute([$batchNo, $companyId]);
+        $batch = $stmtBatch->fetch();
+
+        if (!$batch) {
+            echo json_encode(['success' => false, 'message' => "Production batch '{$batchNo}' not found."]);
+            exit;
+        }
+
+        // Fetch operator link
+        $stmtEmp = $db->prepare("SELECT id FROM employees WHERE user_id = ? AND company_id = ? AND deleted_at IS NULL LIMIT 1");
+        $stmtEmp->execute([$userId, $companyId]);
+        $employeeId = $stmtEmp->fetchColumn() ?: null;
+
+        // Map Pass/Fail logic
+        $qtyIn = 1;
+        $qtyOut = ($status === 'pass') ? 1 : 0;
+        $wasteQty = ($status === 'pass') ? 0 : 1;
+
+        // Calculate dates & duration in minutes
+        $endTime = date('Y-m-d H:i:s');
+        $startTime = date('Y-m-d H:i:s', time() - max(1, $durationSeconds));
+        $durationMinutes = (int)max(1, ceil($durationSeconds / 60));
+
+        try {
+            $stmtLog = $db->prepare("
+                INSERT INTO production_stage_logs 
+                (company_id, production_order_id, stage, employee_id, qty_in, qty_out, waste_qty, start_time, end_time, duration_minutes, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ");
+            $stmtLog->execute([
+                $companyId,
+                $batch['id'],
+                $stage,
+                $employeeId,
+                $qtyIn,
+                $qtyOut,
+                $wasteQty,
+                $startTime,
+                $endTime,
+                $durationMinutes,
+                $userId
+            ]);
+
+            // Update batch status to running if not already
+            if ($batch['status'] === 'pending') {
+                $db->prepare("UPDATE production_orders SET status = 'running' WHERE id = ?")->execute([$batch['id']]);
+            }
+
+            echo json_encode([
+                'success' => true,
+                'message' => "Piece #{$serial} (Size {$size}) logged successfully as " . strtoupper($status) . " under stage " . ucfirst(str_replace('_', ' ', $stage)) . ".",
+                'details' => [
+                    'batch_no' => $batchNo,
+                    'size' => $size,
+                    'serial' => $serial,
+                    'status' => $status
+                ]
+            ]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Failed to save log to database: ' . $e->getMessage()]);
+        }
+        exit;
+    }
 }

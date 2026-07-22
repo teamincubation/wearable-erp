@@ -74,6 +74,7 @@ $defaultMenu = [
     'procurement' => ['name' => 'Procurement', 'icon' => 'fa-solid fa-cart-shopping', 'url' => 'company/purchase/orders', 'permission' => 'company.styles.view', 'active_check' => 'company/purchase'],
     'inventory' => ['name' => 'Inventory Ledger', 'icon' => 'fa-solid fa-boxes-stacked', 'url' => 'company/inventory/balances', 'permission' => 'company.inventory.view', 'active_check' => 'company/inventory'],
     'production' => ['name' => 'Production & Quality', 'icon' => 'fa-solid fa-industry', 'url' => 'company/production/orders', 'permission' => 'company.production.view', 'active_check' => 'company/production'],
+    'rfid_tracking' => ['name' => 'RFID Mobile Scanner', 'icon' => 'fa-solid fa-mobile-screen-button', 'url' => 'company/production/rfid-tracking', 'permission' => 'company.production.rfid_tracking', 'active_check' => 'company/production/rfid-tracking'],
     'hr' => ['name' => 'HR & Attendance', 'icon' => 'fa-solid fa-user-clock', 'url' => 'company/hr/attendance', 'permission' => 'company.users.view', 'active_check' => 'company/hr'],
     'tally' => ['name' => 'Tally Integration', 'icon' => 'fa-solid fa-file-excel', 'url' => 'company/tally/vouchers', 'permission' => 'company.tally.export', 'active_check' => 'company/tally'],
     'logs' => ['name' => 'Audit History', 'icon' => 'fa-solid fa-list-check', 'url' => 'company/logs', 'permission' => 'company.logs', 'active_check' => 'company/logs'],

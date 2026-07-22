@@ -1,12 +1,12 @@
 <div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
     <div>
         <a href="<?= base_url('company/production/orders') ?>" class="btn btn-sm btn-light border mb-2"><i class="fa-solid fa-arrow-left me-1"></i> Back to Batches</a>
-        <h3 class="fw-bold"><i class="fa-solid fa-qrcode text-success me-2"></i> Batch RFID Barcode Generator</h3>
-        <p class="text-secondary m-0">Generate and print serial-numbered identity cards for garment pieces</p>
+        <h3 class="fw-bold"><i class="fa-solid fa-qrcode text-success me-2"></i> Batch RFID QR Code Generator</h3>
+        <p class="text-secondary m-0">Generate and print serial-numbered identity cards with double backup QR codes</p>
     </div>
     <div class="d-flex">
         <button type="button" class="btn btn-success px-4 me-2" onclick="window.print();">
-            <i class="fa-solid fa-print me-1"></i> Print RFID Cards
+            <i class="fa-solid fa-print me-1"></i> Print RFID QR Cards
         </button>
     </div>
 </div>
@@ -18,10 +18,10 @@
         <div>
             <h6 class="fw-bold text-warning-emphasis mb-1">Standard Operating Guidelines for Cutting Department</h6>
             <p class="m-0 text-secondary small">
-                1. <strong>Print and Cut:</strong> Click the "Print RFID Cards" button above, print the document, and cut each card cleanly along the dotted cutting marks.<br>
-                2. <strong>Hanging Price Tag:</strong> Insert the cut barcode card into a hanging price tag sleeve or clip.<br>
-                3. <strong>Clip to Cut Pieces:</strong> Pin/clip each barcode securely to the corresponding fabric cut piece.<br>
-                4. <strong>RFID Retention:</strong> Keep this RFID Barcode tag linked with the piece until the final packaging stage to maintain accurate WIP tracing.
+                1. <strong>Print and Cut:</strong> Click the "Print RFID QR Cards" button above. The print view automatically hides sidebars and navigation panels for full-screen sticker optimization. Cut each card cleanly along the dotted cutting marks.<br>
+                2. <strong>Hanging Price Tag:</strong> Insert the cut QR card into a hanging price tag sleeve or clip.<br>
+                3. <strong>Clip to Cut Pieces:</strong> Pin/clip each tag securely to the corresponding fabric cut piece.<br>
+                4. <strong>RFID Retention:</strong> Keep this RFID QR tag linked with the piece until the final packaging stage to maintain accurate WIP tracing.
             </p>
         </div>
     </div>
@@ -95,7 +95,7 @@ function resolveSizeForSerialNum($serial, $sizes) {
 }
 ?>
 
-<!-- Printable RFID Barcode Cards Grid -->
+<!-- Printable RFID QR Cards Grid -->
 <div class="rfid-cards-grid">
     <?php for ($s = $start; $s <= $end; $s++): 
         $size = resolveSizeForSerialNum($s, $sizes);
@@ -117,25 +117,23 @@ function resolveSizeForSerialNum($serial, $sizes) {
                         <div class="text-muted" style="font-size: 9px;"><?= htmlspecialchars($batch['fabric_composition'] ?: '100% Cotton') ?></div>
                         <div class="mt-1" style="font-size: 9px;">Batch: <span class="font-monospace fw-bold text-primary"><?= htmlspecialchars($batch['production_no']) ?></span></div>
                     </div>
-                    <!-- Size Badge design -->
                     <div class="col-4 text-end d-flex flex-column justify-content-center align-items-end">
                         <span class="text-muted" style="font-size: 8px; text-transform: uppercase;">SIZE</span>
                         <div class="size-badge-display mt-0.5"><?= htmlspecialchars($size) ?></div>
                     </div>
                 </div>
 
-                <!-- Double Barcodes (Large and Small) -->
-                <div class="double-barcode-container">
-                    <!-- Primary Large Barcode -->
-                    <div class="barcode-block large-barcode mb-2">
-                        <div class="barcode-graphic-small"></div>
-                        <span class="barcode-num-text font-monospace">*<?= $uniqueCode ?>*</span>
+                <!-- Double QR Codes (Large and Small) -->
+                <div class="double-qr-container d-flex justify-content-between align-items-center bg-light p-2 rounded border">
+                    <!-- Large Primary QR -->
+                    <div class="text-center" style="width: 50%;">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=<?= urlencode($uniqueCode) ?>" alt="QR Code" style="width: 85px; height: 85px; object-fit: contain;">
+                        <div class="font-monospace fw-bold mt-1 text-dark" style="font-size: 8px; letter-spacing: 0.3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><?= $uniqueCode ?></div>
                     </div>
-
-                    <!-- Backup Small Barcode -->
-                    <div class="barcode-block small-barcode">
-                        <div class="barcode-graphic-xs"></div>
-                        <span class="barcode-num-text-xs font-monospace">BACKUP: <?= $uniqueCode ?></span>
+                    <!-- Small Backup QR -->
+                    <div class="text-center border-start ps-2" style="width: 50%;">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=<?= urlencode($uniqueCode) ?>" alt="Backup QR" style="width: 45px; height: 45px; object-fit: contain;">
+                        <div class="font-monospace text-muted mt-1" style="font-size: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">BACKUP QR</div>
                     </div>
                 </div>
 
@@ -196,83 +194,56 @@ function resolveSizeForSerialNum($serial, $sizes) {
     font-family: monospace;
 }
 
-/* Barcode Graphics (pure CSS simulations matching garment labels) */
-.double-barcode-container {
-    background: #f8fafc;
-    padding: 8px;
-    border-radius: 4px;
-    border: 1px solid #e2e8f0;
-}
-
-.barcode-block {
-    text-align: center;
-}
-
-.barcode-graphic-small {
-    height: 32px;
-    background: repeating-linear-gradient(
-        90deg,
-        #000,
-        #000 1.5px,
-        #fff 1.5px,
-        #fff 3.5px,
-        #000 3.5px,
-        #000 5px,
-        #fff 5px,
-        #fff 7px
-    );
-}
-
-.barcode-graphic-xs {
-    height: 16px;
-    background: repeating-linear-gradient(
-        90deg,
-        #000,
-        #000 1px,
-        #fff 1px,
-        #fff 2.5px,
-        #000 2.5px,
-        #000 3.5px,
-        #fff 3.5px,
-        #fff 4.5px
-    );
-}
-
-.barcode-num-text {
-    font-size: 9px;
-    letter-spacing: 2px;
-    color: #0f172a;
-    font-weight: bold;
-    display: block;
-}
-
-.barcode-num-text-xs {
-    font-size: 8px;
-    color: #475569;
-    display: block;
-}
-
 /* Print Overrides */
 @media print {
-    .d-print-none {
-        display: none !important;
-    }
-    
-    body {
+    body, html {
         background: #ffffff !important;
         color: #000000 !important;
         padding: 0 !important;
+        margin: 0 !important;
+    }
+    
+    /* Hide top bar, sidebar, navigation, controls, headers, warnings */
+    .top-nav, aside, .sidebar, header, footer, .d-print-none, .alert, .pepp-card, .btn {
+        display: none !important;
+        height: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+    }
+    
+    /* Expand content area to full width and remove offsets */
+    .main-content, .main-wrapper, .content-area, .container-fluid, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        left: 0 !important;
+        top: 0 !important;
+        position: absolute !important;
+        background: transparent !important;
     }
     
     .rfid-cards-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
-        gap: 0 !important;
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important; /* 3 cards per row on sticker page */
+        gap: 12px !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 10px !important;
     }
     
     .rfid-card-wrapper {
-        border: 1px dashed #000000 !important; /* Dotted line on print for cutting */
+        border: 1.5px dotted #000000 !important; /* Prominent cutting lines */
         page-break-inside: avoid;
-        margin: 5px;
+        margin: 0 !important;
+        padding: 8px !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+    }
+    
+    .rfid-card-content {
+        border: 1px solid #000000 !important;
     }
 }
 </style>
