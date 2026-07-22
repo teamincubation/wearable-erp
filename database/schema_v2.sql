@@ -569,4 +569,31 @@ CREATE TABLE IF NOT EXISTS `bom_categories` (
   INDEX `idx_bom_cat_company` (`company_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 29. HR HOLIDAYS TABLE
+CREATE TABLE IF NOT EXISTS `company_holidays` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `company_id` INT NOT NULL,
+  `date` DATE NOT NULL,
+  `name` VARCHAR(150) NOT NULL,
+  `type` ENUM('holiday', 'weekend') NOT NULL DEFAULT 'holiday',
+  `created_by` INT DEFAULT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT `fk_holiday_company` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE,
+  UNIQUE KEY `uq_company_holiday_date` (`company_id`, `date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 30. ALTER COMPANIES FOR TIMEZONE & CURRENCY
+ALTER TABLE `companies` ADD COLUMN `timezone` VARCHAR(100) DEFAULT 'Asia/Kolkata';
+ALTER TABLE `companies` ADD COLUMN `currency` VARCHAR(10) DEFAULT 'INR';
+
+-- 31. ALTER USERS FOR BASE SALARY
+ALTER TABLE `users` ADD COLUMN `base_salary` DECIMAL(12, 2) NOT NULL DEFAULT 0.00;
+
+-- 32. ALTER PAYROLL RECORDS FOR STATS
+ALTER TABLE `payroll_records` ADD COLUMN `present_days` INT DEFAULT 0;
+ALTER TABLE `payroll_records` ADD COLUMN `absent_days` INT DEFAULT 0;
+ALTER TABLE `payroll_records` ADD COLUMN `leave_days` INT DEFAULT 0;
+ALTER TABLE `payroll_records` ADD COLUMN `holiday_days` INT DEFAULT 0;
+ALTER TABLE `payroll_records` ADD COLUMN `overtime_hours` DECIMAL(8, 2) DEFAULT 0.00;
+
 SET FOREIGN_KEY_CHECKS = 1;
