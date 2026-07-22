@@ -483,7 +483,7 @@ class ProductionController extends Controller {
         $this->renderView('company/rfid_tracking', [
             'title' => 'Mobile RFID Tracking | ERP',
             'stages' => $activeWipStages
-        ]);
+        ], 'mobile');
     }
 
     /**

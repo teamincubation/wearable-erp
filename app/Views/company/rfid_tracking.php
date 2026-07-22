@@ -1,6 +1,6 @@
 <!-- Mobile Application Container Wrapper -->
 <div class="d-flex justify-content-center align-items-center py-3 d-print-none" style="min-height: 80vh; background: #f1f5f9;">
-    <div class="mobile-app-card shadow-lg" style="width: 100%; max-width: 480px; background: #ffffff; border-radius: 24px; border: 1px solid #e2e8f0; overflow: hidden; display: flex; flex-column: column;">
+    <div class="mobile-app-card shadow-lg d-flex flex-column" style="width: 100%; max-width: 480px; background: #ffffff; border-radius: 24px; border: 1px solid #e2e8f0; overflow: hidden;">
         
         <!-- Header Brand -->
         <div class="mobile-app-header bg-dark text-white p-3 text-center position-relative">
