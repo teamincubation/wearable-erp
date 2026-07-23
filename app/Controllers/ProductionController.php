@@ -963,13 +963,14 @@ class ProductionController extends Controller {
 
             // WIP stage logs with user/operator details
             $stmtLogs = $db->prepare("
-                SELECT psl.*, u.name as operator_name, u.role as operator_role
+                SELECT psl.*, u.name as operator_name, r.name as operator_role
                 FROM production_stage_logs psl
-                LEFT JOIN users u ON psl.operator_id = u.id
-                WHERE psl.production_id = ? AND psl.deleted_at IS NULL
+                LEFT JOIN users u ON (psl.operator_id = u.id OR psl.employee_id = u.id)
+                LEFT JOIN roles r ON u.role_id = r.id
+                WHERE (psl.production_id = ? OR psl.production_order_id = ?) AND psl.deleted_at IS NULL
                 ORDER BY psl.id ASC
             ");
-            $stmtLogs->execute([$batchId]);
+            $stmtLogs->execute([$batchId, $batchId]);
             $batch['stage_logs'] = $stmtLogs->fetchAll() ?: [];
 
             // Aggregate total finished qty & total rejected/wastage qty across logs
