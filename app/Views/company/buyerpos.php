@@ -137,9 +137,16 @@
                             <select name="style_id" id="style_select_po" class="form-select text-dark" required>
                                 <option value="">-- Choose Garment Style --</option>
                                 <?php foreach ($styles as $s): ?>
-                                    <option value="<?= $s['id'] ?>"><?= htmlspecialchars($s['style_no']) ?> - <?= htmlspecialchars($s['name']) ?></option>
+                                    <?php $hasTp = !empty($s['has_techpack']); ?>
+                                    <option value="<?= $s['id'] ?>" <?= $hasTp ? '' : 'disabled' ?>>
+                                        <?= htmlspecialchars($s['style_no']) ?> - <?= htmlspecialchars($s['name']) ?><?= $hasTp ? '' : ' (Tech Pack Required)' ?>
+                                    </option>
                                 <?php endforeach; ?>
                             </select>
+                            <div class="form-text mt-1 d-flex justify-content-between align-items-center" style="font-size: 11px;">
+                                <span><i class="fa-solid fa-circle-info text-info me-1"></i> Style Tech Pack is required for production contract registration.</span>
+                                <a href="<?= base_url('company/styles') ?>" target="_blank" class="fw-semibold text-primary"><i class="fa-solid fa-plus-circle me-1"></i> Add Style / Config Tech Pack</a>
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label small fw-bold">Buyer PO Reference Number <span class="text-danger">*</span></label>
@@ -163,6 +170,29 @@
                             <div class="col-6">
                                 <label class="form-label small fw-bold">Unit Price (₹) <span class="text-danger">*</span></label>
                                 <input type="number" step="0.01" name="unit_price" class="form-control" placeholder="e.g. 240.00" min="0.01" required>
+                            </div>
+                        </div>
+
+                        <!-- Live Production Stock Feasibility Table -->
+                        <div id="stock-feasibility-container" class="mt-3 p-3 bg-white border rounded text-dark shadow-sm" style="display: none; border-left: 4px solid #0d6efd !important;">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <h6 class="fw-bold m-0 text-primary" style="font-size: 13px;"><i class="fa-solid fa-boxes-stacked me-1"></i> Live Production Stock Feasibility Planning</h6>
+                                <span class="badge bg-light text-secondary border">Real-time Stock Check</span>
+                            </div>
+                            <p class="text-secondary small mb-2" style="font-size: 11px;">Auto-calculated material consumption based on Style Tech Pack BOM vs. Current Stock Levels.</p>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered align-middle mb-0" style="font-size: 12px;">
+                                    <thead class="bg-light text-dark">
+                                        <tr>
+                                            <th>Material / Item Description</th>
+                                            <th>Category</th>
+                                            <th>Available Stock</th>
+                                            <th>Required for Order</th>
+                                            <th>Balance / Shortage</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="stock-feasibility-tbody"></tbody>
+                                </table>
                             </div>
                         </div>
 
@@ -194,6 +224,12 @@ const styleSizeRanges = {
     <?php endforeach; ?>
 };
 
+const styleBomData = {
+    <?php foreach ($styles as $s): ?>
+        "<?= $s['id'] ?>": <?= json_encode($s['bom_items'] ?? []) ?>,
+    <?php endforeach; ?>
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     const styleSelect = document.getElementById('style_select_po');
     const qtyInput = document.getElementById('po_overall_qty');
@@ -201,6 +237,61 @@ document.addEventListener('DOMContentLoaded', function() {
     const wrapper = document.getElementById('size-fields-wrapper');
     const sumIndicator = document.getElementById('size-sum-indicator');
     const remIndicator = document.getElementById('size-rem-indicator');
+
+    function updateStockFeasibility() {
+        const styleId = styleSelect.value;
+        const overallQty = parseFloat(qtyInput.value) || 0;
+        const feasContainer = document.getElementById('stock-feasibility-container');
+        const feasTbody = document.getElementById('stock-feasibility-tbody');
+
+        const bomItems = styleBomData[styleId] || [];
+
+        if (!styleId || bomItems.length === 0) {
+            feasContainer.style.display = 'none';
+            feasTbody.innerHTML = '';
+            return;
+        }
+
+        feasContainer.style.display = 'block';
+        feasTbody.innerHTML = '';
+
+        bomItems.forEach(item => {
+            const iName = item.item_name || 'General Material';
+            const cType = item.item_type || 'Accessories';
+            const uom = item.uom || 'pcs';
+            const qtyPerPc = parseFloat(item.qty) || 0;
+            const availStock = parseFloat(item.current_stock) || 0;
+
+            const requiredQty = overallQty * qtyPerPc;
+            const balanceQty = availStock - requiredQty;
+            const isShortage = balanceQty < 0;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong class="text-dark">${iName}</strong></td>
+                <td><span class="badge bg-light text-secondary text-capitalize">${cType}</span></td>
+                <td class="font-monospace">${availStock.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ${uom}</td>
+                <td class="font-monospace text-primary fw-bold">${requiredQty.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ${uom} <span class="small text-secondary fw-normal">(${qtyPerPc}/pc)</span></td>
+                <td class="font-monospace fw-bold ${isShortage ? 'text-danger' : 'text-success'}">
+                    ${balanceQty.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ${uom}
+                    ${isShortage 
+                        ? `<span class="badge bg-danger text-white ms-1"><i class="fa-solid fa-triangle-exclamation me-1"></i> DEFICIT WARNING</span>` 
+                        : `<span class="badge bg-success-subtle text-success ms-1"><i class="fa-solid fa-circle-check me-1"></i> SUFFICIENT</span>`}
+                </td>
+            `;
+            feasTbody.appendChild(tr);
+        });
+    }
+
+    styleSelect.addEventListener('change', function() {
+        updateSizeBreakdown();
+        updateStockFeasibility();
+    });
+
+    qtyInput.addEventListener('input', function() {
+        calculateSums();
+        updateStockFeasibility();
+    });
 
     function updateSizeBreakdown() {
         const styleId = styleSelect.value;
@@ -259,13 +350,6 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             remIndicator.className = 'text-success fw-bold';
         }
-    }
-
-    if (styleSelect) {
-        styleSelect.addEventListener('change', updateSizeBreakdown);
-    }
-    if (qtyInput) {
-        qtyInput.addEventListener('input', calculateSums);
     }
 
     // Form submission validation

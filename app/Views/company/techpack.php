@@ -57,43 +57,78 @@
                         <i class="fa-solid fa-plus me-1"></i> Add Material Row
                     </button>
                 </div>
-                <div class="pepp-card-body p-0">
-                    <div class="table-responsive border-0">
-                        <table class="table pepp-table mb-0" id="bomTable">
+                        <?php 
+                        $stockCategories = [];
+                        $stockItemsByCategory = [];
+                        if (!empty($stock_summary)) {
+                            foreach ($stock_summary as $stk) {
+                                $cType = !empty($stk['item_type']) ? $stk['item_type'] : 'Accessories';
+                                $iName = !empty($stk['item_name']) ? $stk['item_name'] : '';
+                                if ($iName !== '') {
+                                    if (!in_array($cType, $stockCategories)) {
+                                        $stockCategories[] = $cType;
+                                    }
+                                    if (!isset($stockItemsByCategory[$cType])) {
+                                        $stockItemsByCategory[$cType] = [];
+                                    }
+                                    if (!in_array($iName, $stockItemsByCategory[$cType])) {
+                                        $stockItemsByCategory[$cType][] = $iName;
+                                    }
+                                }
+                            }
+                        }
+                        if (empty($stockCategories)) {
+                            $stockCategories = ['Fabric', 'Yarn', 'Accessories', 'Chemicals', 'Packing'];
+                            $stockItemsByCategory = [
+                                'Fabric' => ['Cotton Jersey', 'Grey Knit', 'Denim Fabric'],
+                                'Yarn' => ['30s Combed Yarn', '20s Cotton Yarn'],
+                                'Accessories' => ['Price Tag', 'Main Brand Label', 'Care Label', 'Metal Buttons', 'Zip 20cm'],
+                                'Chemicals' => ['Reactive Dye', 'Softener'],
+                                'Packing' => ['Polybag 10x12', 'Export Carton']
+                            ];
+                        }
+                        ?>
+                        <table class="table pepp-table mb-0 align-middle" id="bomTable">
                             <thead>
                                 <tr>
-                                    <th>Material / Item Name</th>
-                                    <th>Category</th>
-                                    <th>Color / Shade</th>
-                                    <th>Unit (UOM)</th>
-                                    <th>Consumption Qty per pc</th>
-                                    <th class="text-center" style="width: 50px;">Remove</th>
+                                    <th style="width: 25%;">Category / Type (From Stock)</th>
+                                    <th style="width: 30%;">Material / Item Description</th>
+                                    <th style="width: 15%;">Color / Shade</th>
+                                    <th style="width: 12%;">Unit (UOM)</th>
+                                    <th style="width: 13%;">Consumption Qty per pc <span class="text-danger">*</span></th>
+                                    <th class="text-center" style="width: 5%;">Remove</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php if (!empty($bom_list)): ?>
                                     <?php foreach ($bom_list as $index => $bom): ?>
+                                        <?php 
+                                            $currCat = $bom['item_type'] ?? reset($stockCategories);
+                                            $currItems = $stockItemsByCategory[$currCat] ?? (reset($stockItemsByCategory) ?: []);
+                                        ?>
                                         <tr>
                                             <td>
-                                                <input type="text" name="bom_item_name[]" class="form-control form-control-sm" value="<?= htmlspecialchars($bom['item_name']) ?>" required>
-                                            </td>
-                                            <td>
-                                                <select name="bom_item_type[]" class="form-select form-select-sm">
-                                                    <option value="fabric" <?= $bom['item_type'] === 'fabric' ? 'selected' : '' ?>>Fabric</option>
-                                                    <option value="yarn" <?= $bom['item_type'] === 'yarn' ? 'selected' : '' ?>>Yarn</option>
-                                                    <option value="accessories" <?= $bom['item_type'] === 'accessories' ? 'selected' : '' ?>>Accessories (Buttons, Zips)</option>
-                                                    <option value="chemical" <?= $bom['item_type'] === 'chemical' ? 'selected' : '' ?>>Chemicals / Dyes</option>
-                                                    <option value="packing" <?= $bom['item_type'] === 'packing' ? 'selected' : '' ?>>Packing Materials</option>
+                                                <select name="bom_item_type[]" class="form-select form-select-sm bom-cat-select" required>
+                                                    <?php foreach ($stockCategories as $cat): ?>
+                                                        <option value="<?= htmlspecialchars($cat) ?>" <?= (strcasecmp($cat, $currCat) === 0) ? 'selected' : '' ?>><?= htmlspecialchars($cat) ?></option>
+                                                    <?php endforeach; ?>
                                                 </select>
                                             </td>
                                             <td>
-                                                <input type="text" name="bom_color[]" class="form-control form-control-sm" value="<?= htmlspecialchars($bom['color']) ?>">
+                                                <select name="bom_item_name[]" class="form-select form-select-sm bom-name-select" required>
+                                                    <?php foreach ($currItems as $itm): ?>
+                                                        <option value="<?= htmlspecialchars($itm) ?>" <?= (strcasecmp($itm, $bom['item_name']) === 0) ? 'selected' : '' ?>><?= htmlspecialchars($itm) ?></option>
+                                                    <?php endforeach; ?>
+                                                </select>
                                             </td>
                                             <td>
-                                                <input type="text" name="bom_uom[]" class="form-control form-control-sm" value="<?= htmlspecialchars($bom['uom']) ?>" placeholder="e.g. kgs, meters, pcs">
+                                                <input type="text" name="bom_color[]" class="form-control form-control-sm" value="<?= htmlspecialchars($bom['color'] ?? '') ?>" placeholder="Color shade">
                                             </td>
                                             <td>
-                                                <input type="number" step="0.001" name="bom_qty[]" class="form-control form-control-sm" value="<?= htmlspecialchars($bom['qty']) ?>">
+                                                <input type="text" name="bom_uom[]" class="form-control form-control-sm" value="<?= htmlspecialchars($bom['uom'] ?? 'pcs') ?>" placeholder="e.g. kgs, meters, pcs">
+                                            </td>
+                                            <td>
+                                                <input type="number" step="0.0001" name="bom_qty[]" class="form-control form-control-sm text-primary fw-bold" value="<?= htmlspecialchars($bom['qty'] ?? '1.0000') ?>" required>
                                             </td>
                                             <td class="text-center">
                                                 <button type="button" class="btn btn-sm btn-link text-danger remove-row-btn p-0"><i class="fa-regular fa-trash-can"></i></button>
@@ -101,10 +136,9 @@
                                         </tr>
                                     <?php endforeach; ?>
                                 <?php else: ?>
-                                    <!-- Seed default empty rows for first load -->
                                     <tr class="empty-bom-indicator">
                                         <td colspan="6" class="text-center p-4 text-secondary">
-                                            No materials configured in Bill of Materials. Click "Add Material Row" to start adding fabrics, yarns, or labels.
+                                            No materials configured in Bill of Materials. Click "Add Material Row" to select materials from Current Stock Levels.
                                         </td>
                                     </tr>
                                 <?php endif; ?>
@@ -214,28 +248,73 @@
 
 <!-- Javascript Row Injection Engine -->
 <script>
+const stockItemsMap = <?= json_encode($stockItemsByCategory ?: []) ?>;
+const stockCatList = <?= json_encode($stockCategories ?: []) ?>;
+
 document.addEventListener('DOMContentLoaded', function() {
+    function populateItemDropdown(catSelect, nameSelect) {
+        const cat = catSelect.value;
+        const items = stockItemsMap[cat] || [];
+        nameSelect.innerHTML = '';
+        if (items.length > 0) {
+            items.forEach(itm => {
+                const opt = document.createElement('option');
+                opt.value = itm;
+                opt.textContent = itm;
+                nameSelect.appendChild(opt);
+            });
+        } else {
+            const opt = document.createElement('option');
+            opt.value = 'General Material';
+            opt.textContent = 'General Material';
+            nameSelect.appendChild(opt);
+        }
+    }
+
+    function bindCategoryCascades() {
+        document.querySelectorAll('#bomTable tbody tr').forEach(row => {
+            const catSel = row.querySelector('.bom-cat-select');
+            const nameSel = row.querySelector('.bom-name-select');
+            if (catSel && nameSel && !catSel.dataset.bound) {
+                catSel.dataset.bound = 'true';
+                catSel.addEventListener('change', function() {
+                    populateItemDropdown(catSel, nameSel);
+                });
+            }
+        });
+    }
+    bindCategoryCascades();
+
     // 1. Add BOM Material Row
     const bomTable = document.getElementById('bomTable').querySelector('tbody');
     document.getElementById('addBomRowBtn').addEventListener('click', function() {
-        // Remove empty placeholder row if present
         const emptyRow = bomTable.querySelector('.empty-bom-indicator');
         if (emptyRow) {
             emptyRow.remove();
         }
 
+        let catOptionsHtml = '';
+        stockCatList.forEach(c => {
+            catOptionsHtml += `<option value="${c}">${c}</option>`;
+        });
+
+        const firstCat = stockCatList[0] || 'Fabric';
+        const firstItems = stockItemsMap[firstCat] || ['General Material'];
+        let itemOptionsHtml = '';
+        firstItems.forEach(i => {
+            itemOptionsHtml += `<option value="${i}">${i}</option>`;
+        });
+
         const newRow = document.createElement('tr');
         newRow.innerHTML = `
             <td>
-                <input type="text" name="bom_item_name[]" class="form-control form-control-sm" placeholder="e.g. Cotton Rib fabric, Brand Labels" required>
+                <select name="bom_item_type[]" class="form-select form-select-sm bom-cat-select" required>
+                    ${catOptionsHtml}
+                </select>
             </td>
             <td>
-                <select name="bom_item_type[]" class="form-select form-select-sm">
-                    <option value="fabric">Fabric</option>
-                    <option value="yarn">Yarn</option>
-                    <option value="accessories" selected>Accessories (Buttons, Zips)</option>
-                    <option value="chemical">Chemicals / Dyes</option>
-                    <option value="packing">Packing Materials</option>
+                <select name="bom_item_name[]" class="form-select form-select-sm bom-name-select" required>
+                    ${itemOptionsHtml}
                 </select>
             </td>
             <td>
@@ -245,7 +324,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <input type="text" name="bom_uom[]" class="form-control form-control-sm" placeholder="e.g. pcs, meters, kgs" value="pcs">
             </td>
             <td>
-                <input type="number" step="0.001" name="bom_qty[]" class="form-control form-control-sm" value="1.000">
+                <input type="number" step="0.0001" name="bom_qty[]" class="form-control form-control-sm text-primary fw-bold" value="1.0000" required>
             </td>
             <td class="text-center">
                 <button type="button" class="btn btn-sm btn-link text-danger remove-row-btn p-0"><i class="fa-regular fa-trash-can"></i></button>
@@ -253,6 +332,7 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         bomTable.appendChild(newRow);
         bindRemoveButtons();
+        bindCategoryCascades();
     });
 
     // 2. Add Sizing Row

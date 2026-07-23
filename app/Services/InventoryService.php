@@ -84,11 +84,11 @@ class InventoryService {
      * Get all active stock list in a company
      */
     public function getInventorySummary(int $companyId, ?int $warehouseId = null): array {
-        $sql = "SELECT item_type, item_name, 
-                       SUM(CASE WHEN quantity > 0 THEN quantity ELSE 0 END) as total_received,
-                       SUM(CASE WHEN quantity < 0 THEN ABS(quantity) ELSE 0 END) as total_used,
-                       SUM(quantity) as current_balance,
-                       COALESCE(NULLIF(AVG(CASE WHEN quantity > 0 AND unit_price > 0 THEN unit_price ELSE NULL END), 0), AVG(unit_price), 0) as avg_price
+        $sql = "SELECT item_type, bom_code, item_name, 
+                       SUM(CASE WHEN type = 'in' THEN quantity ELSE 0 END) as total_received,
+                       SUM(CASE WHEN type = 'out' THEN ABS(quantity) ELSE 0 END) as total_used,
+                       (SUM(CASE WHEN type = 'in' THEN quantity ELSE 0 END) - SUM(CASE WHEN type = 'out' THEN ABS(quantity) ELSE 0 END)) as current_balance,
+                       COALESCE(NULLIF(AVG(CASE WHEN type = 'in' AND unit_price > 0 THEN unit_price ELSE NULL END), 0), AVG(unit_price), 0) as avg_price
                 FROM inventory_transactions 
                 WHERE company_id = ?";
         $params = [$companyId];
@@ -98,7 +98,7 @@ class InventoryService {
             $params[] = $warehouseId;
         }
 
-        $sql .= " GROUP BY item_type, item_name HAVING current_balance > 0";
+        $sql .= " GROUP BY item_type, bom_code, item_name HAVING total_received > 0 OR current_balance != 0";
         
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);

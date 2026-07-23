@@ -204,12 +204,17 @@ class StyleMasterController extends Controller {
         $bomList = json_decode($techpack['bom_json'] ?? '[]', true) ?: [];
         $sizeGuide = json_decode($techpack['sizing_json'] ?? '[]', true) ?: [];
 
+        // Fetch current stock inventory items for cascading dropdown selection in BOM editor
+        $inventoryService = new \App\Services\InventoryService();
+        $stockSummary = $inventoryService->getInventorySummary(Session::get('company_id'));
+
         $this->renderView('company/techpack', [
             'title' => "Tech Pack: {$style['style_no']} | ERP",
             'style' => $style,
             'techpack' => $techpack,
             'bom_list' => $bomList,
-            'size_guide' => $sizeGuide
+            'size_guide' => $sizeGuide,
+            'stock_summary' => $stockSummary
         ]);
     }
 

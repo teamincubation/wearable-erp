@@ -154,9 +154,28 @@ class MerchandisingController extends Controller {
         $contactModel = new Contact();
         $buyers = $contactModel->findBy(['type' => 'buyer', 'status' => 'active']);
 
-        // Fetch styles
+        // Fetch styles and attach Tech Pack BOM status & current stock details
+        $inventoryService = new \App\Services\InventoryService();
         $styleModel = new Style();
-        $styles = $styleModel->all();
+        $styles = $styleModel->all() ?: [];
+        foreach ($styles as &$s) {
+            $stmtTp = $db->prepare("SELECT bom_json FROM tech_packs WHERE style_id = ? AND deleted_at IS NULL LIMIT 1");
+            $stmtTp->execute([$s['id']]);
+            $bomJson = $stmtTp->fetchColumn();
+            $bomItems = json_decode($bomJson ?: '[]', true) ?: [];
+
+            $s['has_techpack'] = !empty($bomItems);
+
+            foreach ($bomItems as &$bItem) {
+                $cType = !empty($bItem['item_type']) ? $bItem['item_type'] : 'Accessories';
+                $iName = !empty($bItem['item_name']) ? $bItem['item_name'] : '';
+                $bItem['current_stock'] = $inventoryService->getStockLevel($companyId, $cType, $iName);
+            }
+            unset($bItem);
+
+            $s['bom_items'] = $bomItems;
+        }
+        unset($s);
 
         $this->renderView('company/buyerpos', [
             'title' => 'Buyer Purchase Orders | Merchandising',
@@ -198,6 +217,7 @@ class MerchandisingController extends Controller {
         }
 
         $sizesJson = json_encode($sizeQtys);
+        $companyId = Session::get('company_id');
 
         // Ensure database table has sizes_json column
         $db = Database::getInstance();
@@ -225,8 +245,47 @@ class MerchandisingController extends Controller {
             'created_by' => Session::get('user_id')
         ]);
 
-        AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'create_buyer_po', 'BuyerPo', $poId, null, null, "Created buyer PO: {$poNo}");
-        Session::setFlash('success', 'Buyer Purchase Order created successfully.');
+        // Record material allocations based on Style Tech Pack BOM
+        $stmtTp = $db->prepare("SELECT bom_json FROM tech_packs WHERE style_id = ? AND deleted_at IS NULL LIMIT 1");
+        $stmtTp->execute([$styleId]);
+        $bomJson = $stmtTp->fetchColumn();
+        $bomItems = json_decode($bomJson ?: '[]', true) ?: [];
+
+        if (!empty($bomItems)) {
+            $inventoryService = new \App\Services\InventoryService();
+            
+            // Find active receiving/dispatch warehouse
+            $stmtWh = $db->prepare("SELECT id FROM warehouses WHERE company_id = ? AND status = 'active' ORDER BY id ASC LIMIT 1");
+            $stmtWh->execute([$companyId]);
+            $warehouseId = (int)($stmtWh->fetchColumn() ?: 1);
+
+            foreach ($bomItems as $bItem) {
+                $cType = !empty($bItem['item_type']) ? $bItem['item_type'] : 'Accessories';
+                $iName = !empty($bItem['item_name']) ? $bItem['item_name'] : '';
+                $qtyPerPc = (float)($bItem['qty'] ?? 0.00);
+
+                if (!empty($iName) && $qtyPerPc > 0) {
+                    $requiredStock = $quantity * $qtyPerPc;
+                    $inventoryService->recordTransaction(
+                        $companyId,
+                        $warehouseId,
+                        $cType,
+                        $iName,
+                        -1 * $requiredStock,
+                        'out',
+                        'buyer_po',
+                        $poId,
+                        'PO-' . $poNo,
+                        0.00,
+                        Session::get('user_id'),
+                        $bItem['bom_code'] ?? null
+                    );
+                }
+            }
+        }
+
+        AuditLog::log($companyId, Session::get('user_id'), 'create_buyer_po', 'BuyerPo', $poId, null, null, "Created buyer PO: {$poNo}");
+        Session::setFlash('success', 'Buyer Purchase Order created successfully and material requirements allocated.');
         $this->redirect('company/merchandising/buyerpos');
     }
 

@@ -55,7 +55,11 @@
                                             <span class="font-monospace text-danger">-<?= number_format($item['total_used'], 2) ?></span>
                                         </td>
                                         <td>
-                                            <strong class="font-monospace text-primary"><?= number_format($item['current_balance'], 2) ?></strong>
+                                            <?php if ($item['current_balance'] < 0): ?>
+                                                <span class="badge bg-danger text-white font-monospace fs-6 px-2 py-1"><i class="fa-solid fa-triangle-exclamation me-1"></i> <?= number_format($item['current_balance'], 2) ?></span>
+                                            <?php else: ?>
+                                                <strong class="font-monospace text-primary fs-6"><?= number_format($item['current_balance'], 2) ?></strong>
+                                            <?php endif; ?>
                                         </td>
                                         <td>
                                             <button type="button" class="btn btn-sm btn-outline-info px-3 rounded-pill me-1" data-bs-toggle="modal" data-bs-target="#viewStockModal-<?= md5($item['item_name']) ?>">
