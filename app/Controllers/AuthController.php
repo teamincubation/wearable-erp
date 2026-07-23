@@ -214,6 +214,20 @@ class AuthController extends Controller {
             return;
         }
 
+        if ($cik === '000000') {
+            // Developer Portal CIK
+            Session::remove('company_id');
+            Session::remove('current_tenant');
+            Session::remove('active_tenant_subdomain');
+            
+            Session::remove($attemptsKey);
+            Session::remove($lastAttemptKey);
+
+            Session::setFlash('success', "Developer Portal Key verified. Please login with Developer credentials.");
+            $this->redirect('login');
+            return;
+        }
+
         $db = \App\Core\Database::getInstance();
         $stmt = $db->prepare("SELECT * FROM companies WHERE cik = ? AND status = 'active' AND deleted_at IS NULL LIMIT 1");
         $stmt->execute([$cik]);

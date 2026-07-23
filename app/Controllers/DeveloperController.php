@@ -743,6 +743,12 @@ class DeveloperController extends Controller {
         while ($attempts < 100) {
             $cik = sprintf("%06d", mt_rand(100000, 999999));
             
+            // Explicitly prevent Developer Portal Key from being assigned to any tenant
+            if ($cik === '000000') {
+                $attempts++;
+                continue;
+            }
+
             // Check if CIK is unique in companies
             $stmt1 = $db->prepare("SELECT id FROM companies WHERE cik = ? LIMIT 1");
             $stmt1->execute([$cik]);
