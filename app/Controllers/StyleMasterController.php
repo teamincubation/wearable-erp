@@ -9,6 +9,7 @@ use App\Core\Database;
 use App\Models\Style;
 use App\Models\TechPack;
 use App\Models\AuditLog;
+use App\Models\StyleVariable;
 
 /**
  * Style Master Operations Controller
@@ -28,10 +29,26 @@ class StyleMasterController extends Controller {
         $stmt->execute([$companyId]);
         $buyers = $stmt->fetchAll() ?: [];
 
+        $styleVarModel = new StyleVariable();
+        $styleVars = $styleVarModel->all() ?: [];
+        $styleVariables = [
+            'category' => [],
+            'gsm' => [],
+            'color' => [],
+            'brand' => [],
+            'size_range' => []
+        ];
+        foreach ($styleVars as $sv) {
+            if (isset($styleVariables[$sv['type']])) {
+                $styleVariables[$sv['type']][] = $sv['value'];
+            }
+        }
+
         $this->renderView('company/styles', [
             'title' => 'Style Master | ERP',
             'styles' => $styles,
-            'buyers' => $buyers
+            'buyers' => $buyers,
+            'styleVariables' => $styleVariables
         ]);
     }
 
@@ -44,6 +61,8 @@ class StyleMasterController extends Controller {
         $description = trim($request->get('description'));
         $category = $request->get('category');
         $composition = trim($request->get('composition'));
+        $gsm = trim($request->get('gsm'));
+        $color = trim($request->get('color'));
         $brand = trim($request->get('brand'));
         $sizeRange = trim($request->get('size_range'));
 
@@ -73,6 +92,8 @@ class StyleMasterController extends Controller {
             'description' => $description,
             'category' => $category ?: 'unisex',
             'composition' => $composition,
+            'gsm' => $gsm,
+            'color' => $color,
             'brand' => $brand,
             'size_range' => $sizeRange,
             'created_by' => Session::get('user_id')
@@ -111,6 +132,8 @@ class StyleMasterController extends Controller {
         $description = trim($request->get('description'));
         $category = $request->get('category');
         $composition = trim($request->get('composition'));
+        $gsm = trim($request->get('gsm'));
+        $color = trim($request->get('color'));
         $brand = trim($request->get('brand'));
         $sizeRange = trim($request->get('size_range'));
 
@@ -124,6 +147,8 @@ class StyleMasterController extends Controller {
             'description' => $description,
             'category' => $category,
             'composition' => $composition,
+            'gsm' => $gsm,
+            'color' => $color,
             'brand' => $brand,
             'size_range' => $sizeRange,
             'updated_by' => Session::get('user_id')
@@ -208,23 +233,18 @@ class StyleMasterController extends Controller {
         }
 
         $sizeParams = $request->get('size_parameter') ?: [];
-        $sizeS = $request->get('size_s') ?: [];
-        $sizeM = $request->get('size_m') ?: [];
-        $sizeL = $request->get('size_l') ?: [];
-        $sizeXl = $request->get('size_xl') ?: [];
-        $sizeXxl = $request->get('size_xxl') ?: [];
+        $sizesInput = $_POST['sizes'] ?? [];
 
         $sizing = [];
         for ($i = 0; $i < count($sizeParams); $i++) {
             if (!empty($sizeParams[$i])) {
-                $sizing[] = [
-                    'parameter' => trim($sizeParams[$i]),
-                    's' => trim($sizeS[$i] ?? ''),
-                    'm' => trim($sizeM[$i] ?? ''),
-                    'l' => trim($sizeL[$i] ?? ''),
-                    'xl' => trim($sizeXl[$i] ?? ''),
-                    'xxl' => trim($sizeXxl[$i] ?? '')
+                $item = [
+                    'parameter' => trim($sizeParams[$i])
                 ];
+                foreach ($sizesInput as $sizeName => $values) {
+                    $item[strtolower(trim($sizeName))] = trim($values[$i] ?? '');
+                }
+                $sizing[] = $item;
             }
         }
 

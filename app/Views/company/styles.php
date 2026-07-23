@@ -23,6 +23,8 @@
                         <th>Style Name</th>
                         <th>Category</th>
                         <th>Fabric Composition</th>
+                        <th>GSM</th>
+                        <th>Color</th>
                         <th>Brand</th>
                         <th>Sizes</th>
                         <th>Created At</th>
@@ -48,6 +50,8 @@
                                     <span class="badge bg-light text-secondary text-capitalize"><?= htmlspecialchars($s['category']) ?></span>
                                 </td>
                                 <td><?= htmlspecialchars($s['composition'] ?: 'N/A') ?></td>
+                                <td><span class="badge bg-light text-dark font-monospace"><?= htmlspecialchars($s['gsm'] ?? 'N/A') ?></span></td>
+                                <td><span class="badge bg-light text-dark"><?= htmlspecialchars($s['color'] ?? 'N/A') ?></span></td>
                                 <td><?= htmlspecialchars($s['brand'] ?: 'N/A') ?></td>
                                 <td><span class="badge bg-light text-dark"><?= htmlspecialchars($s['size_range'] ?: 'N/A') ?></span></td>
                                 <td><?= date('d M Y', strtotime($s['created_at'])) ?></td>
@@ -90,26 +94,58 @@
                                                         <input type="text" name="name" class="form-control" value="<?= htmlspecialchars($s['name']) ?>" required>
                                                     </div>
                                                     <div class="mb-3">
-                                                        <label class="form-label small fw-bold">Category</label>
-                                                        <select name="category" class="form-select">
-                                                            <option value="men" <?= $s['category'] === 'men' ? 'selected' : '' ?>>Men</option>
-                                                            <option value="women" <?= $s['category'] === 'women' ? 'selected' : '' ?>>Women</option>
-                                                            <option value="kids" <?= $s['category'] === 'kids' ? 'selected' : '' ?>>Kids</option>
-                                                            <option value="unisex" <?= $s['category'] === 'unisex' ? 'selected' : '' ?>>Unisex</option>
-                                                        </select>
-                                                    </div>
-                                                    <div class="mb-3">
-                                                        <label class="form-label small fw-bold">Fabric Composition</label>
-                                                        <input type="text" name="composition" class="form-control" value="<?= htmlspecialchars($s['composition'] ?? '') ?>" placeholder="e.g. 100% Cotton, 80% Cotton 20% Polyester">
-                                                    </div>
-                                                    <div class="mb-3">
-                                                        <label class="form-label small fw-bold">Brand</label>
-                                                        <input type="text" name="brand" class="form-control" value="<?= htmlspecialchars($s['brand'] ?? '') ?>">
-                                                    </div>
-                                                    <div class="mb-3">
-                                                        <label class="form-label small fw-bold">Size Range</label>
-                                                        <input type="text" name="size_range" class="form-control" value="<?= htmlspecialchars($s['size_range'] ?? '') ?>" placeholder="e.g. S, M, L, XL, XXL">
-                                                    </div>
+                                                         <label class="form-label small fw-bold">Category</label>
+                                                         <select name="category" class="form-select text-dark" required>
+                                                             <?php foreach ($styleVariables['category'] ?? [] as $cat): ?>
+                                                                 <option value="<?= htmlspecialchars($cat) ?>" <?= ($s['category'] == $cat) ? 'selected' : '' ?>><?= htmlspecialchars($cat) ?></option>
+                                                             <?php endforeach; ?>
+                                                             <?php if (empty($styleVariables['category'])): ?>
+                                                                 <option value="<?= htmlspecialchars($s['category']) ?>" selected><?= htmlspecialchars($s['category']) ?></option>
+                                                             <?php endif; ?>
+                                                         </select>
+                                                     </div>
+                                                     <div class="mb-3">
+                                                         <label class="form-label small fw-bold">Fabric Composition</label>
+                                                         <input type="text" name="composition" class="form-control" value="<?= htmlspecialchars($s['composition'] ?? '') ?>" placeholder="e.g. 100% Cotton, 80% Cotton 20% Polyester">
+                                                     </div>
+                                                     <div class="mb-3">
+                                                         <label class="form-label small fw-bold">GSM</label>
+                                                         <select name="gsm" class="form-select text-dark">
+                                                             <option value="">-- Select GSM --</option>
+                                                             <?php foreach ($styleVariables['gsm'] ?? [] as $gsm): ?>
+                                                                 <option value="<?= htmlspecialchars($gsm) ?>" <?= (($s['gsm'] ?? '') == $gsm) ? 'selected' : '' ?>><?= htmlspecialchars($gsm) ?></option>
+                                                             <?php endforeach; ?>
+                                                         </select>
+                                                     </div>
+                                                     <div class="mb-3">
+                                                         <label class="form-label small fw-bold">Color</label>
+                                                         <select name="color" class="form-select text-dark">
+                                                             <option value="">-- Select Color --</option>
+                                                             <?php foreach ($styleVariables['color'] ?? [] as $color): ?>
+                                                                 <option value="<?= htmlspecialchars($color) ?>" <?= (($s['color'] ?? '') == $color) ? 'selected' : '' ?>><?= htmlspecialchars($color) ?></option>
+                                                             <?php endforeach; ?>
+                                                         </select>
+                                                     </div>
+                                                     <div class="mb-3">
+                                                         <label class="form-label small fw-bold">Brand</label>
+                                                         <select name="brand" class="form-select text-dark">
+                                                             <option value="">-- Select Brand --</option>
+                                                             <?php foreach ($styleVariables['brand'] ?? [] as $brand): ?>
+                                                                 <option value="<?= htmlspecialchars($brand) ?>" <?= (($s['brand'] ?? '') == $brand) ? 'selected' : '' ?>><?= htmlspecialchars($brand) ?></option>
+                                                             <?php endforeach; ?>
+                                                         </select>
+                                                     </div>
+                                                     <div class="mb-3">
+                                                         <label class="form-label small fw-bold">Size Range</label>
+                                                         <select name="size_range" class="form-select text-dark" required>
+                                                             <?php foreach ($styleVariables['size_range'] ?? [] as $sz): ?>
+                                                                 <option value="<?= htmlspecialchars($sz) ?>" <?= ($s['size_range'] == $sz) ? 'selected' : '' ?>><?= htmlspecialchars($sz) ?></option>
+                                                             <?php endforeach; ?>
+                                                             <?php if (empty($styleVariables['size_range'])): ?>
+                                                                 <option value="<?= htmlspecialchars($s['size_range']) ?>" selected><?= htmlspecialchars($s['size_range']) ?></option>
+                                                             <?php endif; ?>
+                                                         </select>
+                                                     </div>
                                                     <div class="mb-3">
                                                         <label class="form-label small fw-bold">Description</label>
                                                         <textarea name="description" class="form-control" rows="3"><?= htmlspecialchars($s['description'] ?? '') ?></textarea>
@@ -167,24 +203,50 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label small fw-bold">Category</label>
-                            <select name="category" class="form-select">
-                                <option value="men">Men</option>
-                                <option value="women">Women</option>
-                                <option value="kids">Kids</option>
-                                <option value="unisex" selected>Unisex</option>
+                            <select name="category" class="form-select text-dark" required>
+                                <?php foreach ($styleVariables['category'] ?? [] as $cat): ?>
+                                    <option value="<?= htmlspecialchars($cat) ?>"><?= htmlspecialchars($cat) ?></option>
+                                <?php endforeach; ?>
                             </select>
                         </div>
                         <div class="mb-3">
                             <label class="form-label small fw-bold">Fabric Composition</label>
-                            <input type="text" name="composition" class="form-control" placeholder="e.g. 100% Combed Cotton, 180 GSM">
+                            <input type="text" name="composition" class="form-control" placeholder="e.g. 100% Combed Cotton">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">GSM</label>
+                            <select name="gsm" class="form-select text-dark">
+                                <option value="">-- Select GSM --</option>
+                                <?php foreach ($styleVariables['gsm'] ?? [] as $gsm): ?>
+                                    <option value="<?= htmlspecialchars($gsm) ?>"><?= htmlspecialchars($gsm) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Color</label>
+                            <select name="color" class="form-select text-dark">
+                                <option value="">-- Select Color --</option>
+                                <?php foreach ($styleVariables['color'] ?? [] as $color): ?>
+                                    <option value="<?= htmlspecialchars($color) ?>"><?= htmlspecialchars($color) ?></option>
+                                <?php endforeach; ?>
+                            </select>
                         </div>
                         <div class="mb-3">
                             <label class="form-label small fw-bold">Brand</label>
-                            <input type="text" name="brand" class="form-control" placeholder="e.g. TOCCO Exports">
+                            <select name="brand" class="form-select text-dark">
+                                <option value="">-- Select Brand --</option>
+                                <?php foreach ($styleVariables['brand'] ?? [] as $brand): ?>
+                                    <option value="<?= htmlspecialchars($brand) ?>"><?= htmlspecialchars($brand) ?></option>
+                                <?php endforeach; ?>
+                            </select>
                         </div>
                         <div class="mb-3">
                             <label class="form-label small fw-bold">Size Range</label>
-                            <input type="text" name="size_range" class="form-control" placeholder="e.g. S, M, L, XL, XXL">
+                            <select name="size_range" class="form-select text-dark" required>
+                                <?php foreach ($styleVariables['size_range'] ?? [] as $sz): ?>
+                                    <option value="<?= htmlspecialchars($sz) ?>"><?= htmlspecialchars($sz) ?></option>
+                                <?php endforeach; ?>
+                            </select>
                         </div>
                         <div class="mb-3">
                             <label class="form-label small fw-bold">Description</label>

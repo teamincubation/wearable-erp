@@ -11,6 +11,7 @@ use App\Models\BomCategory;
 use App\Models\Warehouse;
 use App\Models\Branch;
 use App\Models\AuditLog;
+use App\Models\StyleVariable;
 
 /**
  * Master Data Hub Operations Controller
@@ -73,6 +74,10 @@ class MasterDataController extends Controller {
         $stmtD->execute([$companyId]);
         $designations = $stmtD->fetchAll() ?: [];
 
+        // Fetch style variables
+        $styleVarModel = new StyleVariable();
+        $styleVariables = $styleVarModel->all();
+
         $this->renderView('company/masterdata', [
             'title' => 'Master Data Hub | Wearable ERP',
             'contacts' => $contacts,
@@ -83,7 +88,8 @@ class MasterDataController extends Controller {
             'shifts' => $shifts,
             'policySettings' => $policySettings,
             'holidays' => $holidays,
-            'designations' => $designations
+            'designations' => $designations,
+            'styleVariables' => $styleVariables
         ]);
     }
 
@@ -648,5 +654,80 @@ class MasterDataController extends Controller {
         }
 
         $this->redirect('company/masterdata?tab=designations');
+    }
+
+    /**
+     * Create a Style Variable
+     */
+    public function createStyleVariable(Request $request, Response $response): void {
+        $type = trim($request->get('type'));
+        $value = trim($request->get('value'));
+
+        if (empty($type) || empty($value)) {
+            Session::setFlash('error', 'Variable type and value are required.');
+            $this->redirect('company/masterdata?tab=style_vars');
+            return;
+        }
+
+        $styleVarModel = new StyleVariable();
+        $id = $styleVarModel->insert([
+            'type' => $type,
+            'value' => $value,
+            'created_by' => Session::get('user_id')
+        ]);
+
+        AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'create_style_variable', 'StyleVariable', $id, null, null, "Created Style Variable: [{$type}] {$value}");
+        Session::setFlash('success', "Style Variable '{$value}' added successfully.");
+        $this->redirect('company/masterdata?tab=style_vars');
+    }
+
+    /**
+     * Edit a Style Variable
+     */
+    public function editStyleVariable(Request $request, Response $response, string $id): void {
+        $styleVarModel = new StyleVariable();
+        $var = $styleVarModel->find($id);
+
+        if (!$var) {
+            Session::setFlash('error', 'Style Variable not found.');
+            $this->redirect('company/masterdata?tab=style_vars');
+            return;
+        }
+
+        $value = trim($request->get('value'));
+        if (empty($value)) {
+            Session::setFlash('error', 'Variable value cannot be empty.');
+            $this->redirect('company/masterdata?tab=style_vars');
+            return;
+        }
+
+        $styleVarModel->update($id, [
+            'value' => $value,
+            'updated_by' => Session::get('user_id')
+        ]);
+
+        AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'edit_style_variable', 'StyleVariable', (int)$id, null, null, "Updated Style Variable: [{$var['type']}] {$value}");
+        Session::setFlash('success', "Style Variable updated successfully.");
+        $this->redirect('company/masterdata?tab=style_vars');
+    }
+
+    /**
+     * Delete a Style Variable
+     */
+    public function deleteStyleVariable(Request $request, Response $response, string $id): void {
+        $styleVarModel = new StyleVariable();
+        $var = $styleVarModel->find($id);
+
+        if (!$var) {
+            Session::setFlash('error', 'Style Variable not found.');
+            $this->redirect('company/masterdata?tab=style_vars');
+            return;
+        }
+
+        $styleVarModel->delete($id, Session::get('user_id'));
+
+        AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'delete_style_variable', 'StyleVariable', (int)$id, null, null, "Deleted Style Variable: [{$var['type']}] {$var['value']}");
+        Session::setFlash('success', "Style Variable deleted successfully.");
+        $this->redirect('company/masterdata?tab=style_vars');
     }
 }

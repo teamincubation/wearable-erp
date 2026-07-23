@@ -4,6 +4,9 @@
         <p class="text-secondary m-0">Live stock balances and pricing values across all company facilities</p>
     </div>
     <div>
+        <a href="<?= base_url('company/purchase/orders') ?>" class="btn btn-outline-success rounded-pill px-4 me-2">
+            <i class="fa-solid fa-cart-shopping me-1"></i> Procurement
+        </a>
         <a href="<?= base_url('company/inventory/ledger') ?>" class="btn btn-primary rounded-pill px-4">
             <i class="fa-solid fa-list me-1"></i> Stock Transaction Ledger
         </a>
@@ -24,9 +27,11 @@
                             <tr>
                                 <th>Item Description Name</th>
                                 <th>Category / Type</th>
-                                <th>Stock Level Balance</th>
+                                <th>Total Stock Count</th>
                                 <th>Avg Invoice Unit Price</th>
-                                <th>Estimated Value</th>
+                                <th>Worth</th>
+                                <th>Used Count</th>
+                                <th>Pending in Stock</th>
                                 <th>Generate Bundle Tickets</th>
                             </tr>
                         </thead>
@@ -42,10 +47,16 @@
                                             <span class="badge bg-light text-secondary text-capitalize"><?= htmlspecialchars($item['item_type']) ?></span>
                                         </td>
                                         <td>
-                                            <strong class="font-monospace text-primary"><?= number_format($item['current_balance'], 2) ?></strong>
+                                            <span class="font-monospace text-secondary"><?= number_format($item['total_received'], 2) ?></span>
                                         </td>
                                         <td>₹<?= number_format($item['avg_price'], 2) ?></td>
                                         <td class="text-success font-monospace fw-bold">₹<?= number_format($estValue, 2) ?></td>
+                                        <td>
+                                            <span class="font-monospace text-danger">-<?= number_format($item['total_used'], 2) ?></span>
+                                        </td>
+                                        <td>
+                                            <strong class="font-monospace text-primary"><?= number_format($item['current_balance'], 2) ?></strong>
+                                        </td>
                                         <td>
                                             <?php if ($item['item_type'] === 'fabric' || $item['item_type'] === 'finished'): ?>
                                                 <a href="<?= base_url('company/inventory/barcode?style_no=' . urlencode($item['item_name']) . '&qty=' . $item['current_balance']) ?>" class="btn btn-sm btn-outline-primary px-3 rounded-pill">
@@ -59,7 +70,7 @@
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="6" class="text-center p-5 text-secondary">
+                                    <td colspan="8" class="text-center p-5 text-secondary">
                                         <i class="fa-solid fa-warehouse fs-1 mb-3 text-light"></i>
                                         <p class="m-0">No active stock levels found. Stock levels will update once a GRN is approved.</p>
                                     </td>

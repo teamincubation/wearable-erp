@@ -9,11 +9,16 @@ $paymentAccountsList = $stmtAccs->fetchAll() ?: [];
         <h3 class="fw-bold">Supplier Purchase Orders</h3>
         <p class="text-secondary m-0">Procure raw materials, yarn, fabric, and packing materials from suppliers</p>
     </div>
-    <?php if (\App\Core\Auth::hasPermission('company.styles.manage')): ?>
-        <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#addSupplierPoModal">
-            <i class="fa-solid fa-cart-plus me-1"></i> New Purchase Order
-        </button>
-    <?php endif; ?>
+    <div>
+        <a href="<?= base_url('company/inventory/balances') ?>" class="btn btn-outline-primary rounded-pill px-4 me-2">
+            <i class="fa-solid fa-boxes-stacked me-1"></i> Stock Inventory
+        </a>
+        <?php if (\App\Core\Auth::hasPermission('company.styles.manage')): ?>
+            <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#addSupplierPoModal">
+                <i class="fa-solid fa-cart-plus me-1"></i> New Purchase Order
+            </button>
+        <?php endif; ?>
+    </div>
 </div>
 
 <div class="pepp-card">

@@ -37,6 +37,11 @@
             <i class="fa-solid fa-id-card-clip me-2" style="color: #a855f7;"></i> Designations
         </button>
     </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold px-4 py-2.5" id="style_vars-tab" data-bs-toggle="tab" data-bs-target="#style_vars-pane" type="button" role="tab" aria-selected="false">
+            <i class="fa-solid fa-sliders me-2 text-primary"></i> Style Variables
+        </button>
+    </li>
 </ul>
 
 <!-- Tabs Content -->
@@ -972,6 +977,112 @@
         </form>
     </div>
 </div>
+
+    <!-- 7. Style Variables Pane -->
+    <div class="tab-pane fade" id="style_vars-pane" role="tabpanel" tabindex="0">
+        <?php
+        $varsGrouped = [
+            'category' => ['title' => 'Categories', 'icon' => 'fa-solid fa-list-check', 'placeholder' => 'e.g. Unisex, Men, Kids, Women', 'items' => []],
+            'gsm' => ['title' => 'GSM Options', 'icon' => 'fa-solid fa-weight-scale', 'placeholder' => 'e.g. 160, 180, 200, 220', 'items' => []],
+            'color' => ['title' => 'Color Shades', 'icon' => 'fa-solid fa-palette', 'placeholder' => 'e.g. Red, Blue, Navy, Melange', 'items' => []],
+            'brand' => ['title' => 'Brands', 'icon' => 'fa-solid fa-copyright', 'placeholder' => 'e.g. Wearable, Wellgro, Pepp', 'items' => []],
+            'size_range' => ['title' => 'Size Ranges', 'icon' => 'fa-solid fa-ruler-horizontal', 'placeholder' => 'e.g. S,M,L,XL,XXL or XS,S,M,L', 'items' => []]
+        ];
+        foreach ($styleVariables ?? [] as $v) {
+            if (isset($varsGrouped[$v['type']])) {
+                $varsGrouped[$v['type']]['items'][] = $v;
+            }
+        }
+        ?>
+        <div class="row g-4">
+            <?php foreach ($varsGrouped as $type => $group): ?>
+                <div class="col-lg-4 col-md-6 col-sm-12">
+                    <div class="pepp-card h-100">
+                        <div class="pepp-card-header d-flex justify-content-between align-items-center bg-light">
+                            <h6 class="pepp-card-title m-0 text-dark"><i class="<?= $group['icon'] ?> text-primary me-2"></i> <?= htmlspecialchars($group['title']) ?></h6>
+                            <?php if (\App\Core\Auth::hasPermission('company.styles.manage')): ?>
+                                <button class="btn btn-sm btn-outline-primary py-0.5 px-2 rounded-pill" data-bs-toggle="modal" data-bs-target="#addStyleVarModal-<?= $type ?>">
+                                    <i class="fa-solid fa-plus small"></i> Add
+                                </button>
+                            <?php endif; ?>
+                        </div>
+                        <div class="pepp-card-body p-0" style="max-height: 400px; overflow-y: auto;">
+                            <ul class="list-group list-group-flush mb-0">
+                                <?php if (!empty($group['items'])): ?>
+                                    <?php foreach ($group['items'] as $item): ?>
+                                        <li class="list-group-item d-flex align-items-center justify-content-between py-2.5 px-3">
+                                            <span class="text-dark fw-semibold"><?= htmlspecialchars($item['value']) ?></span>
+                                            <div>
+                                                <?php if (\App\Core\Auth::hasPermission('company.styles.manage')): ?>
+                                                    <button class="btn btn-sm btn-link text-secondary p-0 me-2 border-0 bg-transparent" data-bs-toggle="modal" data-bs-target="#editStyleVarModal-<?= $item['id'] ?>"><i class="fa-regular fa-edit"></i></button>
+                                                    <form action="<?= base_url('company/masterdata/stylevariables/delete/' . $item['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete this variable option?');">
+                                                        <?= \App\Core\Session::csrfField() ?>
+                                                        <button type="submit" class="btn btn-sm btn-link text-danger p-0 border-0 bg-transparent"><i class="fa-solid fa-trash-can"></i></button>
+                                                    </form>
+                                                <?php endif; ?>
+                                            </div>
+                                        </li>
+
+                                        <!-- Edit Style Variable Modal -->
+                                        <div class="modal fade" id="editStyleVarModal-<?= $item['id'] ?>" tabindex="-1" aria-hidden="true">
+                                            <div class="modal-dialog modal-dialog-centered modal-sm">
+                                                <form action="<?= base_url('company/masterdata/stylevariables/edit/' . $item['id']) ?>" method="POST">
+                                                    <?= \App\Core\Session::csrfField() ?>
+                                                    <div class="modal-content text-start text-dark" style="border-radius: 12px;">
+                                                        <div class="modal-header py-2.5">
+                                                            <h6 class="modal-title fw-bold">Edit <?= htmlspecialchars(rtrim($group['title'], 's')) ?></h6>
+                                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                        </div>
+                                                        <div class="modal-body py-3">
+                                                            <label class="form-label small fw-bold">Value <span class="text-danger">*</span></label>
+                                                            <input type="text" name="value" class="form-control text-dark" value="<?= htmlspecialchars($item['value']) ?>" required>
+                                                        </div>
+                                                        <div class="modal-footer py-2">
+                                                            <button type="button" class="btn btn-sm btn-light border" data-bs-dismiss="modal">Close</button>
+                                                            <button type="submit" class="btn btn-sm btn-primary px-3">Save</button>
+                                                        </div>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <li class="list-group-item text-center py-4 text-secondary small">
+                                        No <?= strtolower($group['title']) ?> configured yet.
+                                    </li>
+                                <?php endif; ?>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add Style Variable Modal -->
+                <div class="modal fade" id="addStyleVarModal-<?= $type ?>" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered modal-sm">
+                        <form action="<?= base_url('company/masterdata/stylevariables/create') ?>" method="POST">
+                            <?= \App\Core\Session::csrfField() ?>
+                            <input type="hidden" name="type" value="<?= htmlspecialchars($type) ?>">
+                            <div class="modal-content text-start text-dark" style="border-radius: 12px;">
+                                <div class="modal-header py-2.5">
+                                    <h6 class="modal-title fw-bold">Add New <?= htmlspecialchars(rtrim($group['title'], 's')) ?></h6>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body py-3">
+                                    <label class="form-label small fw-bold">Option Value <span class="text-danger">*</span></label>
+                                    <input type="text" name="value" class="form-control text-dark" placeholder="<?= htmlspecialchars($group['placeholder']) ?>" required>
+                                </div>
+                                <div class="modal-footer py-2">
+                                    <button type="button" class="btn btn-sm btn-light border" data-bs-dismiss="modal">Close</button>
+                                    <button type="submit" class="btn btn-sm btn-primary px-3">Add Option</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {

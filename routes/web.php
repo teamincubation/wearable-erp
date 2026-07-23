@@ -257,6 +257,18 @@ $router->post('/company/masterdata/bomcategories/edit/{id}', [\App\Controllers\M
        ->middleware(PermissionMiddleware::class)
        ->permission('company.styles.manage');
 
+$router->post('/company/masterdata/stylevariables/create', [\App\Controllers\MasterDataController::class, 'createStyleVariable'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
+$router->post('/company/masterdata/stylevariables/edit/{id}', [\App\Controllers\MasterDataController::class, 'editStyleVariable'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
 $router->post('/company/masterdata/warehouses/create', [\App\Controllers\MasterDataController::class, 'createWarehouse'])
        ->middleware(AuthMiddleware::class)
        ->middleware(CsrfMiddleware::class)
@@ -673,6 +685,9 @@ $router->post('/company/masterdata/contacts/delete/{id}', [\App\Controllers\Mast
        ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
 
 $router->post('/company/masterdata/bomcategories/delete/{id}', [\App\Controllers\MasterDataController::class, 'deleteBomCategory'])
+       ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
+
+$router->post('/company/masterdata/stylevariables/delete/{id}', [\App\Controllers\MasterDataController::class, 'deleteStyleVariable'])
        ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
 
 $router->post('/company/masterdata/warehouses/delete/{id}', [\App\Controllers\MasterDataController::class, 'deleteWarehouse'])

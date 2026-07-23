@@ -82,7 +82,11 @@ class InventoryService {
      * Get all active stock list in a company
      */
     public function getInventorySummary(int $companyId, ?int $warehouseId = null): array {
-        $sql = "SELECT item_type, item_name, SUM(quantity) as current_balance, AVG(unit_price) as avg_price
+        $sql = "SELECT item_type, item_name, 
+                       SUM(CASE WHEN quantity > 0 THEN quantity ELSE 0 END) as total_received,
+                       SUM(CASE WHEN quantity < 0 THEN ABS(quantity) ELSE 0 END) as total_used,
+                       SUM(quantity) as current_balance,
+                       COALESCE(NULLIF(AVG(CASE WHEN quantity > 0 AND unit_price > 0 THEN unit_price ELSE NULL END), 0), AVG(unit_price), 0) as avg_price
                 FROM inventory_transactions 
                 WHERE company_id = ?";
         $params = [$companyId];

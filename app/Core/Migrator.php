@@ -319,9 +319,80 @@ class Migrator {
                     UPDATE users u 
                     LEFT JOIN companies c ON u.company_id = c.id 
                     SET u.company_id = (SELECT id FROM companies WHERE deleted_at IS NULL ORDER BY id ASC LIMIT 1)
-                    WHERE u.company_id IS NOT NULL AND c.id IS NULL
                 ");
             } catch (\PDOException $e) {}
+
+            // Auto-heal styles table columns
+            try {
+                $checkCatType = $db->query("SHOW COLUMNS FROM `styles` LIKE 'category'");
+                $catCol = $checkCatType->fetch(PDO::FETCH_ASSOC);
+                if ($catCol && strpos(strtolower($catCol['Type']), 'enum') !== false) {
+                    $db->exec("ALTER TABLE `styles` MODIFY COLUMN `category` VARCHAR(100) NOT NULL DEFAULT 'unisex'");
+                }
+                
+                $checkGsm = $db->query("SHOW COLUMNS FROM `styles` LIKE 'gsm'");
+                if (!$checkGsm || $checkGsm->rowCount() === 0) {
+                    $db->exec("ALTER TABLE `styles` ADD COLUMN `gsm` VARCHAR(100) DEFAULT NULL AFTER `composition`");
+                }
+                
+                $checkColor = $db->query("SHOW COLUMNS FROM `styles` LIKE 'color'");
+                if (!$checkColor || $checkColor->rowCount() === 0) {
+                    $db->exec("ALTER TABLE `styles` ADD COLUMN `color` VARCHAR(100) DEFAULT NULL AFTER `composition`");
+                }
+            } catch (\PDOException $e) {}
+
+            // Auto-heal style_variables table and defaults seeding
+            try {
+                $db->exec("CREATE TABLE IF NOT EXISTS `style_variables` (
+                  `id` INT AUTO_INCREMENT PRIMARY KEY,
+                  `company_id` INT NOT NULL,
+                  `type` VARCHAR(50) NOT NULL,
+                  `value` VARCHAR(255) NOT NULL,
+                  `created_by` INT DEFAULT NULL,
+                  `updated_by` INT DEFAULT NULL,
+                  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                  `deleted_at` TIMESTAMP NULL DEFAULT NULL,
+                  CONSTRAINT `fk_style_var_company` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE,
+                  INDEX `idx_style_var_company` (`company_id`),
+                  INDEX `idx_style_var_type` (`type`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+
+                // Seed defaults for any company that has zero style variables
+                $stmtCos = $db->query("SELECT id FROM companies WHERE deleted_at IS NULL");
+                $companiesList = $stmtCos->fetchAll(PDO::FETCH_ASSOC) ?: [];
+                foreach ($companiesList as $comp) {
+                    $stmtCheckVar = $db->prepare("SELECT COUNT(*) FROM style_variables WHERE company_id = ? AND deleted_at IS NULL");
+                    $stmtCheckVar->execute([$comp['id']]);
+                    if ((int)$stmtCheckVar->fetchColumn() === 0) {
+                        // Seed categories
+                        $cats = ['Unisex', 'Men', 'Kids', 'Women'];
+                        $stmtIns = $db->prepare("INSERT INTO style_variables (company_id, type, value) VALUES (?, 'category', ?)");
+                        foreach ($cats as $c) { $stmtIns->execute([$comp['id'], $c]); }
+
+                        // Seed GSMs
+                        $gsms = ['160', '180', '200', '220'];
+                        $stmtIns = $db->prepare("INSERT INTO style_variables (company_id, type, value) VALUES (?, 'gsm', ?)");
+                        foreach ($gsms as $g) { $stmtIns->execute([$comp['id'], $g]); }
+
+                        // Seed Colors
+                        $colors = ['Red', 'Blue', 'Green', 'Black', 'White', 'Navy', 'Melange', 'Yellow'];
+                        $stmtIns = $db->prepare("INSERT INTO style_variables (company_id, type, value) VALUES (?, 'color', ?)");
+                        foreach ($colors as $color) { $stmtIns->execute([$comp['id'], $color]); }
+
+                        // Seed Brands
+                        $brands = ['Wearable', 'Wellgro', 'Pepp', 'BrandX'];
+                        $stmtIns = $db->prepare("INSERT INTO style_variables (company_id, type, value) VALUES (?, 'brand', ?)");
+                        foreach ($brands as $b) { $stmtIns->execute([$comp['id'], $b]); }
+
+                        // Seed Size Ranges
+                        $sizes = ['S,M,L,XL,XXL', 'XS,S,M,L,XL', '2,4,6,8,10', '28,30,32,34,36'];
+                        $stmtIns = $db->prepare("INSERT INTO style_variables (company_id, type, value) VALUES (?, 'size_range', ?)");
+                        foreach ($sizes as $sz) { $stmtIns->execute([$comp['id'], $sz]); }
+                    }
+                }
+            } catch (\PDOException $e) {}
+
 
             // Restore foreign key checks
             $db->exec("SET FOREIGN_KEY_CHECKS = 1;");

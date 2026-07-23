@@ -128,13 +128,14 @@
                     <div class="table-responsive border-0">
                         <table class="table pepp-table mb-0" id="sizeTable">
                             <thead>
+                                <?php
+                                $sizes = explode(',', $style['size_range'] ?: 'S,M,L,XL,XXL');
+                                ?>
                                 <tr>
                                     <th>Measurement Parameter / Point of Measure</th>
-                                    <th style="width: 100px;">Size S</th>
-                                    <th style="width: 100px;">Size M</th>
-                                    <th style="width: 100px;">Size L</th>
-                                    <th style="width: 100px;">Size XL</th>
-                                    <th style="width: 100px;">Size XXL</th>
+                                    <?php foreach ($sizes as $sz): ?>
+                                        <th class="text-center" style="width: 100px;">Size <?= htmlspecialchars(trim($sz)) ?></th>
+                                    <?php endforeach; ?>
                                     <th class="text-center" style="width: 50px;">Remove</th>
                                 </tr>
                             </thead>
@@ -145,11 +146,13 @@
                                             <td>
                                                 <input type="text" name="size_parameter[]" class="form-control form-control-sm" value="<?= htmlspecialchars($size['parameter']) ?>" placeholder="e.g. Chest Width, Total Length" required>
                                             </td>
-                                            <td><input type="text" name="size_s[]" class="form-control form-control-sm text-center" value="<?= htmlspecialchars($size['s']) ?>"></td>
-                                            <td><input type="text" name="size_m[]" class="form-control form-control-sm text-center" value="<?= htmlspecialchars($size['m']) ?>"></td>
-                                            <td><input type="text" name="size_l[]" class="form-control form-control-sm text-center" value="<?= htmlspecialchars($size['l']) ?>"></td>
-                                            <td><input type="text" name="size_xl[]" class="form-control form-control-sm text-center" value="<?= htmlspecialchars($size['xl']) ?>"></td>
-                                            <td><input type="text" name="size_xxl[]" class="form-control form-control-sm text-center" value="<?= htmlspecialchars($size['xxl']) ?>"></td>
+                                            <?php foreach ($sizes as $sz): ?>
+                                                <?php 
+                                                $szKey = strtolower(trim($sz));
+                                                $szVal = $size[$szKey] ?? $size[trim($sz)] ?? '';
+                                                ?>
+                                                <td><input type="text" name="sizes[<?= htmlspecialchars(trim($sz)) ?>][]" class="form-control form-control-sm text-center" value="<?= htmlspecialchars($szVal) ?>"></td>
+                                            <?php endforeach; ?>
                                             <td class="text-center">
                                                 <button type="button" class="btn btn-sm btn-link text-danger remove-row-btn p-0"><i class="fa-regular fa-trash-can"></i></button>
                                             </td>
@@ -157,7 +160,7 @@
                                     <?php endforeach; ?>
                                 <?php else: ?>
                                     <tr class="empty-size-indicator">
-                                        <td colspan="7" class="text-center p-4 text-secondary">
+                                        <td colspan="<?= count($sizes) + 2 ?>" class="text-center p-4 text-secondary">
                                             No dimensions configured in Measurement Guide. Click "Add Measurement Point" to configure sizing parameters.
                                         </td>
                                     </tr>
@@ -265,11 +268,9 @@ document.addEventListener('DOMContentLoaded', function() {
             <td>
                 <input type="text" name="size_parameter[]" class="form-control form-control-sm" placeholder="e.g. Chest circumference, Body length" required>
             </td>
-            <td><input type="text" name="size_s[]" class="form-control form-control-sm text-center" value="0"></td>
-            <td><input type="text" name="size_m[]" class="form-control form-control-sm text-center" value="0"></td>
-            <td><input type="text" name="size_l[]" class="form-control form-control-sm text-center" value="0"></td>
-            <td><input type="text" name="size_xl[]" class="form-control form-control-sm text-center" value="0"></td>
-            <td><input type="text" name="size_xxl[]" class="form-control form-control-sm text-center" value="0"></td>
+            <?php foreach ($sizes as $sz): ?>
+                <td><input type="text" name="sizes[<?= htmlspecialchars(trim($sz)) ?>][]" class="form-control form-control-sm text-center" value="0"></td>
+            <?php endforeach; ?>
             <td class="text-center">
                 <button type="button" class="btn btn-sm btn-link text-danger remove-row-btn p-0"><i class="fa-regular fa-trash-can"></i></button>
             </td>

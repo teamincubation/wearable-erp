@@ -206,6 +206,11 @@ class PurchaseController extends Controller {
         $paymentAccountId = $request->get('payment_account_id') ? (int)$request->get('payment_account_id') : null;
         $paymentDate = $request->get('payment_date') ?: null;
 
+        $itemNames = $request->get('item_name') ?: [];
+        $itemTypes = $request->get('item_type') ?: [];
+        $quantities = $request->get('quantity') ?: [];
+        $prices = $request->get('unit_price') ?: [];
+
         if (empty($supplierId) || empty($poNo) || empty($date)) {
             Session::setFlash('error', 'Supplier details, PO Number, and Date are required.');
             $this->redirect('company/purchase/orders');
@@ -276,6 +281,10 @@ class PurchaseController extends Controller {
             }
 
             $db->commit();
+
+            if ($status === 'grn_completed') {
+                $this->autoStockPurchaseOrder($companyId, (int)$id, $poNo, (int)Session::get('user_id'));
+            }
 
             AuditLog::log($companyId, Session::get('user_id'), 'edit_supplier_po', 'PurchaseOrder', (int)$id, null, null, "Updated supplier purchase order: {$poNo}");
             Session::setFlash('success', 'Supplier Purchase Order updated successfully.');
@@ -388,6 +397,12 @@ class PurchaseController extends Controller {
 
                     // Ledger Hook: Update inventory stock levels immediately for accepted quantities
                     if ($accepted > 0) {
+                        $unitPrice = 0.00;
+                        if ($poId) {
+                            $stmtPrice = $db->prepare("SELECT unit_price FROM purchase_order_items WHERE po_id = ? AND item_name = ? LIMIT 1");
+                            $stmtPrice->execute([$poId, trim($itemNames[$i])]);
+                            $unitPrice = (float)($stmtPrice->fetchColumn() ?: 0.00);
+                        }
                         $inventoryService->recordTransaction(
                             $companyId,
                             $warehouseId,
@@ -398,7 +413,7 @@ class PurchaseController extends Controller {
                             'grn',
                             $grnId,
                             $batch,
-                            0.00, // Value populated from PO if linked, otherwise zero default
+                            $unitPrice,
                             $userId
                         );
                     }
@@ -478,6 +493,10 @@ class PurchaseController extends Controller {
             'payment_date' => $newStatus === 'grn_completed' ? $paymentDate : null
         ]);
 
+        if ($newStatus === 'grn_completed') {
+            $this->autoStockPurchaseOrder(Session::get('company_id'), (int)$id, $po['po_no'], (int)Session::get('user_id'));
+        }
+
         AuditLog::log(
             Session::get('company_id'), 
             Session::get('user_id'), 
@@ -491,5 +510,54 @@ class PurchaseController extends Controller {
 
         Session::setFlash('success', "Purchase Order status updated to " . ($newStatus === 'approved' ? 'Pending' : ucfirst($newStatus)) . " successfully.");
         $this->redirect('company/purchase/orders');
+    }
+
+    /**
+     * Automatically log items to the stock ledger upon Purchase Order completion
+     */
+    private function autoStockPurchaseOrder(int $companyId, int $poId, string $poNo, int $userId): void {
+        $db = Database::getInstance();
+        
+        // Check if stock is already logged for this PO to prevent duplicate entries
+        $stmtLogged = $db->prepare("SELECT COUNT(*) FROM inventory_transactions WHERE (reference_type = 'po' AND reference_id = ?) OR (reference_type = 'grn' AND reference_id IN (SELECT id FROM grns WHERE po_id = ?))");
+        $stmtLogged->execute([$poId, $poId]);
+        $isLogged = (int)$stmtLogged->fetchColumn() > 0;
+
+        if (!$isLogged) {
+            // Fetch first active warehouse
+            $stmtWh = $db->prepare("SELECT id FROM warehouses WHERE company_id = ? AND status = 'active' ORDER BY id ASC LIMIT 1");
+            $stmtWh->execute([$companyId]);
+            $warehouseId = $stmtWh->fetchColumn();
+
+            if (!$warehouseId) {
+                // Fallback to any warehouse
+                $stmtWhFallback = $db->prepare("SELECT id FROM warehouses WHERE company_id = ? ORDER BY id ASC LIMIT 1");
+                $stmtWhFallback->execute([$companyId]);
+                $warehouseId = $stmtWhFallback->fetchColumn();
+            }
+
+            if ($warehouseId) {
+                $stmtItems = $db->prepare("SELECT * FROM purchase_order_items WHERE po_id = ? AND deleted_at IS NULL");
+                $stmtItems->execute([$poId]);
+                $poItems = $stmtItems->fetchAll() ?: [];
+
+                $inventoryService = new \App\Services\InventoryService();
+                foreach ($poItems as $item) {
+                    $inventoryService->recordTransaction(
+                        $companyId,
+                        $warehouseId,
+                        $item['item_type'],
+                        $item['item_name'],
+                        (float)$item['quantity'],
+                        'in',
+                        'po',
+                        $poId,
+                        'PO-' . $poNo,
+                        (float)$item['unit_price'],
+                        $userId
+                    );
+                }
+            }
+        }
     }
 }
