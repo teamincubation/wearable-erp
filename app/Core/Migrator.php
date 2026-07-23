@@ -472,6 +472,17 @@ class Migrator {
                 }
             } catch (\PDOException $e) {}
 
+            // Ensure production_orders has started_at and completed_at columns
+            try {
+                $db->query("SELECT started_at, completed_at FROM production_orders LIMIT 1");
+            } catch (\Exception $e) {
+                try {
+                    $db->exec("ALTER TABLE production_orders ADD COLUMN started_at TIMESTAMP NULL DEFAULT NULL AFTER end_date");
+                    $db->exec("ALTER TABLE production_orders ADD COLUMN completed_at TIMESTAMP NULL DEFAULT NULL AFTER started_at");
+                    $db->exec("ALTER TABLE production_orders MODIFY COLUMN status VARCHAR(50) NOT NULL DEFAULT 'pending'");
+                } catch (\Exception $ex) {}
+            }
+
 
             // Restore foreign key checks
             $db->exec("SET FOREIGN_KEY_CHECKS = 1;");

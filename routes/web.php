@@ -377,6 +377,15 @@ $router->post('/company/buyers/status/{id}', [\App\Controllers\BuyerController::
        ->middleware(PermissionMiddleware::class)
        ->permission('company.styles.manage');
 
+$router->get('/company/buyers/sample-template', [\App\Controllers\BuyerController::class, 'downloadSampleTemplate'])
+       ->middleware(AuthMiddleware::class);
+
+$router->post('/company/buyers/import', [\App\Controllers\BuyerController::class, 'importExcel'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
 $router->post('/company/buyers/delete/{id}', [\App\Controllers\BuyerController::class, 'delete'])
        ->middleware(AuthMiddleware::class)
        ->middleware(CsrfMiddleware::class)
@@ -497,6 +506,23 @@ $router->post('/company/production/orders/create', [\App\Controllers\ProductionC
        ->middleware(CsrfMiddleware::class)
        ->middleware(PermissionMiddleware::class)
        ->permission('company.production.manage');
+
+$router->post('/company/production/start/{id}', [\App\Controllers\ProductionController::class, 'startOrder'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.production.manage');
+
+$router->post('/company/production/complete/{id}', [\App\Controllers\ProductionController::class, 'completeOrder'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.production.manage');
+
+$router->get('/company/production/completed', [\App\Controllers\ProductionController::class, 'completedProducts'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.production.view');
 
 $router->get('/company/production/stage/{id}', [\App\Controllers\ProductionController::class, 'stage'])
        ->middleware(AuthMiddleware::class)

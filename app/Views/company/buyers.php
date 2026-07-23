@@ -3,11 +3,16 @@
         <h3 class="fw-bold m-0 text-dark"><i class="fa-solid fa-user-tie text-primary me-2"></i> Buyers & Clients Master</h3>
         <p class="text-secondary small m-0 mt-1">Manage global export buyers, brand accounts, payment terms, and client profiles</p>
     </div>
-    <?php if (\App\Core\Auth::hasPermission('company.styles.manage')): ?>
-        <button class="btn btn-pepp-primary rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#addBuyerModal">
-            <i class="fa-solid fa-plus me-1"></i> Register New Buyer Client
-        </button>
-    <?php endif; ?>
+    <div>
+        <?php if (\App\Core\Auth::hasPermission('company.styles.manage')): ?>
+            <button class="btn btn-outline-primary rounded-pill px-3 me-2" data-bs-toggle="modal" data-bs-target="#importBuyerModal">
+                <i class="fa-solid fa-file-excel me-1 text-success"></i> Import Buyers (Excel/CSV)
+            </button>
+            <button class="btn btn-pepp-primary rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#addBuyerModal">
+                <i class="fa-solid fa-plus me-1"></i> Register New Buyer Client
+            </button>
+        <?php endif; ?>
+    </div>
 </div>
 
 <!-- Key Performance Indicators (Metrics Row) -->
@@ -355,6 +360,44 @@
                 <div class="modal-footer border-0">
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-pepp-primary"><i class="fa-solid fa-circle-check me-1"></i> Register Buyer Client</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Import Buyers & Clients Modal -->
+<div class="modal fade" id="importBuyerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form action="<?= base_url('company/buyers/import') ?>" method="POST" enctype="multipart/form-data">
+            <?= \App\Core\Session::csrfField() ?>
+            <div class="modal-content text-start" style="border-radius: 12px;">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-file-excel text-success me-2"></i> Import Multiple Buyers & Clients</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-start">
+                    <div class="p-3 bg-light border rounded mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong class="d-block text-dark small"><i class="fa-solid fa-download me-1 text-primary"></i> Need a sample template?</strong>
+                                <span class="text-secondary small">Download our formatted CSV template to prepare your list.</span>
+                            </div>
+                            <a href="<?= base_url('company/buyers/sample-template') ?>" class="btn btn-sm btn-outline-success rounded-pill px-3">
+                                <i class="fa-solid fa-download me-1"></i> Download Template
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Select CSV / Excel File <span class="text-danger">*</span></label>
+                        <input type="file" name="excel_file" class="form-control" accept=".csv, .xls, .xlsx" required>
+                        <div class="form-text small">Supported formats: .csv, .xls, .xlsx. Ensure company name column is filled.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-success px-4"><i class="fa-solid fa-upload me-1"></i> Upload & Import Buyers</button>
                 </div>
             </div>
         </form>

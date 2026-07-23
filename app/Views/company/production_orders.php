@@ -7,8 +7,8 @@
         <button class="btn btn-outline-info rounded-pill px-3 me-2 fw-semibold" data-bs-toggle="modal" data-bs-target="#productionWorkflowHelpModal" style="border-width: 2px;" type="button">
             <i class="fa-solid fa-circle-question me-1"></i> How It Works?
         </button>
-        <a href="<?= base_url('company/production/quality') ?>" class="btn btn-outline-secondary rounded-pill px-4 me-2">
-            <i class="fa-solid fa-clipboard-check me-1"></i> Quality Inspections
+        <a href="<?= base_url('company/production/completed') ?>" class="btn btn-outline-success rounded-pill px-4 me-2">
+            <i class="fa-solid fa-box-archive me-1"></i> Completed Products
         </a>
         <?php if (\App\Core\Auth::hasPermission('company.production.manage')): ?>
             <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#addProductionOrderModal">
@@ -17,20 +17,6 @@
         <?php endif; ?>
     </div>
 </div>
-
-<?php
-$activeOrders = [];
-$completedOrders = [];
-if (!empty($orders)) {
-    foreach ($orders as $o) {
-        if ($o['status'] === 'completed') {
-            $completedOrders[] = $o;
-        } else {
-            $activeOrders[] = $o;
-        }
-    }
-}
-?>
 
 <!-- Search Filter Input -->
 <div class="mb-4 d-print-none">
@@ -42,26 +28,42 @@ if (!empty($orders)) {
 
 <!-- Active Batches Panel -->
 <div class="pepp-card mb-4">
-    <div class="pepp-card-header bg-light">
-        <h5 class="pepp-card-title text-primary"><i class="fa-solid fa-industry me-2"></i> Active Manufacturing Batches Queue</h5>
+    <div class="pepp-card-header bg-light d-flex justify-content-between align-items-center">
+        <h5 class="pepp-card-title text-primary m-0"><i class="fa-solid fa-industry me-2"></i> Active Manufacturing Batches Queue</h5>
+        <a href="<?= base_url('company/production/completed') ?>" class="small text-decoration-none fw-semibold text-success"><i class="fa-solid fa-clock-rotate-left me-1"></i> View Completed Archive &rarr;</a>
     </div>
     <div class="pepp-card-body p-0">
         <div class="table-responsive border-0">
-            <table class="table pepp-table mb-0">
+            <table class="table pepp-table mb-0 align-middle">
                 <thead>
                     <tr>
                         <th>Batch Code No</th>
                         <th>Linked Buyer PO</th>
                         <th>Style Description</th>
                         <th>Target Qty</th>
-                        <th>Date Launched</th>
+                        <th>Date Planned</th>
+                        <th>Work Time Duration</th>
                         <th>Status</th>
                         <th class="text-end">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="active-tbody">
-                    <?php if (!empty($activeOrders)): ?>
-                        <?php foreach ($activeOrders as $o): ?>
+                    <?php if (!empty($orders)): ?>
+                        <?php foreach ($orders as $o): ?>
+                            <?php 
+                            $isStarted = ($o['status'] === 'running' || $o['status'] === 'in_progress' || !empty($o['started_at']));
+                            
+                            // Work duration counter
+                            $durationText = 'Not Started';
+                            if ($isStarted) {
+                                $startTs = strtotime($o['started_at'] ?: $o['created_at']);
+                                $diffSecs = max(0, time() - $startTs);
+                                $days = floor($diffSecs / 86400);
+                                $hrs = floor(($diffSecs % 86400) / 3600);
+                                $mins = floor(($diffSecs % 3600) / 60);
+                                $durationText = ($days > 0 ? "{$days}d " : "") . "{$hrs}h {$mins}m";
+                            }
+                            ?>
                             <tr class="production-table-row" 
                                 data-batch-no="<?= htmlspecialchars($o['production_no']) ?>"
                                 data-po-no="<?= htmlspecialchars($o['buyer_po_no']) ?>"
@@ -80,17 +82,43 @@ if (!empty($orders)) {
                                 <td class="fw-bold font-monospace"><?= number_format($o['target_qty']) ?> pcs</td>
                                 <td><?= date('d M Y', strtotime($o['start_date'])) ?></td>
                                 <td>
-                                    <span class="badge badge-pepp badge-info text-capitalize">
-                                        <?= htmlspecialchars($o['status']) ?>
-                                    </span>
+                                    <?php if ($isStarted): ?>
+                                        <span class="badge bg-primary bg-opacity-10 text-primary font-monospace border px-2 py-1">
+                                            <i class="fa-solid fa-stopwatch me-1 text-primary"></i> <?= $durationText ?>
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="badge bg-light text-secondary border px-2 py-1">
+                                            <i class="fa-regular fa-clock me-1"></i> Not Started Yet
+                                        </span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if ($isStarted): ?>
+                                        <span class="badge bg-primary text-white text-capitalize">
+                                            <i class="fa-solid fa-spinner fa-spin me-1"></i> WIP Operations
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="badge bg-secondary text-white text-capitalize">
+                                            <i class="fa-solid fa-hourglass-start me-1"></i> Pending Start
+                                        </span>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="text-end">
                                     <div class="btn-group">
-                                        <a href="<?= base_url('company/production/stage/' . $o['id']) ?>" class="btn btn-sm btn-outline-primary px-3 rounded-pill me-1">
-                                            <i class="fa-solid fa-list-check me-1"></i> Stage Tracker / WIP
-                                        </a>
-                                        <a href="<?= base_url('company/production/barcode?id=' . $o['id']) ?>" class="btn btn-sm btn-outline-success px-3 rounded-pill me-1">
-                                            <i class="fa-solid fa-qrcode me-1"></i> Print QR Codes
+                                        <?php if (!$isStarted): ?>
+                                            <form action="<?= base_url('company/production/start/' . $o['id']) ?>" method="POST" class="d-inline">
+                                                <?= \App\Core\Session::csrfField() ?>
+                                                <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 me-1">
+                                                    <i class="fa-solid fa-play me-1"></i> Start Production
+                                                </button>
+                                            </form>
+                                        <?php else: ?>
+                                            <a href="<?= base_url('company/production/stage/' . $o['id']) ?>" class="btn btn-sm btn-primary rounded-pill px-3 me-1">
+                                                <i class="fa-solid fa-list-check me-1"></i> Stage Tracked / WIP
+                                            </a>
+                                        <?php endif; ?>
+                                        <a href="<?= base_url('company/production/barcode?id=' . $o['id']) ?>" class="btn btn-sm btn-outline-success rounded-pill px-3 me-1">
+                                            <i class="fa-solid fa-qrcode me-1"></i> QR Codes
                                         </a>
                                         <form action="<?= base_url('company/production/orders/delete/' . $o['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete this production order?');">
                                             <?= \App\Core\Session::csrfField() ?>
@@ -102,7 +130,7 @@ if (!empty($orders)) {
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="7" class="text-center p-5 text-secondary">
+                            <td colspan="8" class="text-center p-5 text-secondary">
                                 <i class="fa-solid fa-industry fs-1 mb-3 text-light"></i>
                                 <p class="m-0">No active production order batches currently running.</p>
                             </td>
@@ -114,75 +142,6 @@ if (!empty($orders)) {
     </div>
 </div>
 
-<!-- Completed Batches Archive Panel -->
-<div class="pepp-card mb-4">
-    <div class="pepp-card-header bg-light">
-        <h5 class="pepp-card-title text-success"><i class="fa-solid fa-circle-check me-2"></i> Completed Production Batches Archive</h5>
-    </div>
-    <div class="pepp-card-body p-0">
-        <div class="table-responsive border-0">
-            <table class="table pepp-table mb-0">
-                <thead>
-                    <tr>
-                        <th>Batch Code No</th>
-                        <th>Linked Buyer PO</th>
-                        <th>Style Description</th>
-                        <th>Target Qty</th>
-                        <th>Date Launched</th>
-                        <th>Status</th>
-                        <th class="text-end">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="completed-tbody">
-                    <?php if (!empty($completedOrders)): ?>
-                        <?php foreach ($completedOrders as $o): ?>
-                            <tr class="production-table-row" 
-                                data-batch-no="<?= htmlspecialchars($o['production_no']) ?>"
-                                data-po-no="<?= htmlspecialchars($o['buyer_po_no']) ?>"
-                                data-style-no="<?= htmlspecialchars($o['style_no']) ?>"
-                                data-style-name="<?= htmlspecialchars($o['style_name']) ?>">
-                                <td>
-                                    <strong class="text-success font-monospace"><?= htmlspecialchars($o['production_no']) ?></strong>
-                                </td>
-                                <td><span class="badge bg-light text-secondary font-monospace"><?= htmlspecialchars($o['buyer_po_no']) ?></span></td>
-                                <td>
-                                    <div>
-                                        <strong class="text-dark"><?= htmlspecialchars($o['style_no']) ?></strong>
-                                        <div class="text-secondary small"><?= htmlspecialchars($o['style_name']) ?></div>
-                                    </div>
-                                </td>
-                                <td class="fw-bold font-monospace"><?= number_format($o['target_qty']) ?> pcs</td>
-                                <td><?= date('d M Y', strtotime($o['start_date'])) ?></td>
-                                <td>
-                                    <span class="badge badge-pepp badge-success">
-                                        Completed
-                                    </span>
-                                </td>
-                                <td class="text-end">
-                                    <div class="btn-group">
-                                        <a href="<?= base_url('company/production/stage/' . $o['id']) ?>" class="btn btn-sm btn-outline-primary px-3 rounded-pill me-1">
-                                            <i class="fa-solid fa-list-check me-1"></i> Stage Tracker / WIP
-                                        </a>
-                                        <a href="<?= base_url('company/production/barcode?id=' . $o['id']) ?>" class="btn btn-sm btn-outline-success px-3 rounded-pill me-1">
-                                            <i class="fa-solid fa-qrcode me-1"></i> Print QR Codes
-                                        </a>
-                                        <form action="<?= base_url('company/production/orders/delete/' . $o['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete this production order?');">
-                                            <?= \App\Core\Session::csrfField() ?>
-                                            <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <tr>
-                            <td colspan="7" class="text-center p-5 text-secondary">
-                                <i class="fa-solid fa-circle-check fs-1 mb-3 text-light"></i>
-                                <p class="m-0">No completed production batches in the archive yet.</p>
-                            </td>
-                        </tr>
-                    <?php endif; ?>
-                </tbody>
             </table>
         </div>
     </div>

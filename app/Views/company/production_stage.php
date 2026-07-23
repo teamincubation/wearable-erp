@@ -4,8 +4,13 @@
         <h3 class="fw-bold">WIP Operations Stage Tracker</h3>
         <p class="text-secondary m-0">Order: <strong class="font-monospace"><?= htmlspecialchars($order['production_no']) ?></strong> | Style: <strong><?= htmlspecialchars($order['style_no']) ?> (<?= htmlspecialchars($order['style_name']) ?>)</strong></p>
     </div>
-    <div>
+    <div class="d-flex align-items-center gap-2">
         <span class="badge bg-primary p-2.5 rounded-pill"><i class="fa-solid fa-bullseye me-1"></i> Target Contract: <?= number_format($order['target_qty']) ?> pcs</span>
+        <?php if (\App\Core\Auth::hasPermission('company.production.manage')): ?>
+            <button type="button" class="btn btn-danger rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#completeBatchModal">
+                <i class="fa-solid fa-flag-checkered me-1"></i> Mark Production Completed
+            </button>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -356,5 +361,35 @@
                 <?php endif; ?>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal for Completing Batch -->
+<div class="modal fade" id="completeBatchModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form action="<?= base_url('company/production/complete/' . $order['id']) ?>" method="POST">
+            <?= \App\Core\Session::csrfField() ?>
+            <div class="modal-content text-start" style="border-radius: 12px;">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title fw-bold text-white"><i class="fa-solid fa-flag-checkered me-2"></i> Confirm Batch Completion</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-start p-4">
+                    <div class="p-3 bg-danger bg-opacity-10 border border-danger rounded-3 mb-3 text-danger">
+                        <strong class="d-block"><i class="fa-solid fa-triangle-exclamation me-1"></i> Are you sure you want to mark this batch as COMPLETED?</strong>
+                        <span class="small">This will mark production batch <strong><?= htmlspecialchars($order['production_no']) ?></strong> as completed and move it to the Completed Products Archive.</span>
+                    </div>
+                    <ul class="small text-secondary m-0 ps-3">
+                        <li>Live work duration timer will be stopped.</li>
+                        <li>Final quantities, wastage rates, and WIP operator logs will be compiled into the Batch Dossier.</li>
+                        <li>The batch will be archived in <strong>Completed Products</strong>.</li>
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger px-4 fw-bold"><i class="fa-solid fa-circle-check me-1"></i> Mark Completed Now</button>
+                </div>
+            </div>
+        </form>
     </div>
 </div>

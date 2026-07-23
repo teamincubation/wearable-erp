@@ -28,12 +28,12 @@ class ProductionController extends Controller {
         $db = Database::getInstance();
         $companyId = Session::get('company_id');
 
-        // Fetch production orders joined with style & buyer PO details
+        // Fetch active production orders (excluding completed) joined with style & buyer PO details
         $stmt = $db->prepare("SELECT pro.*, s.style_no, s.name as style_name, po.po_no as buyer_po_no, po.quantity as target_qty
                              FROM production_orders pro
                              JOIN buyer_pos po ON pro.po_id = po.id
                              JOIN styles s ON po.style_id = s.id
-                             WHERE pro.company_id = ? AND pro.deleted_at IS NULL
+                             WHERE pro.company_id = ? AND (pro.status IS NULL OR pro.status != 'completed') AND pro.deleted_at IS NULL
                              ORDER BY pro.id DESC");
         $stmt->execute([$companyId]);
         $orders = $stmt->fetchAll() ?: [];
@@ -865,5 +865,123 @@ class ProductionController extends Controller {
             'stagesList' => $stagesList,
             'recentLogs' => $recentLogs
         ], 'mobile');
+    }
+
+    /**
+     * Start Production Order Batch
+     */
+    public function startOrder(Request $request, Response $response, string $id): void {
+        $db = Database::getInstance();
+        $companyId = Session::get('company_id');
+
+        $stmt = $db->prepare("SELECT * FROM production_orders WHERE id = ? AND company_id = ? AND deleted_at IS NULL");
+        $stmt->execute([$id, $companyId]);
+        $batch = $stmt->fetch();
+
+        if (!$batch) {
+            Session::setFlash('error', 'Production batch not found.');
+            $this->redirect('company/production/orders');
+            return;
+        }
+
+        $db->prepare("UPDATE production_orders SET status = 'running', started_at = NOW(), updated_at = NOW() WHERE id = ?")->execute([$id]);
+
+        AuditLog::log($companyId, Session::get('user_id'), 'start_production', 'ProductionOrder', (int)$id, null, null, "Started manufacturing batch: {$batch['production_no']}");
+        Session::setFlash('success', "Production batch #{$batch['production_no']} started successfully. WIP operations tracking is now active.");
+        $this->redirect('company/production/orders');
+    }
+
+    /**
+     * Complete Production Order Batch
+     */
+    public function completeOrder(Request $request, Response $response, string $id): void {
+        $db = Database::getInstance();
+        $companyId = Session::get('company_id');
+
+        $stmt = $db->prepare("SELECT * FROM production_orders WHERE id = ? AND company_id = ? AND deleted_at IS NULL");
+        $stmt->execute([$id, $companyId]);
+        $batch = $stmt->fetch();
+
+        if (!$batch) {
+            Session::setFlash('error', 'Production batch not found.');
+            $this->redirect('company/production/orders');
+            return;
+        }
+
+        $db->prepare("UPDATE production_orders SET status = 'completed', completed_at = NOW(), end_date = CURDATE(), updated_at = NOW() WHERE id = ?")->execute([$id]);
+
+        AuditLog::log($companyId, Session::get('user_id'), 'complete_production', 'ProductionOrder', (int)$id, null, null, "Marked production batch as completed: {$batch['production_no']}");
+        Session::setFlash('success', "Production batch #{$batch['production_no']} marked as Completed! Archived to Completed Products.");
+        $this->redirect('company/production/completed');
+    }
+
+    /**
+     * Completed Products Archive & Production Batch Dossiers
+     */
+    public function completedProducts(Request $request, Response $response): void {
+        $db = Database::getInstance();
+        $companyId = Session::get('company_id');
+
+        // Fetch completed production batches joined with buyer, style, and PO contract details
+        $stmt = $db->prepare("
+            SELECT pro.*, s.style_no, s.name as style_name, s.category as style_category, s.brand as style_brand,
+                   po.po_no as buyer_po_no, po.quantity as po_target_qty, po.unit_price as po_unit_price, po.total_amount as po_contract_value,
+                   c.name as buyer_name, c.code as buyer_code
+            FROM production_orders pro
+            JOIN buyer_pos po ON pro.po_id = po.id
+            JOIN styles s ON po.style_id = s.id
+            JOIN contacts c ON po.buyer_id = c.id
+            WHERE pro.company_id = ? AND pro.status = 'completed' AND pro.deleted_at IS NULL
+            ORDER BY pro.completed_at DESC, pro.id DESC
+        ");
+        $stmt->execute([$companyId]);
+        $completedBatches = $stmt->fetchAll() ?: [];
+
+        // For each completed batch, compute totals, wastage, and attach WIP stage logs with operator names
+        foreach ($completedBatches as &$batch) {
+            $batchId = $batch['id'];
+
+            // WIP stage logs with user/operator details
+            $stmtLogs = $db->prepare("
+                SELECT psl.*, u.name as operator_name, u.role as operator_role
+                FROM production_stage_logs psl
+                LEFT JOIN users u ON psl.operator_id = u.id
+                WHERE psl.production_id = ? AND psl.deleted_at IS NULL
+                ORDER BY psl.id ASC
+            ");
+            $stmtLogs->execute([$batchId]);
+            $batch['stage_logs'] = $stmtLogs->fetchAll() ?: [];
+
+            // Aggregate total finished qty & total rejected/wastage qty across logs
+            $totalOutput = 0;
+            $totalWastage = 0;
+            foreach ($batch['stage_logs'] as $log) {
+                if ($log['stage'] === 'packing' || $log['stage'] === 'finishing' || $log['stage'] === 'sewing') {
+                    $totalOutput = max($totalOutput, (int)($log['good_qty'] ?? 0));
+                }
+                $totalWastage += (int)($log['reject_qty'] ?? 0);
+            }
+
+            $batch['actual_produced_qty'] = $totalOutput ?: $batch['po_target_qty'];
+            $batch['wastage_qty'] = $totalWastage;
+            $batch['wastage_percentage'] = ($batch['po_target_qty'] > 0) ? round(($totalWastage / $batch['po_target_qty']) * 100, 2) : 0;
+
+            // Estimated Batch Costs & Margins
+            $batchCost = (float)($batch['po_contract_value'] * 0.65);
+            $batchRevenue = (float)$batch['po_contract_value'];
+            $batchProfit = $batchRevenue - $batchCost;
+            $batchMargin = ($batchRevenue > 0) ? round(($batchProfit / $batchRevenue) * 100, 2) : 0;
+
+            $batch['total_expenses'] = $batchCost;
+            $batch['revenue'] = $batchRevenue;
+            $batch['net_profit'] = $batchProfit;
+            $batch['margin_percentage'] = $batchMargin;
+        }
+        unset($batch);
+
+        $this->renderView('company/completed_products', [
+            'title' => 'Completed Products Archive | ERP',
+            'completed_batches' => $completedBatches
+        ]);
     }
 }
