@@ -69,6 +69,9 @@
     }
 </style>
 
+<!-- Hidden temporary canvas element for manual frame decoding -->
+<div id="reader-temp-canvas" style="display: none;"></div>
+
 <!-- Mobile Application Container Wrapper -->
 <div class="d-flex justify-content-center align-items-center py-3 d-print-none" style="min-height: 90vh; background: #f1f5f9;">
     <div class="mobile-app-card shadow-lg d-flex flex-column" style="width: 100%; max-width: 480px; background: #ffffff; overflow: hidden;">
@@ -137,19 +140,18 @@
                     <div id="reader"></div>
                 </div>
 
+                <!-- Action Button: SCAN / CAPTURE QR CODE -->
+                <div id="scan-trigger-container" class="mb-3 text-center">
+                    <button type="button" id="trigger-scan-btn" class="btn btn-primary btn-lg w-100 py-3 rounded-pill fw-bold shadow-sm" style="font-size: 15px; letter-spacing: 0.5px;">
+                        <i class="fa-solid fa-expand me-2"></i> SCAN / CAPTURE QR CODE
+                    </button>
+                </div>
+
                 <!-- Flashlight Button (hidden by default) -->
                 <div class="mb-3" id="flashlight-container" style="display: none;">
                     <button type="button" id="flashlight-toggle-btn" class="btn btn-warning w-100 py-2.5 rounded-pill fw-bold text-dark shadow-sm" style="font-size: 13px;">
                         <i class="fa-solid fa-bolt me-1"></i> Toggle Flashlight / Torch
                     </button>
-                </div>
-
-                <!-- Snap Photo of QR fallback -->
-                <div id="photo-snap-container" class="mb-3 text-center">
-                    <button type="button" id="snap-photo-btn" class="btn btn-outline-dark w-100 py-2.5 rounded-pill fw-bold" style="font-size: 13px; border: 2px dashed #475569;">
-                        <i class="fa-solid fa-camera me-1"></i> Camera Blank? Snap Photo of QR
-                    </button>
-                    <input type="file" id="qr-file-input" accept="image/*" capture="environment" style="display: none;">
                 </div>
 
                 <!-- Manual Barcode Input Fallback -->
@@ -266,9 +268,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const manualCodeInput = document.getElementById('manual-code-input');
     const manualSubmitBtn = document.getElementById('manual-submit-btn');
 
-    const snapPhotoBtn = document.getElementById('snap-photo-btn');
-    const qrFileInput = document.getElementById('qr-file-input');
-    const photoSnapContainer = document.getElementById('photo-snap-container');
+    const triggerScanBtn = document.getElementById('trigger-scan-btn');
+    const scanTriggerContainer = document.getElementById('scan-trigger-container');
 
     const cameraSelect = document.getElementById('camera-select');
     const cameraSelectContainer = document.getElementById('camera-select-container');
@@ -277,6 +278,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ===================== STATE =====================
     let html5QrCode = null;
+    let tempFileDecoder = null;
     let scanCount = 0;
     let sessionStartTime = null;
     let pieceStartTime = null;
@@ -329,11 +331,11 @@ document.addEventListener('DOMContentLoaded', function() {
         selectionView.style.display = 'block';
     });
 
-    // ===================== CAMERA INIT (UNCHANGED WORKING CODE) =====================
+    // ===================== CAMERA INIT =====================
     function initScanner() {
         manualContainer.style.display = 'none';
         scannerContainer.style.display = 'block';
-        photoSnapContainer.style.display = 'block';
+        scanTriggerContainer.style.display = 'block';
         toggleModeBtn.innerHTML = '<i class="fa-solid fa-keyboard me-1"></i> Switch to Manual Entry Mode';
         isCameraMode = true;
 
@@ -479,6 +481,57 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // ===================== TRIGGER SCAN BUTTON PRESS ACTION =====================
+    triggerScanBtn.addEventListener('click', function() {
+        captureAndAnalyzeFrame();
+    });
+
+    function captureAndAnalyzeFrame() {
+        const video = document.querySelector('#reader video');
+        if (!video || video.readyState < 2) {
+            showTemporaryToast("Camera stream not ready yet. Please align camera and try again.", "warning");
+            return;
+        }
+
+        const origHtml = triggerScanBtn.innerHTML;
+        triggerScanBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span> Analyzing QR Code...';
+        triggerScanBtn.disabled = true;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        canvas.toBlob(blob => {
+            if (!blob) {
+                triggerScanBtn.innerHTML = origHtml;
+                triggerScanBtn.disabled = false;
+                showTemporaryToast("Failed to capture frame from camera stream.", "danger");
+                return;
+            }
+
+            const file = new File([blob], "capture_frame.png", { type: "image/png" });
+
+            if (!tempFileDecoder) {
+                tempFileDecoder = new Html5Qrcode("reader-temp-canvas");
+            }
+
+            tempFileDecoder.scanFile(file, true)
+                .then(decodedText => {
+                    triggerScanBtn.innerHTML = origHtml;
+                    triggerScanBtn.disabled = false;
+                    onScanSuccess(decodedText);
+                })
+                .catch(err => {
+                    console.error("Frame scan decode error: ", err);
+                    triggerScanBtn.innerHTML = origHtml;
+                    triggerScanBtn.disabled = false;
+                    showTemporaryToast("No valid QR code detected in view. Position QR code clearly in camera frame and press SCAN again.", "warning", 3500);
+                });
+        }, 'image/png');
+    }
+
     // ===================== MODE TOGGLE =====================
     toggleModeBtn.addEventListener('click', function() {
         if (manualContainer.style.display === 'none') {
@@ -491,7 +544,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function switchToManualMode(reason = null) {
         stopScanner(true);
         scannerContainer.style.display = 'none';
-        photoSnapContainer.style.display = 'none';
+        scanTriggerContainer.style.display = 'none';
         cameraSelectContainer.style.display = 'none';
         flashlightContainer.style.display = 'none';
         manualContainer.style.display = 'block';
@@ -540,46 +593,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.key === 'Enter') { manualSubmitBtn.click(); }
     });
 
-    // ===================== SNAP PHOTO FALLBACK =====================
-    snapPhotoBtn.addEventListener('click', function() { qrFileInput.click(); });
-
-    qrFileInput.addEventListener('change', function(e) {
-        if (e.target.files && e.target.files.length > 0) {
-            const file = e.target.files[0];
-            const originalBtnHtml = snapPhotoBtn.innerHTML;
-            snapPhotoBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Decoding QR...';
-            snapPhotoBtn.disabled = true;
-
-            if (html5QrCode && html5QrCode.isScanning) {
-                html5QrCode.stop().then(runFileScan).catch(runFileScan);
-            } else {
-                runFileScan();
-            }
-
-            function runFileScan() {
-                if (!html5QrCode) { html5QrCode = new Html5Qrcode("reader"); }
-                html5QrCode.scanFile(file, true)
-                    .then(decodedText => {
-                        snapPhotoBtn.innerHTML = originalBtnHtml;
-                        snapPhotoBtn.disabled = false;
-                        qrFileInput.value = '';
-                        onScanSuccess(decodedText);
-                    })
-                    .catch(err => {
-                        console.error("File scan failed:", err);
-                        snapPhotoBtn.innerHTML = originalBtnHtml;
-                        snapPhotoBtn.disabled = false;
-                        qrFileInput.value = '';
-                        alert("No valid QR code detected. Please snap a clearer photo.");
-                        initScanner();
-                    });
-            }
-        }
-    });
-
-    // ===================== ON SCAN SUCCESS (AUTO-CAPTURE) =====================
+    // ===================== ON SCAN SUCCESS (VERIFICATION) =====================
     function onScanSuccess(decodedText) {
-        // Pause camera during verification — auto-captured instantly
+        // Pause camera during verification
         if (html5QrCode && html5QrCode.isScanning) {
             html5QrCode.pause(true);
         }
@@ -617,7 +633,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 scanResultCard.style.display = 'block';
             } else {
-                showTemporaryToast('Verification Failed: ' + data.message, "danger", 4000);
+                showTemporaryToast('QR Code Not Verified: ' + data.message, "danger", 5000);
                 if (isCameraMode && html5QrCode && html5QrCode.isScanning) {
                     setTimeout(() => html5QrCode.resume(), 2500);
                 }
