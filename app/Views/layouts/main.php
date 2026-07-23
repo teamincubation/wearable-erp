@@ -50,55 +50,9 @@ if (!$isCompanyExpired && $currentPagePermission) {
     }
 }
 
-// Load custom sidebar menu order from system_settings
-$savedOrderRaw = null;
-if ($company) {
-    $db = \App\Core\Database::getInstance();
+// Sidebar menu: fixed default order (hardcoded — no DB override)
+$savedOrder = ['dashboard','hr','production','merchandising','styles','buyers','inventory','procurement','masterdata','users','roles','tally','logs','settings','rfid_tracking'];
 
-    // ── One-time migration: enforce new default sidebar order (v3) ──
-    $currentVersion = 3;
-    $stmtVer = $db->prepare("SELECT setting_value FROM system_settings WHERE company_id = ? AND setting_key = 'sidebar_menu_order_version' AND deleted_at IS NULL ORDER BY id DESC LIMIT 1");
-    $stmtVer->execute([$company['id']]);
-    $dbVersion = (int)($stmtVer->fetchColumn() ?: 0);
-
-    if ($dbVersion < $currentVersion) {
-        $newDefaultOrder = json_encode(['dashboard','hr','production','merchandising','styles','buyers','inventory','procurement','masterdata','users','roles','tally','logs','settings','rfid_tracking']);
-
-        // Upsert the sidebar order
-        $stmtChk = $db->prepare("SELECT id FROM system_settings WHERE company_id = ? AND setting_key = 'sidebar_menu_order' AND deleted_at IS NULL LIMIT 1");
-        $stmtChk->execute([$company['id']]);
-        $existingId = $stmtChk->fetchColumn();
-        if ($existingId) {
-            $db->prepare("UPDATE system_settings SET setting_value = ?, updated_at = NOW() WHERE id = ?")->execute([$newDefaultOrder, $existingId]);
-        } else {
-            $db->prepare("INSERT INTO system_settings (company_id, setting_key, setting_value) VALUES (?, 'sidebar_menu_order', ?)")->execute([$company['id'], $newDefaultOrder]);
-        }
-
-        // Upsert the version flag
-        $stmtVerChk = $db->prepare("SELECT id FROM system_settings WHERE company_id = ? AND setting_key = 'sidebar_menu_order_version' AND deleted_at IS NULL LIMIT 1");
-        $stmtVerChk->execute([$company['id']]);
-        $existingVerId = $stmtVerChk->fetchColumn();
-        if ($existingVerId) {
-            $db->prepare("UPDATE system_settings SET setting_value = ?, updated_at = NOW() WHERE id = ?")->execute([(string)$currentVersion, $existingVerId]);
-        } else {
-            $db->prepare("INSERT INTO system_settings (company_id, setting_key, setting_value) VALUES (?, 'sidebar_menu_order_version', ?)")->execute([$company['id'], (string)$currentVersion]);
-        }
-
-        $savedOrderRaw = $newDefaultOrder;
-    } else {
-        $stmtMenu = $db->prepare("SELECT setting_value FROM system_settings WHERE company_id = ? AND setting_key = 'sidebar_menu_order' AND deleted_at IS NULL ORDER BY id DESC LIMIT 1");
-        $stmtMenu->execute([$company['id']]);
-        $savedOrderRaw = $stmtMenu->fetchColumn();
-    }
-}
-$savedOrder = [];
-if ($savedOrderRaw) {
-    $decodedRaw = html_entity_decode($savedOrderRaw, ENT_QUOTES, 'UTF-8');
-    $parsed = json_decode($decodedRaw, true);
-    if (is_array($parsed)) {
-        $savedOrder = $parsed;
-    }
-}
 
 $defaultMenu = [
     'dashboard' => ['name' => 'Dashboard', 'icon' => 'fa-solid fa-chart-line', 'url' => 'company/dashboard', 'permission' => 'company.dashboard', 'active_check' => '/company/dashboard', 'is_exact' => true],
