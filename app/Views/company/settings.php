@@ -403,64 +403,150 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Drag and Drop Sidebar Ordering
+    // ── Drag and Drop Sidebar Ordering (Pointer-Event Based) ──
     const menuList = document.getElementById('draggable-menu-list');
     if (menuList) {
-        let draggedItem = null;
+        let dragEl = null;          // The element being dragged
+        let placeholder = null;     // A placeholder gap element
+        let startY = 0;
+        let startTop = 0;
+        let isDragging = false;
 
-        menuList.addEventListener('dragstart', function(e) {
-            draggedItem = e.target.closest('.draggable-menu-item');
-            if (draggedItem) {
-                draggedItem.classList.add('dragging');
-                draggedItem.style.opacity = '0.4';
-                e.dataTransfer.effectAllowed = 'move';
+        // Remove HTML5 draggable (we use pointer events instead)
+        menuList.querySelectorAll('.draggable-menu-item').forEach(item => {
+            item.removeAttribute('draggable');
+        });
+
+        // Pointer-down on a menu item starts the drag
+        menuList.addEventListener('pointerdown', function(e) {
+            const item = e.target.closest('.draggable-menu-item');
+            if (!item) return;
+
+            e.preventDefault();
+            item.setPointerCapture(e.pointerId);
+
+            dragEl = item;
+            startY = e.clientY;
+
+            // Get position info
+            const rect = item.getBoundingClientRect();
+            startTop = rect.top;
+
+            // Create placeholder with same height
+            placeholder = document.createElement('li');
+            placeholder.className = 'list-group-item mb-2 border rounded';
+            placeholder.style.cssText = `height:${rect.height}px; background:rgba(79,70,229,0.07); border:2px dashed #818cf8 !important; border-radius:8px; pointer-events:none;`;
+
+            // Apply drag styles
+            dragEl.classList.add('is-dragging');
+            dragEl.style.position = 'fixed';
+            dragEl.style.left = rect.left + 'px';
+            dragEl.style.top = rect.top + 'px';
+            dragEl.style.width = rect.width + 'px';
+            dragEl.style.zIndex = '99999';
+            dragEl.style.pointerEvents = 'none';
+
+            // Insert placeholder where item was
+            dragEl.parentNode.insertBefore(placeholder, dragEl);
+
+            isDragging = true;
+        });
+
+        // Pointer-move: reposition the dragged element and shift the placeholder
+        menuList.addEventListener('pointermove', function(e) {
+            if (!isDragging || !dragEl) return;
+            e.preventDefault();
+
+            const dy = e.clientY - startY;
+            dragEl.style.top = (startTop + dy) + 'px';
+
+            // Find the element we're hovering over
+            const siblings = [...menuList.querySelectorAll('.draggable-menu-item:not(.is-dragging)')];
+            let insertBefore = null;
+
+            for (const sib of siblings) {
+                const box = sib.getBoundingClientRect();
+                const midY = box.top + box.height / 2;
+                if (e.clientY < midY) {
+                    insertBefore = sib;
+                    break;
+                }
+            }
+
+            // Move placeholder to new position
+            if (insertBefore) {
+                menuList.insertBefore(placeholder, insertBefore);
+            } else {
+                // Append after the last non-dragging item
+                const lastSibling = siblings[siblings.length - 1];
+                if (lastSibling && lastSibling.nextSibling !== placeholder) {
+                    if (lastSibling.nextSibling) {
+                        menuList.insertBefore(placeholder, lastSibling.nextSibling);
+                    } else {
+                        menuList.appendChild(placeholder);
+                    }
+                }
             }
         });
 
-        menuList.addEventListener('dragend', function(e) {
-            if (draggedItem) {
-                draggedItem.classList.remove('dragging');
-                draggedItem.style.opacity = '';
+        // Pointer-up: drop the element into the placeholder's position
+        menuList.addEventListener('pointerup', function(e) {
+            if (!isDragging || !dragEl) return;
+
+            // Reset styles
+            dragEl.classList.remove('is-dragging');
+            dragEl.style.position = '';
+            dragEl.style.left = '';
+            dragEl.style.top = '';
+            dragEl.style.width = '';
+            dragEl.style.zIndex = '';
+            dragEl.style.pointerEvents = '';
+
+            // Insert element where placeholder is
+            if (placeholder && placeholder.parentNode) {
+                placeholder.parentNode.insertBefore(dragEl, placeholder);
+                placeholder.remove();
             }
-            draggedItem = null;
+
+            isDragging = false;
+            dragEl = null;
+            placeholder = null;
+
+            // Persist new order
             saveNewOrder();
         });
 
-        menuList.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            const afterElement = getDragAfterElement(menuList, e.clientY);
-            if (draggedItem) {
-                if (afterElement == null) {
-                    menuList.appendChild(draggedItem);
-                } else {
-                    menuList.insertBefore(draggedItem, afterElement);
-                }
-            }
-        });
+        // Also handle pointer cancel (e.g., if system interrupts the gesture)
+        menuList.addEventListener('pointercancel', function(e) {
+            if (!isDragging || !dragEl) return;
 
-        function getDragAfterElement(container, y) {
-            const draggableElements = [...container.querySelectorAll('.draggable-menu-item:not(.dragging)')];
-            return draggableElements.reduce((closest, child) => {
-                const box = child.getBoundingClientRect();
-                const offset = y - box.top - box.height / 2;
-                if (offset < 0 && offset > closest.offset) {
-                    return { offset: offset, element: child };
-                } else {
-                    return closest;
-                }
-            }, { offset: Number.NEGATIVE_INFINITY }).element;
-        }
+            dragEl.classList.remove('is-dragging');
+            dragEl.style.position = '';
+            dragEl.style.left = '';
+            dragEl.style.top = '';
+            dragEl.style.width = '';
+            dragEl.style.zIndex = '';
+            dragEl.style.pointerEvents = '';
+
+            if (placeholder && placeholder.parentNode) {
+                placeholder.parentNode.insertBefore(dragEl, placeholder);
+                placeholder.remove();
+            }
+            isDragging = false;
+            dragEl = null;
+            placeholder = null;
+        });
 
         function saveNewOrder() {
             const items = menuList.querySelectorAll('.draggable-menu-item');
             const order = Array.from(items).map(item => item.dataset.key);
-            
+
             // 1. Update hidden field
             const hiddenInput = document.getElementById('sidebar_menu_order_input');
             if (hiddenInput) {
                 hiddenInput.value = JSON.stringify(order);
             }
-            
+
             // 2. Show the "Save Changes" button
             const saveBtn = document.getElementById('save-menu-order-btn');
             if (saveBtn) {
@@ -468,7 +554,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        // 3. Save Button click action
+        // Save Button click action
         const saveBtn = document.getElementById('save-menu-order-btn');
         if (saveBtn) {
             saveBtn.addEventListener('click', function() {

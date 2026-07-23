@@ -119,6 +119,11 @@ body {
     margin: 0;
     flex-grow: 1;
     overflow-y: auto;
+    scrollbar-width: none;           /* Firefox */
+    -ms-overflow-style: none;        /* IE / Edge */
+}
+.sidebar-menu::-webkit-scrollbar {
+    display: none;                   /* Chrome, Safari, Opera */
 }
 
 .sidebar-item {
@@ -447,4 +452,29 @@ body.sidebar-collapsed .sidebar-brand-container::after {
 /* If they hover on brand when collapsed, show chevron clearly */
 body.sidebar-collapsed .sidebar-brand-container:hover::after {
     color: #ffffff;
+}
+
+/* ── Drag-and-Drop Menu Reordering ── */
+.draggable-menu-item {
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+}
+.draggable-menu-item:hover {
+    background: #eef2ff !important;
+    border-color: #c7d2fe !important;
+}
+.draggable-menu-item.is-dragging {
+    opacity: 0.85;
+    box-shadow: 0 8px 24px rgba(79, 70, 229, 0.22) !important;
+    border-color: var(--primary-color) !important;
+    background: #eef2ff !important;
+    z-index: 9999;
+}
+.draggable-menu-item.drag-over-above {
+    border-top: 3px solid var(--primary-color) !important;
+}
+.draggable-menu-item.drag-over-below {
+    border-bottom: 3px solid var(--primary-color) !important;
 }
