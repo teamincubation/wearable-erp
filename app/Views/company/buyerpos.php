@@ -77,6 +77,7 @@
                                 </td>
                                 <td class="text-end">
                                     <?php if ($o['status'] === 'draft' && \App\Core\Auth::hasPermission('company.styles.manage')): ?>
+                                        <button class="btn btn-sm btn-light border me-1" data-bs-toggle="modal" data-bs-target="#editBuyerPoModal-<?= $o['id'] ?>"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
                                         <form action="<?= base_url('company/merchandising/buyerpos/approve/' . $o['id']) ?>" method="POST" class="d-inline">
                                             <?= \App\Core\Session::csrfField() ?>
                                             <button type="submit" class="btn btn-sm btn-success rounded-pill px-3 me-1">
@@ -90,6 +91,72 @@
                                     </form>
                                 </td>
                             </tr>
+
+                            <!-- Edit Buyer PO Modal -->
+                            <?php if ($o['status'] === 'draft' && \App\Core\Auth::hasPermission('company.styles.manage')): ?>
+                                <div class="modal fade" id="editBuyerPoModal-<?= $o['id'] ?>" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <form action="<?= base_url('company/merchandising/buyerpos/edit/' . $o['id']) ?>" method="POST">
+                                            <?= \App\Core\Session::csrfField() ?>
+                                            <div class="modal-content text-start" style="border-radius: 12px;">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title fw-bold">Edit Draft Buyer Contract: <?= htmlspecialchars($o['po_no']) ?></h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body text-start">
+                                                    <div class="mb-3">
+                                                        <label class="form-label small fw-bold">Buyer / Client <span class="text-danger">*</span></label>
+                                                        <select name="buyer_id" class="form-select text-dark" required>
+                                                            <?php foreach ($buyers as $b): ?>
+                                                                <option value="<?= $b['id'] ?>" <?= ($b['id'] == $o['buyer_id']) ? 'selected' : '' ?>><?= htmlspecialchars($b['name']) ?> (<?= htmlspecialchars($b['code']) ?>)</option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label small fw-bold">Select Style <span class="text-danger">*</span></label>
+                                                        <select name="style_id" class="form-select text-dark" required>
+                                                            <?php foreach ($styles as $s): ?>
+                                                                <?php $hasTp = !empty($s['has_techpack']); ?>
+                                                                <option value="<?= $s['id'] ?>" <?= ($s['id'] == $o['style_id']) ? 'selected' : '' ?> <?= $hasTp ? '' : 'disabled' ?>>
+                                                                    <?= htmlspecialchars($s['style_no']) ?> - <?= htmlspecialchars($s['name']) ?><?= $hasTp ? '' : ' (Tech Pack Required)' ?>
+                                                                </option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label small fw-bold">Buyer PO Reference Number <span class="text-danger">*</span></label>
+                                                        <input type="text" name="po_no" class="form-control font-monospace" value="<?= htmlspecialchars($o['po_no']) ?>" required>
+                                                    </div>
+                                                    <div class="row g-3 mb-3">
+                                                        <div class="col-6">
+                                                            <label class="form-label small fw-bold">PO Booking Date <span class="text-danger">*</span></label>
+                                                            <input type="date" name="po_date" class="form-control text-dark" value="<?= date('Y-m-d', strtotime($o['po_date'])) ?>" required>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <label class="form-label small fw-bold">Delivery Due Date <span class="text-danger">*</span></label>
+                                                            <input type="date" name="delivery_date" class="form-control text-dark" value="<?= date('Y-m-d', strtotime($o['delivery_date'])) ?>" required>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row g-3 mb-3">
+                                                        <div class="col-6">
+                                                            <label class="form-label small fw-bold">Order Qty (pcs) <span class="text-danger">*</span></label>
+                                                            <input type="number" name="quantity" class="form-control" value="<?= htmlspecialchars($o['quantity']) ?>" min="1" required>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <label class="form-label small fw-bold">Unit Price (₹) <span class="text-danger">*</span></label>
+                                                            <input type="number" step="0.01" name="unit_price" class="form-control" value="<?= htmlspecialchars($o['unit_price']) ?>" min="0.01" required>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
+                                                    <button type="submit" class="btn btn-primary px-4">Update Order</button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>

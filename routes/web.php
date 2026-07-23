@@ -717,6 +717,9 @@ $router->post('/company/styles/delete/{id}', [\App\Controllers\StyleMasterContro
 $router->post('/company/merchandising/costsheets/delete/{id}', [\App\Controllers\MerchandisingController::class, 'deleteCostSheet'])
        ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
 
+$router->post('/company/merchandising/buyerpos/edit/{id}', [\App\Controllers\MerchandisingController::class, 'editBuyerpo'])
+       ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
+
 $router->post('/company/merchandising/buyerpos/delete/{id}', [\App\Controllers\MerchandisingController::class, 'deleteBuyerPo'])
        ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
 

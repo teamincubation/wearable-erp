@@ -47,7 +47,7 @@ class PurchaseController extends Controller {
             SELECT po.id, po.po_no, c.name as buyer_name, c.code as buyer_code, c.brand_name
             FROM buyer_pos po
             JOIN contacts c ON po.buyer_id = c.id
-            WHERE po.company_id = ? AND po.status IN ('approved', 'draft', 'pending_approval') AND c.status = 'active' AND po.deleted_at IS NULL AND c.deleted_at IS NULL
+            WHERE po.company_id = ? AND po.status = 'approved' AND c.status = 'active' AND po.deleted_at IS NULL AND c.deleted_at IS NULL
             ORDER BY po.id DESC
         ");
         $stmt->execute([$companyId]);

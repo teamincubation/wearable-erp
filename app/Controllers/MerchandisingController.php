@@ -290,6 +290,103 @@ class MerchandisingController extends Controller {
     }
 
     /**
+     * Edit Draft Buyer Purchase Order (PO)
+     */
+    public function editBuyerpo(Request $request, Response $response, string $id): void {
+        $buyerPoModel = new BuyerPo();
+        $order = $buyerPoModel->find((int)$id);
+
+        if (!$order) {
+            Session::setFlash('error', 'Buyer PO not found.');
+            $this->redirect('company/merchandising/buyerpos');
+            return;
+        }
+
+        if ($order['status'] !== 'draft') {
+            Session::setFlash('error', 'Only draft Buyer PO contracts can be edited prior to approval.');
+            $this->redirect('company/merchandising/buyerpos');
+            return;
+        }
+
+        $buyerId = (int)$request->get('buyer_id');
+        $styleId = (int)$request->get('style_id');
+        $poNo = trim($request->get('po_no'));
+        $poDate = $request->get('po_date');
+        $deliveryDate = $request->get('delivery_date');
+        $quantity = (int)$request->get('quantity');
+        $unitPrice = (float)$request->get('unit_price');
+
+        if (empty($buyerId) || empty($styleId) || empty($poNo) || empty($poDate) || empty($deliveryDate) || $quantity <= 0 || $unitPrice <= 0) {
+            Session::setFlash('error', 'All fields are required. Quantity and price must be greater than zero.');
+            $this->redirect('company/merchandising/buyerpos');
+            return;
+        }
+
+        $sizeQtys = $request->get('size_qty') ?: [];
+        $sizesJson = json_encode($sizeQtys);
+        $totalAmount = $quantity * $unitPrice;
+        $companyId = Session::get('company_id');
+        $db = Database::getInstance();
+
+        $buyerPoModel->update((int)$id, [
+            'buyer_id' => $buyerId,
+            'style_id' => $styleId,
+            'po_no' => $poNo,
+            'po_date' => $poDate,
+            'delivery_date' => $deliveryDate,
+            'quantity' => $quantity,
+            'unit_price' => $unitPrice,
+            'total_amount' => $totalAmount,
+            'sizes_json' => $sizesJson,
+            'updated_by' => Session::get('user_id')
+        ]);
+
+        // Delete old material allocation entries for this buyer PO
+        $db->prepare("DELETE FROM inventory_transactions WHERE reference_type = 'buyer_po' AND reference_id = ?")->execute([(int)$id]);
+
+        // Re-log updated material allocations based on Style Tech Pack BOM
+        $stmtTp = $db->prepare("SELECT bom_json FROM tech_packs WHERE style_id = ? AND deleted_at IS NULL LIMIT 1");
+        $stmtTp->execute([$styleId]);
+        $bomJson = $stmtTp->fetchColumn();
+        $bomItems = json_decode($bomJson ?: '[]', true) ?: [];
+
+        if (!empty($bomItems)) {
+            $inventoryService = new \App\Services\InventoryService();
+            $stmtWh = $db->prepare("SELECT id FROM warehouses WHERE company_id = ? AND status = 'active' ORDER BY id ASC LIMIT 1");
+            $stmtWh->execute([$companyId]);
+            $warehouseId = (int)($stmtWh->fetchColumn() ?: 1);
+
+            foreach ($bomItems as $bItem) {
+                $cType = !empty($bItem['item_type']) ? $bItem['item_type'] : 'Accessories';
+                $iName = !empty($bItem['item_name']) ? $bItem['item_name'] : '';
+                $qtyPerPc = (float)($bItem['qty'] ?? 0.00);
+
+                if (!empty($iName) && $qtyPerPc > 0) {
+                    $requiredStock = $quantity * $qtyPerPc;
+                    $inventoryService->recordTransaction(
+                        $companyId,
+                        $warehouseId,
+                        $cType,
+                        $iName,
+                        -1 * $requiredStock,
+                        'out',
+                        'buyer_po',
+                        (int)$id,
+                        'PO-' . $poNo,
+                        0.00,
+                        Session::get('user_id'),
+                        $bItem['bom_code'] ?? null
+                    );
+                }
+            }
+        }
+
+        AuditLog::log($companyId, Session::get('user_id'), 'edit_buyer_po', 'BuyerPo', (int)$id, null, null, "Updated draft buyer PO: {$poNo}");
+        Session::setFlash('success', 'Draft Buyer Purchase Order updated successfully.');
+        $this->redirect('company/merchandising/buyerpos');
+    }
+
+    /**
      * Approve Buyer Purchase Order
      */
     public function approveBuyerpo(Request $request, Response $response, string $id): void {
