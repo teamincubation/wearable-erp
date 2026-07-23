@@ -76,7 +76,9 @@ class TenantMiddleware extends Middleware {
         // If subdomain is 'erp' or matches DEV_PORTAL_HOST prefix, it's the Developer Portal
         if ($subdomain === 'erp' || $host === DEV_PORTAL_HOST) {
             Model::setActiveCompanyId(null);
-            \App\Core\Session::set('current_tenant', null);
+            if (!\App\Core\Session::has('current_tenant') || \App\Core\Session::get('current_tenant') === null) {
+                \App\Core\Session::set('current_tenant', null);
+            }
             return true;
         }
 
@@ -112,7 +114,9 @@ class TenantMiddleware extends Middleware {
 
         // If we are on root domain or localhost and no tenant resolved, load SaaS landing page or Developer Portal
         Model::setActiveCompanyId(null);
-        \App\Core\Session::set('current_tenant', null);
+        if (!\App\Core\Session::has('current_tenant') || \App\Core\Session::get('current_tenant') === null) {
+            \App\Core\Session::set('current_tenant', null);
+        }
         return true;
     }
 }

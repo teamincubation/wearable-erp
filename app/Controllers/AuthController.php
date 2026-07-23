@@ -221,7 +221,7 @@ class AuthController extends Controller {
                 'name' => 'Developer Portal',
                 'subdomain' => 'erp'
             ]);
-            Session::remove('active_tenant_subdomain');
+            Session::set('active_tenant_subdomain', 'erp');
             
             Session::remove($attemptsKey);
             Session::remove($lastAttemptKey);
