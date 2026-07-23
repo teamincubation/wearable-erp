@@ -989,22 +989,63 @@ class ProductionController extends Controller {
                 }
             }
 
-            // Aggregate total finished qty & total rejected/wastage qty across logs
-            $totalOutput = 0;
+            // Aggregate Actual Finished Output strictly from "checking" stage & group by unique operator
+            $checkingOutput = 0;
             $totalWastage = 0;
+            $operatorGrouped = [];
+
             foreach ($batch['stage_logs'] as $log) {
                 $goodQty = (int)($log['qty_out'] ?? $log['good_qty'] ?? 0);
                 $wasteQty = (int)($log['waste_qty'] ?? $log['reject_qty'] ?? 0);
-                
-                if (in_array($log['stage'] ?? '', ['packing', 'finishing', 'sewing', 'carton_packing', 'shipment'])) {
-                    $totalOutput = max($totalOutput, $goodQty);
+
+                // Actual Finished Output strictly from "checking" stage
+                if (($log['stage'] ?? '') === 'checking') {
+                    $checkingOutput += $goodQty;
                 }
                 $totalWastage += $wasteQty;
+
+                // Group by unique operator / employee
+                $operatorName = trim($log['operator_name'] ?? '') ?: 'System Operator';
+                $operatorRole = trim($log['operator_role'] ?? '') ?: 'Production Operator';
+                $opKey = strtolower($operatorName);
+
+                if (!isset($operatorGrouped[$opKey])) {
+                    $operatorGrouped[$opKey] = [
+                        'name' => $operatorName,
+                        'role' => $operatorRole,
+                        'total_good_qty' => 0,
+                        'total_waste_qty' => 0,
+                        'stages' => []
+                    ];
+                }
+
+                $operatorGrouped[$opKey]['total_good_qty'] += $goodQty;
+                $operatorGrouped[$opKey]['total_waste_qty'] += $wasteQty;
+
+                // Work duration string for stage log
+                $durationStr = 'N/A';
+                if (!empty($log['duration_minutes'])) {
+                    $durationStr = $log['duration_minutes'] . ' mins';
+                } elseif (!empty($log['start_time']) && !empty($log['end_time'])) {
+                    $diffSecs = max(0, strtotime($log['end_time']) - strtotime($log['start_time']));
+                    $hrs = floor($diffSecs / 3600);
+                    $mins = floor(($diffSecs % 3600) / 60);
+                    $durationStr = ($hrs > 0 ? "{$hrs}h " : "") . "{$mins}m";
+                }
+
+                $operatorGrouped[$opKey]['stages'][] = [
+                    'stage' => $log['stage'],
+                    'good_qty' => $goodQty,
+                    'waste_qty' => $wasteQty,
+                    'logged_at' => date('d M Y, h:i A', strtotime($log['created_at'] ?? $log['start_time'] ?? 'now')),
+                    'duration' => $durationStr
+                ];
             }
 
-            $batch['actual_produced_qty'] = $totalOutput ?: $batch['po_target_qty'];
+            $batch['actual_produced_qty'] = ($checkingOutput > 0) ? $checkingOutput : $batch['po_target_qty'];
             $batch['wastage_qty'] = $totalWastage;
             $batch['wastage_percentage'] = ($batch['po_target_qty'] > 0) ? round(($totalWastage / $batch['po_target_qty']) * 100, 2) : 0;
+            $batch['operator_summary'] = array_values($operatorGrouped);
 
             // Estimated Batch Costs & Margins
             $batchCost = (float)($batch['po_contract_value'] * 0.65);

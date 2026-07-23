@@ -1,12 +1,50 @@
-<div class="d-flex justify-content-between align-items-center mb-4">
+<style>
+@media print {
+    /* Hide unneeded site elements during printing */
+    header, footer, nav, sidebar, .d-print-none, .modal-backdrop, .btn, .modal-footer, .modal-header .btn-close {
+        display: none !important;
+    }
+    body {
+        background: #fff !important;
+        color: #000 !important;
+        font-size: 12px !important;
+    }
+    .modal {
+        position: relative !important;
+        display: block !important;
+        overflow: visible !important;
+        background: transparent !important;
+    }
+    .modal-dialog {
+        max-width: 100% !important;
+        width: 100% !important;
+        margin: 0 !important;
+    }
+    .modal-content {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    .print-certificate-header {
+        border-bottom: 2px solid #000;
+        padding-bottom: 12px;
+        margin-bottom: 20px;
+    }
+    @page {
+        size: A4 portrait;
+        margin: 12mm;
+    }
+}
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
     <div>
         <a href="<?= base_url('company/production/orders') ?>" class="btn btn-sm btn-light border mb-2"><i class="fa-solid fa-arrow-left me-1"></i> Back to Production Orders</a>
         <h3 class="fw-bold m-0"><i class="fa-solid fa-box-archive text-success me-2"></i> Completed Products Archive</h3>
-        <p class="text-secondary small m-0 mt-1">Archive of fully manufactured garment batches, WIP operator logs, financial performance, and batch dossiers</p>
+        <p class="text-secondary small m-0 mt-1">Archive of fully manufactured garment batches, Checking output, WIP operator logs, and printable dossiers</p>
     </div>
     <div>
         <button type="button" class="btn btn-outline-secondary rounded-pill px-4" onclick="window.print();">
-            <i class="fa-solid fa-print me-1"></i> Print Archive PDF
+            <i class="fa-solid fa-print me-1"></i> Print Summary PDF
         </button>
     </div>
 </div>
@@ -43,10 +81,10 @@ $avgMarginVal = ($totalRevenueVal > 0) ? round(($totalProfitVal / $totalRevenueV
     <div class="col-md-3 col-6">
         <div class="pepp-card p-3 d-flex align-items-center">
             <div class="rounded-circle bg-primary bg-opacity-10 p-3 me-3 text-primary">
-                <i class="fa-solid fa-shirt fs-3"></i>
+                <i class="fa-solid fa-circle-check fs-3"></i>
             </div>
             <div>
-                <div class="text-secondary small fw-semibold">Total Produced Garments</div>
+                <div class="text-secondary small fw-semibold">Checking Finished Output</div>
                 <h4 class="fw-bold m-0 text-primary"><?= number_format($totalOutputPcs) ?> pcs</h4>
             </div>
         </div>
@@ -89,11 +127,11 @@ $avgMarginVal = ($totalRevenueVal > 0) ? round(($totalProfitVal / $totalRevenueV
                         <th>Batch Code</th>
                         <th>Buyer Client</th>
                         <th>Style Description</th>
-                        <th>Target / Produced Qty</th>
+                        <th>Target vs Checking Output</th>
                         <th>Wastage Rate</th>
                         <th>Work Duration</th>
                         <th>Financial Cost & Margin</th>
-                        <th class="text-end">Actions</th>
+                        <th class="text-end d-print-none">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -122,8 +160,8 @@ $avgMarginVal = ($totalRevenueVal > 0) ? round(($totalProfitVal / $totalRevenueV
                                     <span class="text-secondary small"><?= htmlspecialchars($b['style_name']) ?></span>
                                 </td>
                                 <td>
-                                    <div class="font-monospace fw-bold text-dark"><?= number_format($b['actual_produced_qty']) ?> pcs</div>
-                                    <small class="text-secondary">Target: <?= number_format($b['po_target_qty']) ?> pcs</small>
+                                    <div class="font-monospace fw-bold text-success fs-6"><?= number_format($b['actual_produced_qty']) ?> pcs</div>
+                                    <small class="text-secondary">Checking Output (Target: <?= number_format($b['po_target_qty']) ?> pcs)</small>
                                 </td>
                                 <td>
                                     <?php if ($b['wastage_qty'] > 0): ?>
@@ -144,7 +182,7 @@ $avgMarginVal = ($totalRevenueVal > 0) ? round(($totalProfitVal / $totalRevenueV
                                     <div class="font-monospace fw-bold text-success">₹<?= number_format($b['net_profit'], 2) ?> <span class="badge bg-success text-white small ms-1">+<?= $b['margin_percentage'] ?>%</span></div>
                                     <small class="text-secondary">Cost: ₹<?= number_format($b['total_expenses'], 2) ?></small>
                                 </td>
-                                <td class="text-end">
+                                <td class="text-end d-print-none">
                                     <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 me-1" data-bs-toggle="modal" data-bs-target="#viewBatchDossier-<?= $b['id'] ?>">
                                         <i class="fa-regular fa-eye me-1"></i> View Dossier
                                     </button>
@@ -180,19 +218,34 @@ $avgMarginVal = ($totalRevenueVal > 0) ? round(($totalProfitVal / $totalRevenueV
         <div class="modal fade" id="viewBatchDossier-<?= $b['id'] ?>" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
                 <div class="modal-content text-start" style="border-radius: 12px;">
-                    <div class="modal-header bg-light">
+                    <div class="modal-header bg-light d-print-none">
                         <div>
                             <h5 class="modal-title fw-bold m-0"><i class="fa-solid fa-box-archive text-success me-2"></i> Production Batch Dossier: <?= htmlspecialchars($b['production_no']) ?></h5>
-                            <small class="text-secondary">Comprehensive manufacturing track, financials, wastage, and WIP stage operator logs</small>
+                            <small class="text-secondary">Comprehensive manufacturing track, Checking output, financials, and operator stage logs</small>
                         </div>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-                    <div class="modal-body text-dark">
-                        <!-- Overview Header -->
+                    <div class="modal-body text-dark p-4 print-dossier-area">
+                        <!-- Printable Header -->
+                        <div class="d-none d-print-block print-certificate-header">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h2 class="fw-bold m-0 text-dark">WEARABLE ERP</h2>
+                                    <h5 class="text-uppercase tracking-wide text-success m-0 mt-1">Production Batch Completion Certificate & Dossier</h5>
+                                </div>
+                                <div class="text-end font-monospace">
+                                    <strong class="fs-5 text-dark"><?= htmlspecialchars($b['production_no']) ?></strong>
+                                    <div class="small text-secondary">Date: <?= date('d M Y') ?></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Overview Header Grid -->
                         <div class="row g-3 p-3 bg-light rounded-3 border mb-4">
                             <div class="col-md-3 col-6">
                                 <small class="text-secondary d-block">Buyer / Client</small>
                                 <strong class="text-dark fs-6"><?= htmlspecialchars($b['buyer_name']) ?></strong>
+                                <div class="small text-secondary font-monospace"><?= htmlspecialchars($b['buyer_code']) ?></div>
                             </div>
                             <div class="col-md-3 col-6">
                                 <small class="text-secondary d-block">Garment Style</small>
@@ -201,7 +254,7 @@ $avgMarginVal = ($totalRevenueVal > 0) ? round(($totalProfitVal / $totalRevenueV
                             </div>
                             <div class="col-md-3 col-6">
                                 <small class="text-secondary d-block">PO Reference No</small>
-                                <strong class="font-monospace text-dark"><?= htmlspecialchars($b['buyer_po_no']) ?></strong>
+                                <strong class="font-monospace text-dark fs-6"><?= htmlspecialchars($b['buyer_po_no']) ?></strong>
                             </div>
                             <div class="col-md-3 col-6">
                                 <small class="text-secondary d-block">Work Execution Duration</small>
@@ -213,17 +266,17 @@ $avgMarginVal = ($totalRevenueVal > 0) ? round(($totalProfitVal / $totalRevenueV
                         <div class="row g-3 mb-4">
                             <div class="col-md-6">
                                 <div class="p-3 border rounded-3 bg-white h-100">
-                                    <h6 class="fw-bold text-primary mb-3"><i class="fa-solid fa-shirt me-1"></i> Production Output & Wastage Breakdown</h6>
+                                    <h6 class="fw-bold text-primary mb-3"><i class="fa-solid fa-shirt me-1"></i> Checking Output & Wastage Breakdown</h6>
                                     <div class="d-flex justify-content-between mb-2">
                                         <span class="text-secondary">Planned Target Quantity:</span>
                                         <strong class="font-monospace text-dark"><?= number_format($b['po_target_qty']) ?> pcs</strong>
                                     </div>
                                     <div class="d-flex justify-content-between mb-2">
-                                        <span class="text-secondary">Actual Finished Output:</span>
+                                        <span class="text-secondary">Actual Checking Finished Output:</span>
                                         <strong class="font-monospace text-success fs-6"><?= number_format($b['actual_produced_qty']) ?> pcs</strong>
                                     </div>
                                     <div class="d-flex justify-content-between pt-2 border-top">
-                                        <span class="text-secondary">Wastage / Rejections:</span>
+                                        <span class="text-secondary">Total Wastage / Rejections:</span>
                                         <span class="badge bg-warning-subtle text-warning-emphasis font-monospace fw-bold fs-6">
                                             <?= number_format($b['wastage_qty']) ?> pcs (<?= $b['wastage_percentage'] ?>%)
                                         </span>
@@ -249,47 +302,81 @@ $avgMarginVal = ($totalRevenueVal > 0) ? round(($totalProfitVal / $totalRevenueV
                             </div>
                         </div>
 
-                        <!-- Detailed WIP Stage Operator Logs -->
-                        <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-users-gear text-primary me-2"></i> WIP Operational Stage Operator Tracking Logs</h6>
-                        <div class="table-responsive border rounded-3">
+                        <!-- Unique Operator Stage Activity Tracking Logs -->
+                        <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-users-gear text-primary me-2"></i> Unique Operator & Operational Stage Tracking Logs</h6>
+                        <div class="table-responsive border rounded-3 mb-4">
                             <table class="table pepp-table mb-0 align-middle">
                                 <thead>
                                     <tr class="bg-light">
-                                        <th>WIP Operational Stage</th>
                                         <th>Operator / Employee Name</th>
                                         <th>Role / Workstation</th>
-                                        <th class="text-end">Good Output</th>
-                                        <th class="text-end">Reject Qty</th>
-                                        <th>Logged Timestamp</th>
-                                        <th>Stage Remarks</th>
+                                        <th>Operational Stages Handled</th>
+                                        <th>Logged Timestamps & Work Duration</th>
+                                        <th class="text-end">Total Output & Rejections</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php if (!empty($b['stage_logs'])): ?>
-                                        <?php foreach ($b['stage_logs'] as $log): ?>
+                                    <?php if (!empty($b['operator_summary'])): ?>
+                                        <?php foreach ($b['operator_summary'] as $op): ?>
                                             <tr>
-                                                <td><span class="badge bg-primary text-white text-capitalize"><?= htmlspecialchars(str_replace('_', ' ', $log['stage'])) ?></span></td>
-                                                <td><strong class="text-dark"><?= htmlspecialchars($log['operator_name'] ?: 'System Operator') ?></strong></td>
-                                                <td><span class="text-secondary small text-capitalize"><?= htmlspecialchars($log['operator_role'] ?: 'Floor Supervisor') ?></span></td>
-                                                <td class="text-end font-monospace fw-bold text-success"><?= number_format($log['qty_out'] ?? $log['good_qty'] ?? 0) ?></td>
-                                                <td class="text-end font-monospace fw-bold text-danger"><?= number_format($log['waste_qty'] ?? $log['reject_qty'] ?? 0) ?></td>
-                                                <td><span class="text-secondary small font-monospace"><?= date('d M Y, h:i A', strtotime($log['created_at'])) ?></span></td>
-                                                <td><span class="text-secondary small"><?= htmlspecialchars($log['remarks'] ?: 'Completed without defects') ?></span></td>
+                                                <td>
+                                                    <strong class="text-dark d-block"><?= htmlspecialchars($op['name']) ?></strong>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-light text-secondary border font-monospace text-capitalize"><?= htmlspecialchars($op['role']) ?></span>
+                                                </td>
+                                                <td>
+                                                    <?php foreach ($op['stages'] as $idx => $stg): ?>
+                                                        <span class="badge bg-primary text-white text-capitalize me-1">
+                                                            <?= htmlspecialchars(str_replace('_', ' ', $stg['stage'])) ?>
+                                                        </span>
+                                                        <small class="font-monospace text-dark">
+                                                            (Good: <strong><?= number_format($stg['good_qty']) ?></strong>, Rej: <strong class="text-danger"><?= number_format($stg['waste_qty']) ?></strong>)
+                                                        </small>
+                                                        <?php if ($idx < count($op['stages']) - 1): ?><span class="text-muted me-1">,</span><?php endif; ?>
+                                                    <?php endforeach; ?>
+                                                </td>
+                                                <td>
+                                                    <?php foreach ($op['stages'] as $stg): ?>
+                                                        <div class="small text-secondary font-monospace mb-1">
+                                                            <i class="fa-regular fa-clock me-1 text-primary"></i> <strong><?= htmlspecialchars(str_replace('_', ' ', $stg['stage'])) ?>:</strong> <?= $stg['logged_at'] ?> (<?= $stg['duration'] ?>)
+                                                        </div>
+                                                    <?php endforeach; ?>
+                                                </td>
+                                                <td class="text-end">
+                                                    <div class="font-monospace fw-bold text-success">Good: <?= number_format($op['total_good_qty']) ?> pcs</div>
+                                                    <div class="font-monospace fw-bold text-danger small">Rej: <?= number_format($op['total_waste_qty']) ?> pcs</div>
+                                                </td>
                                             </tr>
                                         <?php endforeach; ?>
                                     <?php else: ?>
                                         <tr>
-                                            <td colspan="7" class="text-center py-4 text-secondary small">
-                                                No granular WIP stage logs recorded for this batch.
+                                            <td colspan="5" class="text-center py-4 text-secondary small">
+                                                No operator tracking logs recorded for this batch.
                                             </td>
                                         </tr>
                                     <?php endif; ?>
                                 </tbody>
                             </table>
                         </div>
+
+                        <!-- Printable Sign-off Footer -->
+                        <div class="d-none d-print-block pt-4 mt-4 border-top">
+                            <div class="row text-center mt-5">
+                                <div class="col-4">
+                                    <div class="border-top pt-2 fw-semibold">Quality Inspector Sign</div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="border-top pt-2 fw-semibold">Floor Operations Head</div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="border-top pt-2 fw-semibold">Authorized Company Stamp</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-outline-secondary" onclick="window.print();"><i class="fa-solid fa-print me-1"></i> Print Dossier PDF</button>
+                    <div class="modal-footer d-print-none">
+                        <button type="button" class="btn btn-primary px-4 rounded-pill" onclick="window.print();"><i class="fa-solid fa-print me-1"></i> Print Batch PDF</button>
                         <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
                     </div>
                 </div>
