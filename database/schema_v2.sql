@@ -422,6 +422,8 @@ CREATE TABLE IF NOT EXISTS `production_orders` (
   `production_no` VARCHAR(100) NOT NULL,
   `start_date` DATE NOT NULL,
   `end_date` DATE DEFAULT NULL,
+  `started_at` TIMESTAMP NULL DEFAULT NULL,
+  `completed_at` TIMESTAMP NULL DEFAULT NULL,
   `status` ENUM('pending', 'running', 'completed', 'suspended') NOT NULL DEFAULT 'pending',
   `created_by` INT DEFAULT NULL,
   `updated_by` INT DEFAULT NULL,

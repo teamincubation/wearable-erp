@@ -874,6 +874,16 @@ class ProductionController extends Controller {
         $db = Database::getInstance();
         $companyId = Session::get('company_id');
 
+        // Self-healing database column check
+        try {
+            $db->query("SELECT started_at FROM production_orders LIMIT 1");
+        } catch (\Exception $e) {
+            try {
+                $db->exec("ALTER TABLE production_orders ADD COLUMN started_at TIMESTAMP NULL DEFAULT NULL AFTER end_date");
+                $db->exec("ALTER TABLE production_orders ADD COLUMN completed_at TIMESTAMP NULL DEFAULT NULL AFTER started_at");
+            } catch (\Exception $ex) {}
+        }
+
         $stmt = $db->prepare("SELECT * FROM production_orders WHERE id = ? AND company_id = ? AND deleted_at IS NULL");
         $stmt->execute([$id, $companyId]);
         $batch = $stmt->fetch();
@@ -897,6 +907,16 @@ class ProductionController extends Controller {
     public function completeOrder(Request $request, Response $response, string $id): void {
         $db = Database::getInstance();
         $companyId = Session::get('company_id');
+
+        // Self-healing database column check
+        try {
+            $db->query("SELECT completed_at FROM production_orders LIMIT 1");
+        } catch (\Exception $e) {
+            try {
+                $db->exec("ALTER TABLE production_orders ADD COLUMN started_at TIMESTAMP NULL DEFAULT NULL AFTER end_date");
+                $db->exec("ALTER TABLE production_orders ADD COLUMN completed_at TIMESTAMP NULL DEFAULT NULL AFTER started_at");
+            } catch (\Exception $ex) {}
+        }
 
         $stmt = $db->prepare("SELECT * FROM production_orders WHERE id = ? AND company_id = ? AND deleted_at IS NULL");
         $stmt->execute([$id, $companyId]);
