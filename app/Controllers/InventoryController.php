@@ -43,10 +43,10 @@ class InventoryController extends Controller {
 
         // Query available positive stock per warehouse for live stock transfer filtering
         $stmtStock = $db->prepare("
-            SELECT warehouse_id, item_type, item_name, SUM(quantity) as available_qty 
+            SELECT warehouse_id, MAX(item_type) as item_type, item_name, SUM(quantity) as available_qty 
             FROM inventory_transactions 
             WHERE company_id = ? 
-            GROUP BY warehouse_id, item_type, item_name 
+            GROUP BY warehouse_id, item_name 
             HAVING available_qty > 0
         ");
         $stmtStock->execute([$companyId]);

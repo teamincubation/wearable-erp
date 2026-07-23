@@ -62,11 +62,11 @@ class InventoryService {
      * Get the current stock balance of a specific item in a warehouse
      */
     public function getStockLevel(int $companyId, string $itemType, string $itemName, ?int $warehouseId = null): float {
-        $sql = "SELECT SUM(quantity) as balance 
+        $sql = "SELECT (SUM(CASE WHEN type = 'in' THEN quantity ELSE 0 END) - SUM(CASE WHEN type = 'out' THEN ABS(quantity) ELSE 0 END)) as balance 
                 FROM inventory_transactions 
-                WHERE company_id = ? AND item_type = ? AND item_name = ?";
+                WHERE company_id = ? AND TRIM(LOWER(item_name)) = TRIM(LOWER(?))";
         
-        $params = [$companyId, $itemType, $itemName];
+        $params = [$companyId, $itemName];
 
         if ($warehouseId !== null) {
             $sql .= " AND warehouse_id = ?";
@@ -76,19 +76,20 @@ class InventoryService {
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         $result = $stmt->fetch();
-
         return (float) ($result['balance'] ?? 0.00);
     }
 
     /**
-     * Get all active stock list in a company
+     * Get all active consolidated stock list in a company
      */
     public function getInventorySummary(int $companyId, ?int $warehouseId = null): array {
-        $sql = "SELECT item_type, bom_code, item_name, 
+        $sql = "SELECT MAX(item_type) as item_type, 
+                       MAX(bom_code) as bom_code, 
+                       item_name, 
                        SUM(CASE WHEN type = 'in' THEN quantity ELSE 0 END) as total_received,
                        SUM(CASE WHEN type = 'out' THEN ABS(quantity) ELSE 0 END) as total_used,
                        (SUM(CASE WHEN type = 'in' THEN quantity ELSE 0 END) - SUM(CASE WHEN type = 'out' THEN ABS(quantity) ELSE 0 END)) as current_balance,
-                       COALESCE(NULLIF(AVG(CASE WHEN type = 'in' AND unit_price > 0 THEN unit_price ELSE NULL END), 0), AVG(unit_price), 0) as avg_price
+                       COALESCE(NULLIF(AVG(CASE WHEN type = 'in' AND unit_price > 0 THEN unit_price ELSE NULL END), 0), AVG(CASE WHEN unit_price > 0 THEN unit_price ELSE NULL END), 0) as avg_price
                 FROM inventory_transactions 
                 WHERE company_id = ?";
         $params = [$companyId];
@@ -98,7 +99,7 @@ class InventoryService {
             $params[] = $warehouseId;
         }
 
-        $sql .= " GROUP BY item_type, bom_code, item_name HAVING total_received > 0 OR current_balance != 0";
+        $sql .= " GROUP BY item_name HAVING total_received > 0 OR total_used > 0 OR current_balance != 0 ORDER BY item_name ASC";
         
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
