@@ -68,11 +68,14 @@
 
         <!-- Sidebar Menu Reordering Card -->
         <div class="pepp-card mt-4">
-            <div class="pepp-card-header">
-                <h5 class="pepp-card-title"><i class="fa-solid fa-bars-staggered text-primary me-2"></i> Sidebar Navigation Order</h5>
+            <div class="pepp-card-header d-flex justify-content-between align-items-center">
+                <h5 class="pepp-card-title mb-0"><i class="fa-solid fa-bars-staggered text-primary me-2"></i> Sidebar Navigation Order</h5>
+                <button type="button" id="reset-default-order-btn" class="btn btn-outline-secondary btn-sm" title="Reset to system default order">
+                    <i class="fa-solid fa-rotate-left me-1"></i> Reset Default Order
+                </button>
             </div>
             <div class="pepp-card-body">
-                <p class="text-secondary small mb-3"><i class="fa-solid fa-circle-info text-info me-1"></i> Drag and drop the menu items below to customize the sidebar page order instantly in real-time.</p>
+                <p class="text-secondary small mb-3"><i class="fa-solid fa-circle-info text-info me-1"></i> Customize your sidebar layout by dragging rows, clicking <strong>▲ / ▼</strong> buttons, or entering position numbers directly.</p>
                 
                 <?php
                 // Generate ordered menu list
@@ -94,7 +97,7 @@
                     'rfid_tracking' => ['name' => 'QR Code Scanner', 'icon' => 'fa-solid fa-mobile-screen-button']
                 ];
 
-                $savedOrderRaw = $settings['sidebar_menu_order'] ?? null;
+                $savedOrderRaw = isset($settings['sidebar_menu_order']) ? html_entity_decode($settings['sidebar_menu_order']) : null;
                 $savedOrder = $savedOrderRaw ? json_decode($savedOrderRaw, true) : [];
                 if (!is_array($savedOrder)) {
                     $savedOrder = [];
@@ -103,28 +106,59 @@
                 $orderedMenuKeys = array_merge($savedOrder, array_diff(array_keys($defaultMenu), $savedOrder));
                 ?>
 
+                <!-- Hidden Input Field for AJAX submission -->
+                <input type="hidden" id="sidebar_menu_order_input" name="sidebar_menu_order" value="<?= htmlspecialchars(json_encode(array_values($orderedMenuKeys))) ?>">
+
                 <ul id="draggable-menu-list" class="list-group">
-                    <?php foreach ($orderedMenuKeys as $key): 
+                    <?php 
+                    $pos = 1;
+                    foreach ($orderedMenuKeys as $key): 
                         if (!isset($defaultMenu[$key])) continue;
                         $item = $defaultMenu[$key];
                     ?>
-                        <li class="list-group-item draggable-menu-item d-flex align-items-center justify-content-between p-3 mb-2 border rounded text-dark" 
-                            style="cursor: grab; background: #f8fafc;" 
+                        <li class="list-group-item draggable-menu-item d-flex align-items-center justify-content-between p-2.5 mb-2 border rounded text-dark bg-white shadow-sm" 
                             draggable="true" 
                             data-key="<?= htmlspecialchars($key) ?>">
+                            
                             <div class="d-flex align-items-center">
-                                <i class="<?= $item['icon'] ?> text-secondary me-3" style="width: 20px;"></i>
-                                <span class="fw-semibold text-dark"><?= htmlspecialchars($item['name']) ?></span>
+                                <span class="drag-handle text-secondary me-2 p-1" style="cursor: grab;" title="Drag to reorder">
+                                    <i class="fa-solid fa-grip-vertical"></i>
+                                </span>
+
+                                <div class="input-group input-group-sm me-3" style="width: 75px;">
+                                    <span class="input-group-text bg-light text-muted small px-1.5">#</span>
+                                    <input type="number" class="form-control pos-input text-center fw-bold px-1" 
+                                           value="<?= $pos ?>" 
+                                           min="1" 
+                                           max="<?= count($defaultMenu) ?>" 
+                                           data-key="<?= htmlspecialchars($key) ?>">
+                                </div>
+
+                                <i class="<?= $item['icon'] ?> text-primary me-2.5" style="width: 18px;"></i>
+                                <span class="fw-semibold text-dark me-2"><?= htmlspecialchars($item['name']) ?></span>
                             </div>
-                            <div class="text-secondary">
-                                <i class="fa-solid fa-grip-vertical"></i>
+
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-outline-secondary move-up-btn px-2" title="Move Up">
+                                    <i class="fa-solid fa-arrow-up"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary move-down-btn px-2" title="Move Down">
+                                    <i class="fa-solid fa-arrow-down"></i>
+                                </button>
                             </div>
                         </li>
-                    <?php endforeach; ?>
+                    <?php 
+                        $pos++;
+                    endforeach; 
+                    ?>
                 </ul>
-                <div class="text-end mt-3">
-                    <button type="button" id="save-menu-order-btn" class="btn btn-pepp-primary" style="display: none;">
-                        <i class="fa-solid fa-circle-check me-1"></i> Save Sidebar Navigation Order
+
+                <div class="d-flex align-items-center justify-content-between mt-3 pt-2 border-top">
+                    <span id="menu-order-status" class="small text-muted">
+                        <i class="fa-solid fa-circle-check text-success me-1"></i> Order saved & active
+                    </span>
+                    <button type="button" id="save-menu-order-btn" class="btn btn-pepp-primary">
+                        <i class="fa-solid fa-floppy-disk me-1"></i> Save Sidebar Navigation Order
                     </button>
                 </div>
             </div>
@@ -404,163 +438,156 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // ── Drag and Drop Sidebar Ordering (Pointer-Event Based) ──
+    // ── Multi-Modal Sidebar Menu Reordering (Drag & Drop, Up/Down Buttons, Position Inputs) ──
     const menuList = document.getElementById('draggable-menu-list');
-    if (menuList) {
-        let dragEl = null;          // The element being dragged
-        let placeholder = null;     // A placeholder gap element
-        let startY = 0;
-        let startTop = 0;
-        let isDragging = false;
+    const hiddenInput = document.getElementById('sidebar_menu_order_input');
+    const saveBtn = document.getElementById('save-menu-order-btn');
+    const resetBtn = document.getElementById('reset-default-order-btn');
+    const statusText = document.getElementById('menu-order-status');
 
-        // Remove HTML5 draggable (we use pointer events instead)
-        menuList.querySelectorAll('.draggable-menu-item').forEach(item => {
-            item.removeAttribute('draggable');
-        });
-
-        // Pointer-down on a menu item starts the drag
-        menuList.addEventListener('pointerdown', function(e) {
-            const item = e.target.closest('.draggable-menu-item');
-            if (!item) return;
-
-            e.preventDefault();
-            item.setPointerCapture(e.pointerId);
-
-            dragEl = item;
-            startY = e.clientY;
-
-            // Get position info
-            const rect = item.getBoundingClientRect();
-            startTop = rect.top;
-
-            // Create placeholder with same height
-            placeholder = document.createElement('li');
-            placeholder.className = 'list-group-item mb-2 border rounded';
-            placeholder.style.cssText = `height:${rect.height}px; background:rgba(79,70,229,0.07); border:2px dashed #818cf8 !important; border-radius:8px; pointer-events:none;`;
-
-            // Apply drag styles
-            dragEl.classList.add('is-dragging');
-            dragEl.style.position = 'fixed';
-            dragEl.style.left = rect.left + 'px';
-            dragEl.style.top = rect.top + 'px';
-            dragEl.style.width = rect.width + 'px';
-            dragEl.style.zIndex = '99999';
-            dragEl.style.pointerEvents = 'none';
-
-            // Insert placeholder where item was
-            dragEl.parentNode.insertBefore(placeholder, dragEl);
-
-            isDragging = true;
-        });
-
-        // Pointer-move: reposition the dragged element and shift the placeholder
-        menuList.addEventListener('pointermove', function(e) {
-            if (!isDragging || !dragEl) return;
-            e.preventDefault();
-
-            const dy = e.clientY - startY;
-            dragEl.style.top = (startTop + dy) + 'px';
-
-            // Find the element we're hovering over
-            const siblings = [...menuList.querySelectorAll('.draggable-menu-item:not(.is-dragging)')];
-            let insertBefore = null;
-
-            for (const sib of siblings) {
-                const box = sib.getBoundingClientRect();
-                const midY = box.top + box.height / 2;
-                if (e.clientY < midY) {
-                    insertBefore = sib;
-                    break;
-                }
-            }
-
-            // Move placeholder to new position
-            if (insertBefore) {
-                menuList.insertBefore(placeholder, insertBefore);
-            } else {
-                // Append after the last non-dragging item
-                const lastSibling = siblings[siblings.length - 1];
-                if (lastSibling && lastSibling.nextSibling !== placeholder) {
-                    if (lastSibling.nextSibling) {
-                        menuList.insertBefore(placeholder, lastSibling.nextSibling);
-                    } else {
-                        menuList.appendChild(placeholder);
-                    }
-                }
-            }
-        });
-
-        // Pointer-up: drop the element into the placeholder's position
-        menuList.addEventListener('pointerup', function(e) {
-            if (!isDragging || !dragEl) return;
-
-            // Reset styles
-            dragEl.classList.remove('is-dragging');
-            dragEl.style.position = '';
-            dragEl.style.left = '';
-            dragEl.style.top = '';
-            dragEl.style.width = '';
-            dragEl.style.zIndex = '';
-            dragEl.style.pointerEvents = '';
-
-            // Insert element where placeholder is
-            if (placeholder && placeholder.parentNode) {
-                placeholder.parentNode.insertBefore(dragEl, placeholder);
-                placeholder.remove();
-            }
-
-            isDragging = false;
-            dragEl = null;
-            placeholder = null;
-
-            // Persist new order
-            saveNewOrder();
-        });
-
-        // Also handle pointer cancel (e.g., if system interrupts the gesture)
-        menuList.addEventListener('pointercancel', function(e) {
-            if (!isDragging || !dragEl) return;
-
-            dragEl.classList.remove('is-dragging');
-            dragEl.style.position = '';
-            dragEl.style.left = '';
-            dragEl.style.top = '';
-            dragEl.style.width = '';
-            dragEl.style.zIndex = '';
-            dragEl.style.pointerEvents = '';
-
-            if (placeholder && placeholder.parentNode) {
-                placeholder.parentNode.insertBefore(dragEl, placeholder);
-                placeholder.remove();
-            }
-            isDragging = false;
-            dragEl = null;
-            placeholder = null;
-        });
-
-        function saveNewOrder() {
+    if (menuList && hiddenInput) {
+        // Sync position numbers, hidden input JSON, and UI status
+        function syncOrderState(isSaved = false) {
             const items = menuList.querySelectorAll('.draggable-menu-item');
-            const order = Array.from(items).map(item => item.dataset.key);
+            const keys = [];
+            
+            items.forEach((item, index) => {
+                const key = item.dataset.key;
+                keys.push(key);
+                
+                const posInput = item.querySelector('.pos-input');
+                if (posInput) {
+                    posInput.value = index + 1;
+                }
+            });
 
-            // 1. Update hidden field
-            const hiddenInput = document.getElementById('sidebar_menu_order_input');
-            if (hiddenInput) {
-                hiddenInput.value = JSON.stringify(order);
-            }
+            hiddenInput.value = JSON.stringify(keys);
 
-            // 2. Show the "Save Changes" button
-            const saveBtn = document.getElementById('save-menu-order-btn');
-            if (saveBtn) {
-                saveBtn.style.display = 'inline-block';
+            if (statusText) {
+                if (isSaved) {
+                    statusText.innerHTML = '<i class="fa-solid fa-circle-check text-success me-1"></i> Order saved & active';
+                } else {
+                    statusText.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-warning me-1"></i> Unsaved changes pending';
+                }
             }
         }
 
-        // Save Button click action
-        const saveBtn = document.getElementById('save-menu-order-btn');
+        // 1. Move Up / Move Down Button Listeners
+        menuList.addEventListener('click', function(e) {
+            const moveUpBtn = e.target.closest('.move-up-btn');
+            const moveDownBtn = e.target.closest('.move-down-btn');
+            
+            if (moveUpBtn) {
+                const item = moveUpBtn.closest('.draggable-menu-item');
+                const prev = item.previousElementSibling;
+                if (prev) {
+                    menuList.insertBefore(item, prev);
+                    syncOrderState(false);
+                }
+            } else if (moveDownBtn) {
+                const item = moveDownBtn.closest('.draggable-menu-item');
+                const next = item.nextElementSibling;
+                if (next) {
+                    menuList.insertBefore(item, next.nextElementSibling);
+                    syncOrderState(false);
+                }
+            }
+        });
+
+        // 2. Position Number Input Change Listener
+        menuList.addEventListener('change', function(e) {
+            if (!e.target.classList.contains('pos-input')) return;
+
+            const input = e.target;
+            const item = input.closest('.draggable-menu-item');
+            const totalItems = menuList.querySelectorAll('.draggable-menu-item').length;
+            let targetPos = parseInt(input.value, 10);
+
+            if (isNaN(targetPos) || targetPos < 1) targetPos = 1;
+            if (targetPos > totalItems) targetPos = totalItems;
+
+            const items = Array.from(menuList.querySelectorAll('.draggable-menu-item'));
+            const currentIndex = items.indexOf(item);
+            const targetIndex = targetPos - 1;
+
+            if (currentIndex !== targetIndex) {
+                if (targetIndex >= items.length - 1) {
+                    menuList.appendChild(item);
+                } else if (targetIndex > currentIndex) {
+                    menuList.insertBefore(item, items[targetIndex].nextElementSibling);
+                } else {
+                    menuList.insertBefore(item, items[targetIndex]);
+                }
+            }
+
+            syncOrderState(false);
+        });
+
+        // 3. HTML5 Drag and Drop Handlers
+        let draggedItem = null;
+
+        menuList.addEventListener('dragstart', function(e) {
+            draggedItem = e.target.closest('.draggable-menu-item');
+            if (!draggedItem) return;
+
+            draggedItem.classList.add('opacity-50', 'bg-light');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', draggedItem.dataset.key);
+        });
+
+        menuList.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+
+            const targetItem = e.target.closest('.draggable-menu-item');
+            if (!targetItem || targetItem === draggedItem) return;
+
+            const rect = targetItem.getBoundingClientRect();
+            const midpoint = rect.top + rect.height / 2;
+
+            if (e.clientY < midpoint) {
+                menuList.insertBefore(draggedItem, targetItem);
+            } else {
+                menuList.insertBefore(draggedItem, targetItem.nextElementSibling);
+            }
+        });
+
+        menuList.addEventListener('drop', function(e) {
+            e.preventDefault();
+        });
+
+        menuList.addEventListener('dragend', function(e) {
+            if (draggedItem) {
+                draggedItem.classList.remove('opacity-50', 'bg-light');
+                draggedItem = null;
+            }
+            syncOrderState(false);
+        });
+
+        // 4. Reset Default Order Button
+        if (resetBtn) {
+            resetBtn.addEventListener('click', function() {
+                const defaultOrder = ['dashboard','hr','production','merchandising','styles','buyers','inventory','procurement','masterdata','users','roles','tally','logs','settings','rfid_tracking'];
+                const itemMap = {};
+                
+                menuList.querySelectorAll('.draggable-menu-item').forEach(item => {
+                    itemMap[item.dataset.key] = item;
+                });
+
+                defaultOrder.forEach(key => {
+                    if (itemMap[key]) {
+                        menuList.appendChild(itemMap[key]);
+                    }
+                });
+
+                syncOrderState(false);
+            });
+        }
+
+        // 5. Save Button AJAX Action
         if (saveBtn) {
             saveBtn.addEventListener('click', function() {
-                const hiddenInput = document.getElementById('sidebar_menu_order_input');
-                if (!hiddenInput || !hiddenInput.value) return;
+                if (!hiddenInput.value) return;
 
                 saveBtn.disabled = true;
                 saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Saving...';
@@ -576,18 +603,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
+                        syncOrderState(true);
                         window.location.reload();
                     } else {
-                        alert('Failed to save sidebar menu order.');
+                        alert(data.error || 'Failed to save sidebar menu order.');
                         saveBtn.disabled = false;
-                        saveBtn.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i> Save Sidebar Navigation Order';
+                        saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk me-1"></i> Save Sidebar Navigation Order';
                     }
                 })
                 .catch(err => {
                     console.error(err);
                     alert('An error occurred while saving.');
                     saveBtn.disabled = false;
-                    saveBtn.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i> Save Sidebar Navigation Order';
+                    saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk me-1"></i> Save Sidebar Navigation Order';
                 });
             });
         }

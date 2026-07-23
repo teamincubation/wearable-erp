@@ -602,10 +602,7 @@ class CompanyController extends Controller {
         $this->redirect('company/settings');
     }
 
-    /**
-     * Save custom sidebar menu layout order
-     */
-    public function saveMenuOrder(Request $request, Response $response): void {
+    public static function saveMenuOrder(Request $request, Response $response): void {
         $orderJson = html_entity_decode($request->get('sidebar_menu_order'));
         if (empty($orderJson)) {
             $response->json(['success' => false, 'error' => 'Invalid order content.'], 400);
@@ -625,6 +622,16 @@ class CompanyController extends Controller {
         } else {
             $stmtInsert = $db->prepare("INSERT INTO system_settings (company_id, setting_key, setting_value, created_by) VALUES (?, 'sidebar_menu_order', ?, ?)");
             $stmtInsert->execute([$companyId, $orderJson, Session::get('user_id')]);
+        }
+
+        // Set migration version to 2 so system knows custom order is up to date
+        $stmtVerChk = $db->prepare("SELECT id FROM system_settings WHERE company_id = ? AND setting_key = 'sidebar_menu_order_version' AND deleted_at IS NULL LIMIT 1");
+        $stmtVerChk->execute([$companyId]);
+        $existingVerId = $stmtVerChk->fetchColumn();
+        if ($existingVerId) {
+            $db->prepare("UPDATE system_settings SET setting_value = '2', updated_by = ?, updated_at = NOW() WHERE id = ?")->execute([Session::get('user_id'), $existingVerId]);
+        } else {
+            $db->prepare("INSERT INTO system_settings (company_id, setting_key, setting_value, created_by) VALUES (?, 'sidebar_menu_order_version', '2', ?)")->execute([$companyId, Session::get('user_id')]);
         }
 
         $response->json(['success' => true]);
