@@ -91,9 +91,13 @@ if ($company) {
         $savedOrderRaw = $stmtMenu->fetchColumn();
     }
 }
-$savedOrder = $savedOrderRaw ? json_decode(html_entity_decode($savedOrderRaw), true) : [];
-if (!is_array($savedOrder)) {
-    $savedOrder = [];
+$savedOrder = [];
+if ($savedOrderRaw) {
+    $decodedRaw = html_entity_decode($savedOrderRaw, ENT_QUOTES, 'UTF-8');
+    $parsed = json_decode($decodedRaw, true);
+    if (is_array($parsed)) {
+        $savedOrder = $parsed;
+    }
 }
 
 $defaultMenu = [

@@ -97,10 +97,13 @@
                     'rfid_tracking' => ['name' => 'QR Code Scanner', 'icon' => 'fa-solid fa-mobile-screen-button']
                 ];
 
-                $savedOrderRaw = isset($settings['sidebar_menu_order']) ? html_entity_decode($settings['sidebar_menu_order']) : null;
-                $savedOrder = $savedOrderRaw ? json_decode($savedOrderRaw, true) : [];
-                if (!is_array($savedOrder)) {
-                    $savedOrder = [];
+                $savedOrder = [];
+                if (!empty($settings['sidebar_menu_order'])) {
+                    $decodedRaw = html_entity_decode($settings['sidebar_menu_order'], ENT_QUOTES, 'UTF-8');
+                    $parsed = json_decode($decodedRaw, true);
+                    if (is_array($parsed)) {
+                        $savedOrder = $parsed;
+                    }
                 }
 
                 $orderedMenuKeys = array_merge($savedOrder, array_diff(array_keys($defaultMenu), $savedOrder));
@@ -598,6 +601,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 fetch('<?= base_url("company/settings/menu-order") ?>', {
                     method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': '<?= \App\Core\Session::csrfToken() ?>'
+                    },
                     body: formData
                 })
                 .then(res => res.json())

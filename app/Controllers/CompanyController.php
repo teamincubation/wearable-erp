@@ -602,12 +602,29 @@ class CompanyController extends Controller {
         $this->redirect('company/settings');
     }
 
-    public static function saveMenuOrder(Request $request, Response $response): void {
-        $orderJson = html_entity_decode($request->get('sidebar_menu_order'));
-        if (empty($orderJson)) {
+    public function saveMenuOrder(Request $request, Response $response): void {
+        $raw = $_POST['sidebar_menu_order'] ?? $request->get('sidebar_menu_order');
+        if (is_string($raw)) {
+            $raw = html_entity_decode($raw, ENT_QUOTES, 'UTF-8');
+        }
+        
+        $decoded = is_string($raw) ? json_decode($raw, true) : null;
+        if (!is_array($decoded) || empty($decoded)) {
             $response->json(['success' => false, 'error' => 'Invalid order content.'], 400);
             return;
         }
+
+        // Clean values to valid string keys only
+        $cleanKeys = array_values(array_filter($decoded, function($k) {
+            return is_string($k) && preg_match('/^[a-z0-9_]+$/i', $k);
+        }));
+
+        if (empty($cleanKeys)) {
+            $response->json(['success' => false, 'error' => 'No valid menu keys provided.'], 400);
+            return;
+        }
+
+        $orderJson = json_encode($cleanKeys);
 
         $companyId = Session::get('company_id');
         $db = Database::getInstance();
