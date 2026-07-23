@@ -75,8 +75,19 @@ class MasterDataController extends Controller {
         $designations = $stmtD->fetchAll() ?: [];
 
         // Fetch style variables
-        $styleVarModel = new StyleVariable();
-        $styleVariables = $styleVarModel->all();
+        $styleVariables = [];
+        try {
+            $styleVarModel = new StyleVariable();
+            $styleVariables = $styleVarModel->all();
+        } catch (\Throwable $e) {
+            \App\Core\Migrator::runAutoMigration();
+            try {
+                $styleVarModel = new StyleVariable();
+                $styleVariables = $styleVarModel->all();
+            } catch (\Throwable $ex) {
+                $styleVariables = [];
+            }
+        }
 
         $this->renderView('company/masterdata', [
             'title' => 'Master Data Hub | Wearable ERP',

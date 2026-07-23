@@ -29,8 +29,20 @@ class StyleMasterController extends Controller {
         $stmt->execute([$companyId]);
         $buyers = $stmt->fetchAll() ?: [];
 
-        $styleVarModel = new StyleVariable();
-        $styleVars = $styleVarModel->all() ?: [];
+        $styleVars = [];
+        try {
+            $styleVarModel = new StyleVariable();
+            $styleVars = $styleVarModel->all() ?: [];
+        } catch (\Throwable $e) {
+            \App\Core\Migrator::runAutoMigration();
+            try {
+                $styleVarModel = new StyleVariable();
+                $styleVars = $styleVarModel->all() ?: [];
+            } catch (\Throwable $ex) {
+                $styleVars = [];
+            }
+        }
+
         $styleVariables = [
             'category' => [],
             'gsm' => [],

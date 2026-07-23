@@ -678,4 +678,24 @@ ALTER TABLE `purchase_orders` ADD COLUMN `payment_account_id` INT DEFAULT NULL;
 ALTER TABLE `purchase_orders` ADD COLUMN `payment_date` DATE DEFAULT NULL;
 ALTER TABLE `purchase_orders` ADD CONSTRAINT `fk_po_payment_account` FOREIGN KEY (`payment_account_id`) REFERENCES `payment_accounts` (`id`) ON DELETE SET NULL;
 
+-- 41. STYLE VARIABLES TABLE & STYLES ALTERATIONS
+ALTER TABLE `styles` MODIFY COLUMN `category` VARCHAR(100) NOT NULL DEFAULT 'unisex';
+ALTER TABLE `styles` ADD COLUMN `gsm` VARCHAR(100) DEFAULT NULL AFTER `composition`;
+ALTER TABLE `styles` ADD COLUMN `color` VARCHAR(100) DEFAULT NULL AFTER `composition`;
+
+CREATE TABLE IF NOT EXISTS `style_variables` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `company_id` INT NOT NULL,
+  `type` VARCHAR(50) NOT NULL,
+  `value` VARCHAR(255) NOT NULL,
+  `created_by` INT DEFAULT NULL,
+  `updated_by` INT DEFAULT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` TIMESTAMP NULL DEFAULT NULL,
+  CONSTRAINT `fk_style_var_company` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE,
+  INDEX `idx_style_var_company` (`company_id`),
+  INDEX `idx_style_var_type` (`type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;
