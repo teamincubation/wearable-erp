@@ -30,19 +30,21 @@ class InventoryService {
         ?int $referenceId = null,
         ?string $batchNo = null,
         float $unitPrice = 0.00,
-        ?int $userId = null
+        ?int $userId = null,
+        ?string $bomCode = null
     ): int {
         $sql = "INSERT INTO inventory_transactions (
-                    company_id, warehouse_id, item_type, item_name, 
+                    company_id, warehouse_id, item_type, bom_code, item_name, 
                     quantity, type, reference_type, reference_id, 
                     batch_no, unit_price, created_by, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
             $companyId,
             $warehouseId,
             $itemType,
+            $bomCode,
             $itemName,
             $quantity,
             $type,

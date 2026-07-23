@@ -165,10 +165,10 @@ $paymentAccountsList = $stmtAccs->fetchAll() ?: [];
 $catOptions = '';
 if (!empty($categories)) {
     foreach ($categories as $cat) {
-        $catOptions .= '<option value="' . htmlspecialchars($cat['name']) . '">' . htmlspecialchars($cat['name']) . ' (' . htmlspecialchars($cat['code']) . ')</option>';
+        $catOptions .= '<option value="' . htmlspecialchars($cat['code']) . '">' . htmlspecialchars($cat['name']) . ' (' . htmlspecialchars($cat['code']) . ')</option>';
     }
 } else {
-    $catOptions = '<option value="Fabric">Fabric</option><option value="Yarn">Yarn</option><option value="Accessories">Accessories</option><option value="Chemicals">Chemicals</option><option value="Packing">Packing Materials</option>';
+    $catOptions = '<option value="FAB">Fabric (FAB)</option><option value="YAR">Yarn (YAR)</option><option value="ACC">Accessories (ACC)</option><option value="CHE">Chemicals (CHE)</option><option value="PAC">Packing Materials (PAC)</option>';
 }
 ?>
 
@@ -302,7 +302,7 @@ if (!empty($categories)) {
                                                 <select name="item_type[]" class="form-select form-select-sm text-dark">
                                                     <?php if (!empty($categories)): ?>
                                                         <?php foreach ($categories as $cat): ?>
-                                                            <option value="<?= htmlspecialchars($cat['name']) ?>" <?= ($cat['name'] === $item['item_type']) ? 'selected' : '' ?>><?= htmlspecialchars($cat['name']) ?> (<?= htmlspecialchars($cat['code']) ?>)</option>
+                                                            <option value="<?= htmlspecialchars($cat['code']) ?>" <?= (($cat['code'] === ($item['bom_code'] ?? '')) || ($cat['name'] === ($item['item_type'] ?? ''))) ? 'selected' : '' ?>><?= htmlspecialchars($cat['name']) ?> (<?= htmlspecialchars($cat['code']) ?>)</option>
                                                         <?php endforeach; ?>
                                                     <?php else: ?>
                                                         <option value="Fabric" <?= ($item['item_type'] === 'Fabric') ? 'selected' : '' ?>>Fabric</option>

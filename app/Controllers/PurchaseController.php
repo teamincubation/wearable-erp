@@ -112,13 +112,30 @@ class PurchaseController extends Controller {
 
         // Attach distinct item categories and full item list to each PO
         foreach ($orders as &$o) {
-            $stmtCats = $db->prepare("SELECT DISTINCT item_type FROM purchase_order_items WHERE po_id = ?");
-            $stmtCats->execute([$o['id']]);
-            $o['categories'] = $stmtCats->fetchAll(\PDO::FETCH_COLUMN) ?: [];
-
-            $stmtItems = $db->prepare("SELECT * FROM purchase_order_items WHERE po_id = ?");
+            $stmtItems = $db->prepare("SELECT * FROM purchase_order_items WHERE po_id = ? AND deleted_at IS NULL");
             $stmtItems->execute([$o['id']]);
             $o['items'] = $stmtItems->fetchAll() ?: [];
+
+            $cats = [];
+            foreach ($o['items'] as $item) {
+                $iType = trim($item['item_type'] ?? '');
+                $bCode = trim($item['bom_code'] ?? '');
+
+                if (!empty($iType) && !empty($bCode)) {
+                    $label = $iType . ' (' . $bCode . ')';
+                } else if (!empty($iType)) {
+                    $label = $iType;
+                } else if (!empty($bCode)) {
+                    $label = $bCode;
+                } else {
+                    $label = 'Accessories';
+                }
+
+                if (!in_array($label, $cats)) {
+                    $cats[] = $label;
+                }
+            }
+            $o['categories'] = $cats;
         }
         unset($o);
 
@@ -184,15 +201,31 @@ class PurchaseController extends Controller {
                     $price = (float)($prices[$i] ?? 0);
                     $total = $qty * $price;
                     $totalAmount += $total;
-                    $itemCategory = (!empty($itemTypes[$i]) && trim($itemTypes[$i]) !== '') ? trim($itemTypes[$i]) : 'Accessories';
+
+                    $rawCat = (!empty($itemTypes[$i]) && trim($itemTypes[$i]) !== '') ? trim($itemTypes[$i]) : 'Accessories';
+                    $savedBomCode = null;
+                    $savedItemType = $rawCat;
+
+                    $stmtCatLook = $db->prepare("SELECT name, code FROM bom_categories WHERE (code = ? OR name = ?) AND company_id = ? AND deleted_at IS NULL LIMIT 1");
+                    $stmtCatLook->execute([$rawCat, $rawCat, $companyId]);
+                    $foundCat = $stmtCatLook->fetch();
+
+                    if ($foundCat) {
+                        $savedBomCode = $foundCat['code'];
+                        $savedItemType = $foundCat['name'];
+                    } else {
+                        $savedBomCode = $rawCat;
+                        $savedItemType = $rawCat;
+                    }
 
                     $stmt = $db->prepare("INSERT INTO purchase_order_items (
-                                            company_id, po_id, item_type, item_name, quantity, unit_price, total_price, created_at
-                                        ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())");
+                                            company_id, po_id, item_type, bom_code, item_name, quantity, unit_price, total_price, created_at
+                                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
                     $stmt->execute([
                         $companyId,
                         $poId,
-                        $itemCategory,
+                        $savedItemType,
+                        $savedBomCode,
                         trim($itemNames[$i]),
                         $qty,
                         $price,
@@ -213,6 +246,8 @@ class PurchaseController extends Controller {
         } catch (\Exception $e) {
             $db->rollBack();
             Session::setFlash('error', 'Failed to save Supplier PO: ' . $e->getMessage());
+            $this->redirect('company/purchase/orders');
+            return;
         }
 
         $this->redirect('company/purchase/orders');
@@ -230,13 +265,13 @@ class PurchaseController extends Controller {
         $paymentAccountId = $request->get('payment_account_id') ? (int)$request->get('payment_account_id') : null;
         $paymentDate = $request->get('payment_date') ?: null;
 
-        $itemNames = $request->get('item_name') ?: [];
         $itemTypes = $request->get('item_type') ?: [];
+        $itemNames = $request->get('item_name') ?: [];
         $quantities = $request->get('quantity') ?: [];
         $prices = $request->get('unit_price') ?: [];
 
         if (empty($supplierId) || empty($poNo) || empty($date)) {
-            Session::setFlash('error', 'Supplier details, PO Number, and Date are required.');
+            Session::setFlash('error', 'Supplier, PO Number, and Date are required.');
             $this->redirect('company/purchase/orders');
             return;
         }
@@ -254,9 +289,12 @@ class PurchaseController extends Controller {
             $db->beginTransaction();
 
             $poModel = new PurchaseOrder();
-            $po = $poModel->find($id);
+            $po = $poModel->find((int)$id);
             if (!$po) {
-                throw new \Exception("Purchase Order not found.");
+                $db->rollBack();
+                Session::setFlash('error', 'Purchase order not found.');
+                $this->redirect('company/purchase/orders');
+                return;
             }
 
             // Update PO header details
@@ -283,15 +321,31 @@ class PurchaseController extends Controller {
                         $price = (float)($prices[$i] ?? 0);
                         $total = $qty * $price;
                         $totalAmount += $total;
-                        $itemCategory = (!empty($itemTypes[$i]) && trim($itemTypes[$i]) !== '') ? trim($itemTypes[$i]) : 'Accessories';
+
+                        $rawCat = (!empty($itemTypes[$i]) && trim($itemTypes[$i]) !== '') ? trim($itemTypes[$i]) : 'Accessories';
+                        $savedBomCode = null;
+                        $savedItemType = $rawCat;
+
+                        $stmtCatLook = $db->prepare("SELECT name, code FROM bom_categories WHERE (code = ? OR name = ?) AND company_id = ? AND deleted_at IS NULL LIMIT 1");
+                        $stmtCatLook->execute([$rawCat, $rawCat, $companyId]);
+                        $foundCat = $stmtCatLook->fetch();
+
+                        if ($foundCat) {
+                            $savedBomCode = $foundCat['code'];
+                            $savedItemType = $foundCat['name'];
+                        } else {
+                            $savedBomCode = $rawCat;
+                            $savedItemType = $rawCat;
+                        }
 
                         $stmt = $db->prepare("INSERT INTO purchase_order_items (
-                                                company_id, po_id, item_type, item_name, quantity, unit_price, total_price, created_at
-                                            ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())");
+                                                company_id, po_id, item_type, bom_code, item_name, quantity, unit_price, total_price, created_at
+                                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
                         $stmt->execute([
                             $companyId,
                             $id,
-                            $itemCategory,
+                            $savedItemType,
+                            $savedBomCode,
                             trim($itemNames[$i]),
                             $qty,
                             $price,
@@ -587,7 +641,8 @@ class PurchaseController extends Controller {
                         $poId,
                         'PO-' . $poNo,
                         (float)$item['unit_price'],
-                        $userId
+                        $userId,
+                        $item['bom_code'] ?? null
                     );
                 }
             }

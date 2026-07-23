@@ -138,11 +138,32 @@ class Migrator {
                 }
             } catch (\PDOException $e) {}
 
+            // Auto-heal purchase_order_items & inventory_transactions columns for bom_code & item_type VARCHAR
+            try {
+                $db->exec("ALTER TABLE `purchase_order_items` MODIFY COLUMN `item_type` VARCHAR(150) NOT NULL DEFAULT 'Accessories'");
+            } catch (\PDOException $e) {}
+            try {
+                $checkBomCode = $db->query("SHOW COLUMNS FROM `purchase_order_items` LIKE 'bom_code'");
+                if (!$checkBomCode || $checkBomCode->rowCount() === 0) {
+                    $db->exec("ALTER TABLE `purchase_order_items` ADD COLUMN `bom_code` VARCHAR(50) DEFAULT NULL AFTER `item_type`");
+                }
+            } catch (\PDOException $e) {}
+
+            try {
+                $db->exec("ALTER TABLE `inventory_transactions` MODIFY COLUMN `item_type` VARCHAR(150) NOT NULL DEFAULT 'Accessories'");
+            } catch (\PDOException $e) {}
+            try {
+                $checkItBomCode = $db->query("SHOW COLUMNS FROM `inventory_transactions` LIKE 'bom_code'");
+                if (!$checkItBomCode || $checkItBomCode->rowCount() === 0) {
+                    $db->exec("ALTER TABLE `inventory_transactions` ADD COLUMN `bom_code` VARCHAR(50) DEFAULT NULL AFTER `item_type`");
+                }
+            } catch (\PDOException $e) {}
+
             // Auto-heal empty item_type records in purchase_order_items & inventory_transactions
             try {
                 $db->exec("UPDATE purchase_order_items SET item_type = 'Accessories' WHERE item_type IS NULL OR TRIM(item_type) = ''");
                 $db->exec("UPDATE inventory_transactions SET item_type = 'Accessories' WHERE item_type IS NULL OR TRIM(item_type) = ''");
-                $db->exec("UPDATE inventory_transactions it JOIN purchase_order_items poi ON it.reference_id = poi.po_id AND it.item_name = poi.item_name SET it.item_type = poi.item_type WHERE (it.item_type IS NULL OR TRIM(it.item_type) = '' OR LOWER(it.item_type) = 'accessories') AND poi.item_type IS NOT NULL AND TRIM(poi.item_type) != ''");
+                $db->exec("UPDATE inventory_transactions it JOIN purchase_order_items poi ON it.reference_id = poi.po_id AND it.item_name = poi.item_name SET it.item_type = poi.item_type, it.bom_code = poi.bom_code WHERE (it.item_type IS NULL OR TRIM(it.item_type) = '' OR LOWER(it.item_type) = 'accessories') AND poi.item_type IS NOT NULL AND TRIM(poi.item_type) != ''");
             } catch (\PDOException $e) {}
 
             // Auto-heal warehouse_types table
