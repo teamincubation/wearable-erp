@@ -382,27 +382,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
 
-                const formats = window.Html5QrcodeSupportedFormats || {};
-                const formatsToSupport = [
-                    formats.QR_CODE || 11,
-                    formats.CODE_128 || 4,
-                    formats.CODE_39 || 2,
-                    formats.EAN_13 || 7,
-                    formats.EAN_8 || 6,
-                    formats.UPC_A || 14,
-                    formats.UPC_E || 15,
-                    formats.ITF || 8
-                ];
+                html5QrCode = new Html5Qrcode("reader");
 
-                html5QrCode = new Html5Qrcode("reader", {
-                    formatsToSupport: formatsToSupport
-                });
-
+                // Config optimized for full-frame scanning without restrictive cropping
                 const config = { 
                     fps: 25, 
-                    qrbox: function(width, height) {
-                        const size = Math.min(width, height) * 0.7;
-                        return { width: size, height: size * 0.6 };
+                    qrbox: function(viewfinderWidth, viewfinderHeight) {
+                        // Wide scanning box covering 85% of viewport for instant multi-angle detection
+                        return { 
+                            width: Math.floor(viewfinderWidth * 0.85), 
+                            height: Math.floor(viewfinderHeight * 0.85) 
+                        };
                     },
                     aspectRatio: 1.333333
                 };
@@ -489,7 +479,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function captureAndAnalyzeFrame() {
         const video = document.querySelector('#reader video');
         if (!video || video.readyState < 2) {
-            showTemporaryToast("Camera stream not ready yet. Please align camera and try again.", "warning");
+            showTemporaryToast("Camera stream loading... Align QR code and press SCAN again.", "warning");
             return;
         }
 
@@ -498,38 +488,61 @@ document.addEventListener('DOMContentLoaded', function() {
         triggerScanBtn.disabled = true;
 
         const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth || 640;
-        canvas.height = video.videoHeight || 480;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const vw = video.videoWidth || 640;
+        const vh = video.videoHeight || 480;
 
-        canvas.toBlob(blob => {
-            if (!blob) {
+        // Try decoding at 0deg (native) and 90deg (rotated sensor fallback for mobile)
+        const angles = [0, 90];
+        let angleIdx = 0;
+
+        function tryNextAngle() {
+            if (angleIdx >= angles.length) {
                 triggerScanBtn.innerHTML = origHtml;
                 triggerScanBtn.disabled = false;
-                showTemporaryToast("Failed to capture frame from camera stream.", "danger");
+                showTemporaryToast("No valid QR code detected. Hold camera steady over QR sticker and press SCAN.", "warning", 3500);
                 return;
             }
 
-            const file = new File([blob], "capture_frame.png", { type: "image/png" });
-
-            if (!tempFileDecoder) {
-                tempFileDecoder = new Html5Qrcode("reader-temp-canvas");
+            const angle = angles[angleIdx++];
+            if (angle === 0) {
+                canvas.width = vw;
+                canvas.height = vh;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, vw, vh);
+            } else {
+                canvas.width = vh;
+                canvas.height = vw;
+                const ctx = canvas.getContext('2d');
+                ctx.translate(vh / 2, vw / 2);
+                ctx.rotate(angle * Math.PI / 180);
+                ctx.drawImage(video, -vw / 2, -vh / 2);
             }
 
-            tempFileDecoder.scanFile(file, true)
-                .then(decodedText => {
-                    triggerScanBtn.innerHTML = origHtml;
-                    triggerScanBtn.disabled = false;
-                    onScanSuccess(decodedText);
-                })
-                .catch(err => {
-                    console.error("Frame scan decode error: ", err);
-                    triggerScanBtn.innerHTML = origHtml;
-                    triggerScanBtn.disabled = false;
-                    showTemporaryToast("No valid QR code detected in view. Position QR code clearly in camera frame and press SCAN again.", "warning", 3500);
-                });
-        }, 'image/png');
+            canvas.toBlob(blob => {
+                if (!blob) {
+                    tryNextAngle();
+                    return;
+                }
+
+                const file = new File([blob], "scan_frame.png", { type: "image/png" });
+
+                if (!tempFileDecoder) {
+                    tempFileDecoder = new Html5Qrcode("reader-temp-canvas");
+                }
+
+                tempFileDecoder.scanFile(file, true)
+                    .then(decodedText => {
+                        triggerScanBtn.innerHTML = origHtml;
+                        triggerScanBtn.disabled = false;
+                        onScanSuccess(decodedText);
+                    })
+                    .catch(err => {
+                        tryNextAngle();
+                    });
+            }, 'image/png');
+        }
+
+        tryNextAngle();
     }
 
     // ===================== MODE TOGGLE =====================
@@ -633,7 +646,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 scanResultCard.style.display = 'block';
             } else {
-                showTemporaryToast('QR Code Not Verified: ' + data.message, "danger", 5000);
+                showTemporaryToast('⚠️ QR Code Not Verified: ' + data.message, "danger", 5000);
                 if (isCameraMode && html5QrCode && html5QrCode.isScanning) {
                     setTimeout(() => html5QrCode.resume(), 2500);
                 }
