@@ -53,9 +53,30 @@
                                         <span class="badge <?= $badgeClass ?> small mb-2" style="font-size: 10px;"><?= $statusLabel ?></span>
                                     </div>
                                     <div class="text-secondary small border-top pt-2 mt-2" style="font-size: 10px; border-color: rgba(0,0,0,0.05) !important;">
-                                        <div class="d-flex justify-content-between"><span>In:</span> <strong class="font-monospace text-dark"><?= number_format($inVal) ?></strong></div>
-                                        <div class="d-flex justify-content-between"><span>Out:</span> <strong class="font-monospace text-dark"><?= number_format($outVal) ?></strong></div>
-                                        <div class="d-flex justify-content-between"><span>Waste:</span> <strong class="font-monospace text-danger"><?= number_format($wasteVal) ?></strong></div>
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span>In:</span> 
+                                            <?php if ($inVal > 0): ?>
+                                                <strong class="font-monospace badge bg-primary text-white px-2 py-0.5" style="font-size: 10px;"><?= number_format($inVal) ?></strong>
+                                            <?php else: ?>
+                                                <span class="font-monospace text-muted opacity-50">0</span>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span>Out:</span> 
+                                            <?php if ($outVal > 0): ?>
+                                                <strong class="font-monospace badge bg-success text-white px-2 py-0.5" style="font-size: 10px;"><?= number_format($outVal) ?></strong>
+                                            <?php else: ?>
+                                                <span class="font-monospace text-muted opacity-50">0</span>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span>Waste:</span> 
+                                            <?php if ($wasteVal > 0): ?>
+                                                <strong class="font-monospace badge bg-danger text-white px-2 py-0.5" style="font-size: 10px;"><?= number_format($wasteVal) ?></strong>
+                                            <?php else: ?>
+                                                <span class="font-monospace text-muted opacity-50">0</span>
+                                            <?php endif; ?>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -181,10 +202,24 @@
                                         <td><span class="badge bg-light text-dark text-capitalize"><?= str_replace('_', ' ', $h['stage']) ?></span></td>
                                         <td><?= htmlspecialchars($h['employee_name'] ?: 'System / Admin') ?></td>
                                         <td><?= htmlspecialchars($h['machine_name'] ?: ($h['qr_code'] ? 'QR: ' . $h['qr_code'] : 'Manual')) ?></td>
-                                        <td class="font-monospace text-dark small">
-                                            In: <?= $h['qty_in'] ?><br>
-                                            Out: <strong class="text-success"><?= $h['qty_out'] ?></strong><br>
-                                            Waste: <span class="text-danger"><?= $h['waste_qty'] ?></span>
+                                        <td class="font-monospace small">
+                                            <?php if ($h['qty_in'] > 0): ?>
+                                                <span class="badge bg-primary text-white mb-1">In: <?= $h['qty_in'] ?></span><br>
+                                            <?php else: ?>
+                                                <span class="text-secondary opacity-50 small">In: 0</span><br>
+                                            <?php endif; ?>
+
+                                            <?php if ($h['qty_out'] > 0): ?>
+                                                <span class="badge bg-success text-white mb-1">Out: <?= $h['qty_out'] ?></span><br>
+                                            <?php else: ?>
+                                                <span class="text-secondary opacity-50 small">Out: 0</span><br>
+                                            <?php endif; ?>
+
+                                            <?php if ($h['waste_qty'] > 0): ?>
+                                                <span class="badge bg-danger text-white">Waste: <?= $h['waste_qty'] ?></span>
+                                            <?php else: ?>
+                                                <span class="text-secondary opacity-50 small">Waste: 0</span>
+                                            <?php endif; ?>
                                         </td>
                                         <td><span class="badge bg-light text-secondary"><?= $h['duration_minutes'] ?> mins</span></td>
                                         <td><?= date('d M Y H:i', strtotime($h['created_at'])) ?></td>

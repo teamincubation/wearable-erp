@@ -258,10 +258,34 @@
                                     <td>
                                         <span class="fw-bold text-white text-capitalize text-nowrap"><?= str_replace('_', ' ', $stg) ?></span>
                                     </td>
-                                    <td class="text-center font-monospace"><?= number_format($in) ?></td>
-                                    <td class="text-center font-monospace text-neon-green fw-bold"><?= number_format($out) ?></td>
-                                    <td class="text-center font-monospace text-danger"><?= number_format($waste) ?></td>
-                                    <td class="text-center font-monospace text-neon-cyan fw-semibold"><?= number_format($bal) ?></td>
+                                    <td class="text-center font-monospace">
+                                        <?php if ($in > 0): ?>
+                                            <span class="badge bg-primary text-white font-monospace px-2.5 py-1 shadow-sm" style="font-size: 0.85rem;"><i class="fa-solid fa-arrow-right-to-bracket me-1"></i><?= number_format($in) ?></span>
+                                        <?php else: ?>
+                                            <span class="text-secondary opacity-40 font-monospace">0</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="text-center font-monospace">
+                                        <?php if ($out > 0): ?>
+                                            <span class="badge bg-success text-white font-monospace px-2.5 py-1 shadow-sm" style="font-size: 0.85rem;"><i class="fa-solid fa-check me-1"></i><?= number_format($out) ?></span>
+                                        <?php else: ?>
+                                            <span class="text-secondary opacity-40 font-monospace">0</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="text-center font-monospace">
+                                        <?php if ($waste > 0): ?>
+                                            <span class="badge bg-danger text-white font-monospace px-2.5 py-1 shadow-sm" style="font-size: 0.85rem;"><i class="fa-solid fa-triangle-exclamation me-1"></i><?= number_format($waste) ?></span>
+                                        <?php else: ?>
+                                            <span class="text-secondary opacity-40 font-monospace">0</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="text-center font-monospace">
+                                        <?php if ($bal > 0): ?>
+                                            <span class="badge bg-warning text-dark font-monospace px-2.5 py-1 shadow-sm fw-bold" style="font-size: 0.85rem;"><i class="fa-solid fa-boxes-stacked me-1"></i><?= number_format($bal) ?></span>
+                                        <?php else: ?>
+                                            <span class="text-secondary opacity-40 font-monospace">0</span>
+                                        <?php endif; ?>
+                                    </td>
                                     <td class="text-end">
                                         <div class="d-flex align-items-center justify-content-end gap-2.5">
                                             <div class="progress w-100" style="height: 6px; background-color: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden;">

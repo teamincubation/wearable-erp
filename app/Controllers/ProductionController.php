@@ -529,7 +529,7 @@ class ProductionController extends Controller {
         // Duplicate check: Prevent logging the same QR code twice under the same WIP stage
         $stmtCheckAlready = $db->prepare("
             SELECT id FROM production_stage_logs 
-            WHERE company_id = ? AND qr_code = ? AND stage = ? AND deleted_at IS NULL 
+            WHERE company_id = ? AND qr_code = ? AND stage = ? 
             LIMIT 1
         ");
         $stmtCheckAlready->execute([$companyId, $qrCode, $stage]);
@@ -648,7 +648,7 @@ class ProductionController extends Controller {
                 SELECT psl.*, u.name as operator_name 
                 FROM production_stage_logs psl
                 LEFT JOIN users u ON psl.employee_id = u.id
-                WHERE psl.company_id = ? AND psl.qr_code = ? AND psl.stage = ? AND psl.deleted_at IS NULL
+                WHERE psl.company_id = ? AND psl.qr_code = ? AND psl.stage = ?
                 ORDER BY psl.id DESC LIMIT 1
             ");
             $stmtCheckAlready->execute([$companyId, $qrCode, $stage]);
