@@ -34,10 +34,12 @@ class PermissionMiddleware extends Middleware {
             if ($companyId === null) {
                 $response->redirect(base_url('developer/dashboard'));
             } else {
-                if ($requiredPermission === 'company.dashboard') {
+                $fallbackUrl = Auth::getFirstAccessibleCompanyUrl();
+                // Prevent redirect loop if the fallback URL requires the permission we just failed on
+                if ($fallbackUrl === 'logout' || ltrim($request->getUri(), '/') === $fallbackUrl) {
                     $response->redirect(base_url('logout'));
                 } else {
-                    $response->redirect(base_url('company/dashboard'));
+                    $response->redirect(base_url($fallbackUrl));
                 }
             }
             return false;

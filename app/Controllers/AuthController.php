@@ -181,7 +181,7 @@ class AuthController extends Controller {
         if ($companyId === null) {
             $this->redirect('developer/dashboard');
         } else {
-            $this->redirect('company/dashboard');
+            $this->redirect(Auth::getFirstAccessibleCompanyUrl());
         }
     }
 

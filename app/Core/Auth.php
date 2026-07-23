@@ -150,14 +150,56 @@ class Auth {
         return $userModel->find(Session::get('user_id'));
     }
 
+    public static function getFirstAccessibleCompanyUrl(): string {
+        $defaultMenu = [
+            'dashboard' => ['url' => 'company/dashboard', 'permission' => 'company.dashboard'],
+            'users' => ['url' => 'company/users', 'permission' => 'company.users.view'],
+            'roles' => ['url' => 'company/roles', 'permission' => 'company.roles.view'],
+            'masterdata' => ['url' => 'company/masterdata', 'permission' => 'company.styles.view'],
+            'buyers' => ['url' => 'company/buyers', 'permission' => 'company.styles.view'],
+            'styles' => ['url' => 'company/styles', 'permission' => 'company.styles.view'],
+            'merchandising' => ['url' => 'company/merchandising/costsheets', 'permission' => 'company.styles.view'],
+            'procurement' => ['url' => 'company/purchase/orders', 'permission' => 'company.styles.view'],
+            'inventory' => ['url' => 'company/inventory/balances', 'permission' => 'company.inventory.view'],
+            'production' => ['url' => 'company/production/orders', 'permission' => 'company.production.view'],
+            'rfid_tracking' => ['url' => 'company/production/qr-tracking', 'permission' => 'company.production.rfid_tracking'],
+            'hr' => ['url' => 'company/hr/attendance', 'permission' => 'company.users.view'],
+            'tally' => ['url' => 'company/tally/vouchers', 'permission' => 'company.tally.export'],
+            'logs' => ['url' => 'company/logs', 'permission' => 'company.logs'],
+            'settings' => ['url' => 'company/settings', 'permission' => 'company.settings']
+        ];
+
+        // Load custom sidebar menu order from system_settings
+        $companyId = Session::get('company_id');
+        $savedOrderRaw = null;
+        if ($companyId) {
+            try {
+                $db = Database::getInstance();
+                $stmtMenu = $db->prepare("SELECT setting_value FROM system_settings WHERE company_id = ? AND setting_key = 'sidebar_menu_order' AND deleted_at IS NULL ORDER BY id DESC LIMIT 1");
+                $stmtMenu->execute([$companyId]);
+                $savedOrderRaw = $stmtMenu->fetchColumn();
+            } catch (\Exception $e) { }
+        }
+        $savedOrder = $savedOrderRaw ? json_decode(html_entity_decode($savedOrderRaw), true) : [];
+        if (!is_array($savedOrder)) {
+            $savedOrder = [];
+        }
+
+        $orderedMenuKeys = array_merge($savedOrder, array_diff(array_keys($defaultMenu), $savedOrder));
+
+        foreach ($orderedMenuKeys as $key) {
+            if (!isset($defaultMenu[$key])) continue;
+            if (self::hasPermission($defaultMenu[$key]['permission'])) {
+                return $defaultMenu[$key]['url'];
+            }
+        }
+        
+        return 'logout'; // If no permissions at all, just log them out
+    }
+
     public static function hasPermission(string $permission): bool {
         if (!self::check()) {
             return false;
-        }
-
-        // The dashboard page is a core page and should always be accessible to prevent redirect loops
-        if ($permission === 'company.dashboard') {
-            return true;
         }
 
         $companyId = Session::get('company_id');
