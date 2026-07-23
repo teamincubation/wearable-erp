@@ -55,8 +55,8 @@ $savedOrderRaw = null;
 if ($company) {
     $db = \App\Core\Database::getInstance();
 
-    // ── One-time migration: enforce new default sidebar order (v2) ──
-    $currentVersion = 2;
+    // ── One-time migration: enforce new default sidebar order (v3) ──
+    $currentVersion = 3;
     $stmtVer = $db->prepare("SELECT setting_value FROM system_settings WHERE company_id = ? AND setting_key = 'sidebar_menu_order_version' AND deleted_at IS NULL ORDER BY id DESC LIMIT 1");
     $stmtVer->execute([$company['id']]);
     $dbVersion = (int)($stmtVer->fetchColumn() ?: 0);
