@@ -130,6 +130,14 @@ class Migrator {
                 } catch (\PDOException $e) {}
             }
 
+            // Auto-heal purchase_orders table columns for warehouse_id
+            try {
+                $checkPoWh = $db->query("SHOW COLUMNS FROM `purchase_orders` LIKE 'warehouse_id'");
+                if (!$checkPoWh || $checkPoWh->rowCount() === 0) {
+                    $db->exec("ALTER TABLE `purchase_orders` ADD COLUMN `warehouse_id` INT DEFAULT NULL");
+                }
+            } catch (\PDOException $e) {}
+
             // Auto-heal feature_flags table columns for feature labels
             try {
                 $checkLabel = $db->query("SHOW COLUMNS FROM `feature_flags` LIKE 'label'");

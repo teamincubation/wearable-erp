@@ -97,13 +97,13 @@
                 <?= \App\Core\Session::csrfField() ?>
                 <div class="modal-content" style="border-radius: 12px;">
                     <div class="modal-header">
-                        <h5 class="modal-title fw-bold">Transfer Stock between Warehouses</h5>
+                        <h5 class="modal-title fw-bold"><i class="fa-solid fa-right-left text-primary me-2"></i> Transfer Stock between Warehouses</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body text-start">
                         <div class="mb-3">
                             <label class="form-label small fw-bold">Source Warehouse (From) <span class="text-danger">*</span></label>
-                            <select name="from_warehouse_id" class="form-select text-dark" required>
+                            <select name="from_warehouse_id" id="transferFromWhSelect" class="form-select text-dark" required>
                                 <option value="">-- Select Source Warehouse --</option>
                                 <?php foreach ($warehouses as $w): ?>
                                     <option value="<?= $w['id'] ?>"><?= htmlspecialchars($w['name']) ?> (<?= htmlspecialchars(ucfirst($w['type'])) ?>)</option>
@@ -112,7 +112,7 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label small fw-bold">Destination Warehouse (To) <span class="text-danger">*</span></label>
-                            <select name="to_warehouse_id" class="form-select text-dark" required>
+                            <select name="to_warehouse_id" id="transferToWhSelect" class="form-select text-dark" required>
                                 <option value="">-- Select Destination Warehouse --</option>
                                 <?php foreach ($warehouses as $w): ?>
                                     <option value="<?= $w['id'] ?>"><?= htmlspecialchars($w['name']) ?> (<?= htmlspecialchars(ucfirst($w['type'])) ?>)</option>
@@ -120,29 +120,22 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label small fw-bold">Item Type <span class="text-danger">*</span></label>
-                            <select name="item_type" class="form-select text-dark" required>
-                                <?php if (!empty($categories)): ?>
-                                    <?php foreach ($categories as $cat): ?>
-                                        <option value="<?= htmlspecialchars($cat['name']) ?>"><?= htmlspecialchars($cat['name']) ?> (<?= htmlspecialchars($cat['code']) ?>)</option>
-                                    <?php endforeach; ?>
-                                <?php else: ?>
-                                    <option value="Fabric">Fabric</option>
-                                    <option value="Yarn">Yarn</option>
-                                    <option value="Accessories">Accessories</option>
-                                    <option value="Chemicals">Chemicals</option>
-                                    <option value="Packing">Packing Materials</option>
-                                <?php endif; ?>
+                            <label class="form-label small fw-bold">Available Item Category <span class="text-danger">*</span></label>
+                            <select name="item_type" id="transferItemTypeSelect" class="form-select text-dark" required>
+                                <option value="">-- First Select Source Warehouse --</option>
                             </select>
                         </div>
                         <div class="mb-3">
                             <label class="form-label small fw-bold">Item / Description Name <span class="text-danger">*</span></label>
-                            <input type="text" name="item_name" class="form-control" placeholder="e.g. Round Neck tag, Grey jersey fabric" required>
+                            <select name="item_name" id="transferItemNameSelect" class="form-select text-dark" required>
+                                <option value="">-- First Select Category --</option>
+                            </select>
                         </div>
                         <div class="row g-3">
                             <div class="col-6 mb-3">
                                 <label class="form-label small fw-bold">Quantity <span class="text-danger">*</span></label>
-                                <input type="number" step="0.01" name="quantity" class="form-control" placeholder="e.g. 50" min="0.01" required>
+                                <input type="number" step="0.01" name="quantity" id="transferQtyInput" class="form-control text-dark font-monospace" placeholder="e.g. 50" min="0.01" required>
+                                <div id="availStockNotice" class="small fw-semibold mt-1"></div>
                             </div>
                             <div class="col-6 mb-3">
                                 <label class="form-label small fw-bold">Batch / Lot Code</label>
@@ -152,10 +145,131 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
-                        <button type="submit" class="btn btn-primary px-4">Execute Transfer</button>
+                        <button type="submit" id="transferSubmitBtn" class="btn btn-primary px-4">Execute Transfer</button>
                     </div>
                 </div>
             </form>
         </div>
     </div>
 <?php endif; ?>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const warehouseStock = <?= json_encode($warehouseStockData ?? []) ?>;
+
+    const fromWhSelect = document.getElementById('transferFromWhSelect');
+    const toWhSelect = document.getElementById('transferToWhSelect');
+    const typeSelect = document.getElementById('transferItemTypeSelect');
+    const nameSelect = document.getElementById('transferItemNameSelect');
+    const qtyInput = document.getElementById('transferQtyInput');
+    const availNotice = document.getElementById('availStockNotice');
+    const submitBtn = document.getElementById('transferSubmitBtn');
+
+    let currentMaxQty = 0;
+
+    if (fromWhSelect && typeSelect && nameSelect) {
+        // 1. Source Warehouse Change Event
+        fromWhSelect.addEventListener('change', function() {
+            const whId = parseInt(this.value);
+            typeSelect.innerHTML = '<option value="">-- Choose Category --</option>';
+            nameSelect.innerHTML = '<option value="">-- Choose Item / Description --</option>';
+            if (availNotice) availNotice.innerHTML = '';
+            if (qtyInput) {
+                qtyInput.value = '';
+                qtyInput.removeAttribute('max');
+            }
+            if (submitBtn) submitBtn.disabled = false;
+
+            if (!whId) return;
+
+            // Extract unique categories available in the selected warehouse
+            const availableCategories = [...new Set(
+                warehouseStock
+                    .filter(s => parseInt(s.warehouse_id) === whId && parseFloat(s.available_qty) > 0)
+                    .map(s => s.item_type)
+            )];
+
+            if (availableCategories.length === 0) {
+                typeSelect.innerHTML = '<option value="">-- No Stock Available in Facility --</option>';
+                return;
+            }
+
+            availableCategories.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat;
+                opt.textContent = cat;
+                typeSelect.appendChild(opt);
+            });
+        });
+
+        // 2. Item Category Change Event
+        typeSelect.addEventListener('change', function() {
+            const whId = parseInt(fromWhSelect.value);
+            const selectedCat = this.value;
+            nameSelect.innerHTML = '<option value="">-- Choose Item / Description --</option>';
+            if (availNotice) availNotice.innerHTML = '';
+            if (qtyInput) {
+                qtyInput.value = '';
+                qtyInput.removeAttribute('max');
+            }
+            if (submitBtn) submitBtn.disabled = false;
+
+            if (!whId || !selectedCat) return;
+
+            const items = warehouseStock.filter(s => parseInt(s.warehouse_id) === whId && s.item_type === selectedCat && parseFloat(s.available_qty) > 0);
+            
+            if (items.length === 0) {
+                nameSelect.innerHTML = '<option value="">-- No Items Available under Category --</option>';
+                return;
+            }
+
+            items.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.item_name;
+                opt.setAttribute('data-qty', item.available_qty);
+                opt.textContent = `${item.item_name} (Available: ${parseFloat(item.available_qty).toFixed(2)})`;
+                nameSelect.appendChild(opt);
+            });
+        });
+
+        // 3. Item Name Change Event
+        nameSelect.addEventListener('change', function() {
+            const selectedOpt = this.options[this.selectedIndex];
+            if (availNotice) availNotice.innerHTML = '';
+
+            if (selectedOpt && selectedOpt.hasAttribute('data-qty')) {
+                currentMaxQty = parseFloat(selectedOpt.getAttribute('data-qty'));
+                if (qtyInput) {
+                    qtyInput.setAttribute('max', currentMaxQty);
+                    qtyInput.value = currentMaxQty;
+                }
+                if (availNotice) {
+                    availNotice.innerHTML = `<span class="text-success"><i class="fa-solid fa-circle-check me-1"></i> Max Available in Stock: <strong>${currentMaxQty.toFixed(2)}</strong></span>`;
+                }
+                if (submitBtn) submitBtn.disabled = false;
+            } else {
+                currentMaxQty = 0;
+                if (qtyInput) qtyInput.removeAttribute('max');
+            }
+        });
+
+        // 4. Quantity Input Realtime Validation
+        if (qtyInput) {
+            qtyInput.addEventListener('input', function() {
+                const val = parseFloat(this.value) || 0;
+                if (currentMaxQty > 0 && val > currentMaxQty) {
+                    if (availNotice) {
+                        availNotice.innerHTML = `<span class="text-danger"><i class="fa-solid fa-triangle-exclamation me-1"></i> Cannot transfer more than available stock (${currentMaxQty.toFixed(2)})</span>`;
+                    }
+                    if (submitBtn) submitBtn.disabled = true;
+                } else if (currentMaxQty > 0 && val <= currentMaxQty) {
+                    if (availNotice) {
+                        availNotice.innerHTML = `<span class="text-success"><i class="fa-solid fa-circle-check me-1"></i> Max Available in Stock: <strong>${currentMaxQty.toFixed(2)}</strong></span>`;
+                    }
+                    if (submitBtn) submitBtn.disabled = false;
+                }
+            });
+        }
+    }
+});
+</script>

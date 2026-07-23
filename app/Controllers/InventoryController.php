@@ -41,11 +41,23 @@ class InventoryController extends Controller {
         $stmtCat->execute([$companyId]);
         $categories = $stmtCat->fetchAll() ?: [];
 
+        // Query available positive stock per warehouse for live stock transfer filtering
+        $stmtStock = $db->prepare("
+            SELECT warehouse_id, item_type, item_name, SUM(quantity) as available_qty 
+            FROM inventory_transactions 
+            WHERE company_id = ? 
+            GROUP BY warehouse_id, item_type, item_name 
+            HAVING available_qty > 0
+        ");
+        $stmtStock->execute([$companyId]);
+        $warehouseStockData = $stmtStock->fetchAll() ?: [];
+
         $this->renderView('company/inventory_ledger', [
             'title' => 'Stock Transaction Ledger | ERP',
             'transactions' => $transactions,
             'warehouses' => $warehouses,
-            'categories' => $categories
+            'categories' => $categories,
+            'warehouseStockData' => $warehouseStockData
         ]);
     }
 
@@ -58,31 +70,29 @@ class InventoryController extends Controller {
 
         // Get summaries
         $summary = $inventoryService->getInventorySummary($companyId);
-
-        // Fetch GRN Completed Purchase Orders from Procurement
         $db = Database::getInstance();
-        $stmtPO = $db->prepare(
-            "SELECT po.*, c.name as supplier_name, acc.name as account_name
-             FROM purchase_orders po
-             JOIN contacts c ON po.supplier_id = c.id
-             LEFT JOIN payment_accounts acc ON po.payment_account_id = acc.id
-             WHERE po.company_id = ? AND po.status = 'grn_completed' AND po.deleted_at IS NULL
-             ORDER BY po.payment_date DESC, po.id DESC"
-        );
-        $stmtPO->execute([$companyId]);
-        $grnCompletedPOs = $stmtPO->fetchAll() ?: [];
 
-        // Load items for each PO
-        foreach ($grnCompletedPOs as &$po) {
-            $stmtItems = $db->prepare("SELECT item_name, item_type, quantity, unit_price FROM purchase_order_items WHERE po_id = ?");
-            $stmtItems->execute([$po['id']]);
-            $po['items'] = $stmtItems->fetchAll() ?: [];
+        // Attach procurement history details to each stock item for the view modal
+        foreach ($summary as &$item) {
+            $stmtPoDetails = $db->prepare("
+                SELECT po.po_no, po.status, c.name as supplier_name, acc.name as account_name, po.payment_date, w.name as warehouse_name,
+                       poi.item_name, poi.item_type, poi.quantity, poi.unit_price, poi.total_price
+                FROM purchase_order_items poi
+                JOIN purchase_orders po ON poi.po_id = po.id
+                JOIN contacts c ON po.supplier_id = c.id
+                LEFT JOIN payment_accounts acc ON po.payment_account_id = acc.id
+                LEFT JOIN warehouses w ON po.warehouse_id = w.id
+                WHERE poi.company_id = ? AND poi.item_name = ? AND po.deleted_at IS NULL
+                ORDER BY po.id DESC
+            ");
+            $stmtPoDetails->execute([$companyId, $item['item_name']]);
+            $item['po_receipts'] = $stmtPoDetails->fetchAll() ?: [];
         }
+        unset($item);
 
         $this->renderView('company/inventory_balances', [
             'title' => 'Inventory Balances | ERP',
-            'summary' => $summary,
-            'grnCompletedPOs' => $grnCompletedPOs
+            'summary' => $summary
         ]);
     }
 
@@ -109,6 +119,23 @@ class InventoryController extends Controller {
 
         $companyId = Session::get('company_id');
         $userId = Session::get('user_id');
+        $db = Database::getInstance();
+
+        // Enforce available stock quantity check before transfer execution
+        $stmtAvail = $db->prepare("
+            SELECT SUM(quantity) as available_qty 
+            FROM inventory_transactions 
+            WHERE company_id = ? AND warehouse_id = ? AND item_name = ?
+        ");
+        $stmtAvail->execute([$companyId, $fromWarehouseId, $itemName]);
+        $availQty = (float)($stmtAvail->fetchColumn() ?: 0.00);
+
+        if ($quantity > $availQty) {
+            Session::setFlash('error', "Transfer Failed: Requested quantity (" . number_format($quantity, 2) . ") exceeds available stock (" . number_format($availQty, 2) . ") in source facility.");
+            $this->redirect('company/inventory/ledger');
+            return;
+        }
+
         $inventoryService = new InventoryService();
 
         try {

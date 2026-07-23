@@ -32,6 +32,8 @@ $paymentAccountsList = $stmtAccs->fetchAll() ?: [];
                     <tr>
                         <th>PO Number</th>
                         <th>Supplier / Vendor</th>
+                        <th>BOM Category</th>
+                        <th>Stock Received In (Warehouse)</th>
                         <th>PO Date</th>
                         <th>Total Cost</th>
                         <th>Status</th>
@@ -46,6 +48,20 @@ $paymentAccountsList = $stmtAccs->fetchAll() ?: [];
                                     <strong class="text-primary font-monospace"><?= htmlspecialchars($o['po_no']) ?></strong>
                                 </td>
                                 <td><?= htmlspecialchars($o['supplier_name']) ?></td>
+                                <td>
+                                    <?php if (!empty($o['categories'])): ?>
+                                        <div class="d-flex flex-wrap gap-1">
+                                            <?php foreach ($o['categories'] as $cat): ?>
+                                                <span class="badge bg-light text-dark border text-capitalize"><?= htmlspecialchars($cat) ?></span>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <span class="text-secondary small">N/A</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <span class="fw-semibold text-dark"><i class="fa-solid fa-warehouse me-1 text-primary"></i> <?= htmlspecialchars($o['warehouse_name'] ?: 'Default Warehouse') ?></span>
+                                </td>
                                 <td><?= date('d M Y', strtotime($o['date'])) ?></td>
                                 <td><strong class="text-dark">₹<?= number_format($o['total_amount'], 2) ?></strong></td>
                                 <td>
@@ -119,7 +135,7 @@ $paymentAccountsList = $stmtAccs->fetchAll() ?: [];
                     </div>
                     <div class="modal-body text-start">
                         <div class="row g-3 mb-3">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <label class="form-label small fw-bold">Supplier / Vendor <span class="text-danger">*</span></label>
                                 <select name="supplier_id" class="form-select text-dark" required>
                                     <option value="">-- Choose Vendor --</option>
@@ -129,10 +145,19 @@ $paymentAccountsList = $stmtAccs->fetchAll() ?: [];
                                 </select>
                             </div>
                             <div class="col-md-3">
+                                <label class="form-label small fw-bold">Receiving Warehouse <span class="text-danger">*</span></label>
+                                <select name="warehouse_id" class="form-select text-dark" required>
+                                    <option value="">-- Choose Warehouse --</option>
+                                    <?php foreach ($warehouses as $w): ?>
+                                        <option value="<?= $w['id'] ?>"><?= htmlspecialchars($w['name']) ?> (<?= htmlspecialchars(ucfirst($w['type'])) ?>)</option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
                                 <label class="form-label small fw-bold">Supplier PO Number <span class="text-danger">*</span></label>
                                 <input type="text" name="po_no" class="form-control font-monospace" placeholder="e.g. SPO-2026-001" required>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <label class="form-label small fw-bold">PO Booking Date <span class="text-danger">*</span></label>
                                 <input type="date" name="date" class="form-control text-dark" value="<?= date('Y-m-d') ?>" required>
                             </div>
@@ -204,7 +229,7 @@ if (!empty($categories)) {
                         </div>
                         <div class="modal-body text-dark">
                             <div class="row g-3 mb-3">
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <label class="form-label small fw-bold">Supplier / Vendor <span class="text-danger">*</span></label>
                                     <select name="supplier_id" class="form-select text-dark" required>
                                         <?php foreach ($suppliers as $s): ?>
@@ -213,10 +238,19 @@ if (!empty($categories)) {
                                     </select>
                                 </div>
                                 <div class="col-md-3">
+                                    <label class="form-label small fw-bold">Receiving Warehouse <span class="text-danger">*</span></label>
+                                    <select name="warehouse_id" class="form-select text-dark" required>
+                                        <option value="">-- Choose Warehouse --</option>
+                                        <?php foreach ($warehouses as $w): ?>
+                                            <option value="<?= $w['id'] ?>" <?= ($w['id'] == ($o['warehouse_id'] ?? null)) ? 'selected' : '' ?>><?= htmlspecialchars($w['name']) ?> (<?= htmlspecialchars(ucfirst($w['type'])) ?>)</option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
                                     <label class="form-label small fw-bold">Supplier PO Number <span class="text-danger">*</span></label>
                                     <input type="text" name="po_no" class="form-control font-monospace text-dark" value="<?= htmlspecialchars($o['po_no']) ?>" required>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-2">
                                     <label class="form-label small fw-bold">PO Date <span class="text-danger">*</span></label>
                                     <input type="date" name="date" class="form-control text-dark" value="<?= htmlspecialchars(date('Y-m-d', strtotime($o['date']))) ?>" required>
                                 </div>

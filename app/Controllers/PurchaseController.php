@@ -93,22 +93,41 @@ class PurchaseController extends Controller {
     /**
      * Supplier Purchase Orders List View
      */
+    /**
+     * Supplier Purchase Orders List View
+     */
     public function orders(Request $request, Response $response): void {
         $db = Database::getInstance();
         $companyId = Session::get('company_id');
 
-        // Fetch supplier POs with supplier details
-        $stmt = $db->prepare("SELECT po.*, c.name as supplier_name 
+        // Fetch supplier POs with supplier and receiving warehouse details
+        $stmt = $db->prepare("SELECT po.*, c.name as supplier_name, w.name as warehouse_name 
                              FROM purchase_orders po
                              JOIN contacts c ON po.supplier_id = c.id
+                             LEFT JOIN warehouses w ON po.warehouse_id = w.id
                              WHERE po.company_id = ? AND po.deleted_at IS NULL
                              ORDER BY po.id DESC");
         $stmt->execute([$companyId]);
         $orders = $stmt->fetchAll() ?: [];
 
-        // Fetch suppliers (contacts of type 'supplier')
+        // Attach distinct item categories and full item list to each PO
+        foreach ($orders as &$o) {
+            $stmtCats = $db->prepare("SELECT DISTINCT item_type FROM purchase_order_items WHERE po_id = ?");
+            $stmtCats->execute([$o['id']]);
+            $o['categories'] = $stmtCats->fetchAll(\PDO::FETCH_COLUMN) ?: [];
+
+            $stmtItems = $db->prepare("SELECT * FROM purchase_order_items WHERE po_id = ?");
+            $stmtItems->execute([$o['id']]);
+            $o['items'] = $stmtItems->fetchAll() ?: [];
+        }
+        unset($o);
+
+        // Fetch suppliers & warehouses
         $contactModel = new Contact();
         $suppliers = $contactModel->findBy(['type' => 'supplier', 'status' => 'active']);
+
+        $warehouseModel = new Warehouse();
+        $warehouses = $warehouseModel->all() ?: [];
 
         $bomCatModel = new BomCategory();
         $categories = $bomCatModel->all();
@@ -117,6 +136,7 @@ class PurchaseController extends Controller {
             'title' => 'Supplier Purchase Orders | Procurement',
             'orders' => $orders,
             'suppliers' => $suppliers,
+            'warehouses' => $warehouses,
             'categories' => $categories
         ]);
     }
@@ -126,6 +146,7 @@ class PurchaseController extends Controller {
      */
     public function createOrder(Request $request, Response $response): void {
         $supplierId = (int)$request->get('supplier_id');
+        $warehouseId = $request->get('warehouse_id') ? (int)$request->get('warehouse_id') : null;
         $poNo = trim($request->get('po_no'));
         $date = $request->get('date');
         
@@ -148,6 +169,7 @@ class PurchaseController extends Controller {
             $poModel = new PurchaseOrder();
             $poId = $poModel->insert([
                 'supplier_id' => $supplierId,
+                'warehouse_id' => $warehouseId,
                 'po_no' => $poNo,
                 'date' => $date,
                 'total_amount' => 0.00, // Updated later
@@ -200,6 +222,7 @@ class PurchaseController extends Controller {
      */
     public function editOrder(Request $request, Response $response, string $id): void {
         $supplierId = (int)$request->get('supplier_id');
+        $warehouseId = $request->get('warehouse_id') ? (int)$request->get('warehouse_id') : null;
         $poNo = trim($request->get('po_no'));
         $date = $request->get('date');
         $status = $request->get('status') ?: 'draft';
@@ -238,6 +261,7 @@ class PurchaseController extends Controller {
             // Update PO header details
             $poModel->update($id, [
                 'supplier_id' => $supplierId,
+                'warehouse_id' => $warehouseId,
                 'po_no' => $poNo,
                 'date' => $date,
                 'status' => $status,
@@ -524,10 +548,17 @@ class PurchaseController extends Controller {
         $isLogged = (int)$stmtLogged->fetchColumn() > 0;
 
         if (!$isLogged) {
-            // Fetch first active warehouse
-            $stmtWh = $db->prepare("SELECT id FROM warehouses WHERE company_id = ? AND status = 'active' ORDER BY id ASC LIMIT 1");
-            $stmtWh->execute([$companyId]);
-            $warehouseId = $stmtWh->fetchColumn();
+            // Fetch PO designated receiving warehouse first
+            $stmtPoWh = $db->prepare("SELECT warehouse_id FROM purchase_orders WHERE id = ?");
+            $stmtPoWh->execute([$poId]);
+            $warehouseId = $stmtPoWh->fetchColumn();
+
+            if (!$warehouseId) {
+                // Fallback to first active warehouse
+                $stmtWh = $db->prepare("SELECT id FROM warehouses WHERE company_id = ? AND status = 'active' ORDER BY id ASC LIMIT 1");
+                $stmtWh->execute([$companyId]);
+                $warehouseId = $stmtWh->fetchColumn();
+            }
 
             if (!$warehouseId) {
                 // Fallback to any warehouse

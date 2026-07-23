@@ -673,10 +673,12 @@ CREATE TABLE IF NOT EXISTS `cik_history` (
   CONSTRAINT `fk_cik_history_company` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 40. ALTER PURCHASE ORDERS FOR PAYMENT DETAILS
+-- 40. ALTER PURCHASE ORDERS FOR PAYMENT & RECEIVING WAREHOUSE DETAILS
 ALTER TABLE `purchase_orders` ADD COLUMN `payment_account_id` INT DEFAULT NULL;
 ALTER TABLE `purchase_orders` ADD COLUMN `payment_date` DATE DEFAULT NULL;
+ALTER TABLE `purchase_orders` ADD COLUMN `warehouse_id` INT DEFAULT NULL;
 ALTER TABLE `purchase_orders` ADD CONSTRAINT `fk_po_payment_account` FOREIGN KEY (`payment_account_id`) REFERENCES `payment_accounts` (`id`) ON DELETE SET NULL;
+ALTER TABLE `purchase_orders` ADD CONSTRAINT `fk_po_warehouse` FOREIGN KEY (`warehouse_id`) REFERENCES `warehouses` (`id`) ON DELETE SET NULL;
 
 -- 41. STYLE VARIABLES TABLE & STYLES ALTERATIONS
 ALTER TABLE `styles` MODIFY COLUMN `category` VARCHAR(100) NOT NULL DEFAULT 'unisex';
