@@ -153,20 +153,20 @@ class Auth {
     public static function getFirstAccessibleCompanyUrl(): string {
         $defaultMenu = [
             'dashboard' => ['url' => 'company/dashboard', 'permission' => 'company.dashboard'],
+            'hr' => ['url' => 'company/hr/attendance', 'permission' => 'company.users.view'],
+            'production' => ['url' => 'company/production/orders', 'permission' => 'company.production.view'],
+            'merchandising' => ['url' => 'company/merchandising/costsheets', 'permission' => 'company.styles.view'],
+            'styles' => ['url' => 'company/styles', 'permission' => 'company.styles.view'],
+            'buyers' => ['url' => 'company/buyers', 'permission' => 'company.styles.view'],
+            'inventory' => ['url' => 'company/inventory/balances', 'permission' => 'company.inventory.view'],
+            'procurement' => ['url' => 'company/purchase/orders', 'permission' => 'company.styles.view'],
+            'masterdata' => ['url' => 'company/masterdata', 'permission' => 'company.styles.view'],
             'users' => ['url' => 'company/users', 'permission' => 'company.users.view'],
             'roles' => ['url' => 'company/roles', 'permission' => 'company.roles.view'],
-            'masterdata' => ['url' => 'company/masterdata', 'permission' => 'company.styles.view'],
-            'buyers' => ['url' => 'company/buyers', 'permission' => 'company.styles.view'],
-            'styles' => ['url' => 'company/styles', 'permission' => 'company.styles.view'],
-            'merchandising' => ['url' => 'company/merchandising/costsheets', 'permission' => 'company.styles.view'],
-            'procurement' => ['url' => 'company/purchase/orders', 'permission' => 'company.styles.view'],
-            'inventory' => ['url' => 'company/inventory/balances', 'permission' => 'company.inventory.view'],
-            'production' => ['url' => 'company/production/orders', 'permission' => 'company.production.view'],
-            'rfid_tracking' => ['url' => 'company/production/qr-tracking', 'permission' => 'company.production.rfid_tracking'],
-            'hr' => ['url' => 'company/hr/attendance', 'permission' => 'company.users.view'],
             'tally' => ['url' => 'company/tally/vouchers', 'permission' => 'company.tally.export'],
             'logs' => ['url' => 'company/logs', 'permission' => 'company.logs'],
-            'settings' => ['url' => 'company/settings', 'permission' => 'company.settings']
+            'settings' => ['url' => 'company/settings', 'permission' => 'company.settings'],
+            'rfid_tracking' => ['url' => 'company/production/qr-tracking', 'permission' => 'company.production.rfid_tracking']
         ];
 
         // Load custom sidebar menu order from system_settings

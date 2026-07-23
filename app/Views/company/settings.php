@@ -78,19 +78,20 @@
                 // Generate ordered menu list
                 $defaultMenu = [
                     'dashboard' => ['name' => 'Dashboard', 'icon' => 'fa-solid fa-chart-line'],
+                    'hr' => ['name' => 'HR & Attendance', 'icon' => 'fa-solid fa-user-clock'],
+                    'production' => ['name' => 'Production & Quality', 'icon' => 'fa-solid fa-industry'],
+                    'merchandising' => ['name' => 'Merchandising', 'icon' => 'fa-solid fa-calculator'],
+                    'styles' => ['name' => 'Style Master', 'icon' => 'fa-solid fa-shirt'],
+                    'buyers' => ['name' => 'Buyers / Clients', 'icon' => 'fa-solid fa-user-tie'],
+                    'inventory' => ['name' => 'Inventory Ledger', 'icon' => 'fa-solid fa-boxes-stacked'],
+                    'procurement' => ['name' => 'Procurement', 'icon' => 'fa-solid fa-cart-shopping'],
+                    'masterdata' => ['name' => 'Master Data Hub', 'icon' => 'fa-solid fa-database'],
                     'users' => ['name' => 'Employees', 'icon' => 'fa-solid fa-users-gear'],
                     'roles' => ['name' => 'Roles & Privileges', 'icon' => 'fa-solid fa-shield-halved'],
-                    'masterdata' => ['name' => 'Master Data Hub', 'icon' => 'fa-solid fa-database'],
-                    'buyers' => ['name' => 'Buyers / Clients', 'icon' => 'fa-solid fa-user-tie'],
-                    'styles' => ['name' => 'Style Master', 'icon' => 'fa-solid fa-shirt'],
-                    'merchandising' => ['name' => 'Merchandising', 'icon' => 'fa-solid fa-calculator'],
-                    'procurement' => ['name' => 'Procurement', 'icon' => 'fa-solid fa-cart-shopping'],
-                    'inventory' => ['name' => 'Inventory Ledger', 'icon' => 'fa-solid fa-boxes-stacked'],
-                    'production' => ['name' => 'Production & Quality', 'icon' => 'fa-solid fa-industry'],
-                    'hr' => ['name' => 'HR & Attendance', 'icon' => 'fa-solid fa-user-clock'],
                     'tally' => ['name' => 'Tally Integration', 'icon' => 'fa-solid fa-file-excel'],
                     'logs' => ['name' => 'Audit History', 'icon' => 'fa-solid fa-list-check'],
-                    'settings' => ['name' => 'ERP Settings', 'icon' => 'fa-solid fa-sliders']
+                    'settings' => ['name' => 'ERP Settings', 'icon' => 'fa-solid fa-sliders'],
+                    'rfid_tracking' => ['name' => 'QR Code Scanner', 'icon' => 'fa-solid fa-mobile-screen-button']
                 ];
 
                 $savedOrderRaw = $settings['sidebar_menu_order'] ?? null;

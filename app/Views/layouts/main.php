@@ -65,20 +65,20 @@ if (!is_array($savedOrder)) {
 
 $defaultMenu = [
     'dashboard' => ['name' => 'Dashboard', 'icon' => 'fa-solid fa-chart-line', 'url' => 'company/dashboard', 'permission' => 'company.dashboard', 'active_check' => '/company/dashboard', 'is_exact' => true],
+    'hr' => ['name' => 'HR & Attendance', 'icon' => 'fa-solid fa-user-clock', 'url' => 'company/hr/attendance', 'permission' => 'company.users.view', 'active_check' => 'company/hr'],
+    'production' => ['name' => 'Production & Quality', 'icon' => 'fa-solid fa-industry', 'url' => 'company/production/orders', 'permission' => 'company.production.view', 'active_check' => 'company/production'],
+    'merchandising' => ['name' => 'Merchandising', 'icon' => 'fa-solid fa-calculator', 'url' => 'company/merchandising/costsheets', 'permission' => 'company.styles.view', 'active_check' => 'company/merchandising'],
+    'styles' => ['name' => 'Style Master', 'icon' => 'fa-solid fa-shirt', 'url' => 'company/styles', 'permission' => 'company.styles.view', 'active_check' => 'company/styles'],
+    'buyers' => ['name' => 'Buyers / Clients', 'icon' => 'fa-solid fa-user-tie', 'url' => 'company/buyers', 'permission' => 'company.styles.view', 'active_check' => 'company/buyers'],
+    'inventory' => ['name' => 'Inventory Ledger', 'icon' => 'fa-solid fa-boxes-stacked', 'url' => 'company/inventory/balances', 'permission' => 'company.inventory.view', 'active_check' => 'company/inventory'],
+    'procurement' => ['name' => 'Procurement', 'icon' => 'fa-solid fa-cart-shopping', 'url' => 'company/purchase/orders', 'permission' => 'company.styles.view', 'active_check' => 'company/purchase'],
+    'masterdata' => ['name' => 'Master Data Hub', 'icon' => 'fa-solid fa-database', 'url' => 'company/masterdata', 'permission' => 'company.styles.view', 'active_check' => 'company/masterdata'],
     'users' => ['name' => 'Employees', 'icon' => 'fa-solid fa-users-gear', 'url' => 'company/users', 'permission' => 'company.users.view', 'active_check' => 'company/users'],
     'roles' => ['name' => 'Roles & Privileges', 'icon' => 'fa-solid fa-shield-halved', 'url' => 'company/roles', 'permission' => 'company.roles.view', 'active_check' => 'company/roles'],
-    'masterdata' => ['name' => 'Master Data Hub', 'icon' => 'fa-solid fa-database', 'url' => 'company/masterdata', 'permission' => 'company.styles.view', 'active_check' => 'company/masterdata'],
-    'buyers' => ['name' => 'Buyers / Clients', 'icon' => 'fa-solid fa-user-tie', 'url' => 'company/buyers', 'permission' => 'company.styles.view', 'active_check' => 'company/buyers'],
-    'styles' => ['name' => 'Style Master', 'icon' => 'fa-solid fa-shirt', 'url' => 'company/styles', 'permission' => 'company.styles.view', 'active_check' => 'company/styles'],
-    'merchandising' => ['name' => 'Merchandising', 'icon' => 'fa-solid fa-calculator', 'url' => 'company/merchandising/costsheets', 'permission' => 'company.styles.view', 'active_check' => 'company/merchandising'],
-    'procurement' => ['name' => 'Procurement', 'icon' => 'fa-solid fa-cart-shopping', 'url' => 'company/purchase/orders', 'permission' => 'company.styles.view', 'active_check' => 'company/purchase'],
-    'inventory' => ['name' => 'Inventory Ledger', 'icon' => 'fa-solid fa-boxes-stacked', 'url' => 'company/inventory/balances', 'permission' => 'company.inventory.view', 'active_check' => 'company/inventory'],
-    'production' => ['name' => 'Production & Quality', 'icon' => 'fa-solid fa-industry', 'url' => 'company/production/orders', 'permission' => 'company.production.view', 'active_check' => 'company/production'],
-    'rfid_tracking' => ['name' => 'QR Code Scanner', 'icon' => 'fa-solid fa-mobile-screen-button', 'url' => 'company/production/qr-tracking', 'permission' => 'company.production.rfid_tracking', 'active_check' => 'company/production/qr-tracking'],
-    'hr' => ['name' => 'HR & Attendance', 'icon' => 'fa-solid fa-user-clock', 'url' => 'company/hr/attendance', 'permission' => 'company.users.view', 'active_check' => 'company/hr'],
     'tally' => ['name' => 'Tally Integration', 'icon' => 'fa-solid fa-file-excel', 'url' => 'company/tally/vouchers', 'permission' => 'company.tally.export', 'active_check' => 'company/tally'],
     'logs' => ['name' => 'Audit History', 'icon' => 'fa-solid fa-list-check', 'url' => 'company/logs', 'permission' => 'company.logs', 'active_check' => 'company/logs'],
-    'settings' => ['name' => 'ERP Settings', 'icon' => 'fa-solid fa-sliders', 'url' => 'company/settings', 'permission' => 'company.settings', 'active_check' => 'company/settings']
+    'settings' => ['name' => 'ERP Settings', 'icon' => 'fa-solid fa-sliders', 'url' => 'company/settings', 'permission' => 'company.settings', 'active_check' => 'company/settings'],
+    'rfid_tracking' => ['name' => 'QR Code Scanner', 'icon' => 'fa-solid fa-mobile-screen-button', 'url' => 'company/production/qr-tracking', 'permission' => 'company.production.rfid_tracking', 'active_check' => 'company/production/qr-tracking']
 ];
 
 $orderedMenuKeys = array_merge($savedOrder, array_diff(array_keys($defaultMenu), $savedOrder));
