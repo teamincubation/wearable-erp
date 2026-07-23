@@ -234,10 +234,13 @@
                                                 <td><strong class="text-dark"><?= htmlspecialchars($br['name']) ?></strong></td>
                                                 <td><span class="small text-secondary"><?= htmlspecialchars($br['address'] ?: '--') ?></span></td>
                                                 <td class="text-end">
-                                                    <form action="<?= base_url('company/masterdata/branches/delete/' . $br['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete branch office?');">
-                                                        <?= \App\Core\Session::csrfField() ?>
-                                                        <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
-                                                    </form>
+                                                    <?php if (\App\Core\Auth::hasPermission('company.styles.manage')): ?>
+                                                        <button class="btn btn-sm btn-light border me-1" data-bs-toggle="modal" data-bs-target="#editBranchModal-<?= $br['id'] ?>"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
+                                                        <form action="<?= base_url('company/masterdata/branches/delete/' . $br['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete branch office?');">
+                                                            <?= \App\Core\Session::csrfField() ?>
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                                                        </form>
+                                                    <?php endif; ?>
                                                 </td>
                                             </tr>
                                         <?php endforeach; ?>
@@ -285,10 +288,13 @@
                                                 <td><strong class="text-dark"><?= htmlspecialchars($wh['name']) ?></strong></td>
                                                 <td><span class="badge bg-light text-secondary text-capitalize"><?= htmlspecialchars(str_replace('_', ' ', $wh['type'])) ?></span></td>
                                                 <td class="text-end">
-                                                    <form action="<?= base_url('company/masterdata/warehouses/delete/' . $wh['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete warehouse store?');">
-                                                        <?= \App\Core\Session::csrfField() ?>
-                                                        <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
-                                                    </form>
+                                                    <?php if (\App\Core\Auth::hasPermission('company.styles.manage')): ?>
+                                                        <button class="btn btn-sm btn-light border me-1" data-bs-toggle="modal" data-bs-target="#editWarehouseModal-<?= $wh['id'] ?>"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
+                                                        <form action="<?= base_url('company/masterdata/warehouses/delete/' . $wh['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete warehouse store?');">
+                                                            <?= \App\Core\Session::csrfField() ?>
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                                                        </form>
+                                                    <?php endif; ?>
                                                 </td>
                                             </tr>
                                         <?php endforeach; ?>
@@ -308,6 +314,98 @@
 
         </div>
     </div>
+
+    <!-- Edit Branch Modals -->
+    <?php if (!empty($branches)): ?>
+        <?php foreach ($branches as $br): ?>
+            <div class="modal fade" id="editBranchModal-<?= $br['id'] ?>" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <form action="<?= base_url('company/masterdata/branches/edit/' . $br['id']) ?>" method="POST">
+                        <?= \App\Core\Session::csrfField() ?>
+                        <div class="modal-content text-start" style="border-radius: 12px;">
+                            <div class="modal-header">
+                                <h5 class="modal-title fw-bold">Edit Company Branch: <?= htmlspecialchars($br['name']) ?></h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body text-start">
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold">Branch Name <span class="text-danger">*</span></label>
+                                    <input type="text" name="name" class="form-control text-dark" value="<?= htmlspecialchars($br['name']) ?>" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold">Branch Code <span class="text-danger">*</span></label>
+                                    <input type="text" name="code" class="form-control font-monospace text-dark" value="<?= htmlspecialchars($br['code']) ?>" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold">Branch Address</label>
+                                    <textarea name="address" class="form-control text-dark" rows="3" placeholder="Address..."><?= htmlspecialchars($br['address'] ?? '') ?></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-primary px-4">Update Branch</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        <?php endforeach; ?>
+    <?php endif; ?>
+
+    <!-- Edit Warehouse Modals -->
+    <?php if (!empty($warehouses)): ?>
+        <?php foreach ($warehouses as $wh): ?>
+            <div class="modal fade" id="editWarehouseModal-<?= $wh['id'] ?>" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <form action="<?= base_url('company/masterdata/warehouses/edit/' . $wh['id']) ?>" method="POST">
+                        <?= \App\Core\Session::csrfField() ?>
+                        <div class="modal-content text-start" style="border-radius: 12px;">
+                            <div class="modal-header">
+                                <h5 class="modal-title fw-bold">Edit Warehouse Store: <?= htmlspecialchars($wh['name']) ?></h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body text-start">
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold">Warehouse Name <span class="text-danger">*</span></label>
+                                    <input type="text" name="name" class="form-control text-dark" value="<?= htmlspecialchars($wh['name']) ?>" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold">Store Reference Code <span class="text-danger">*</span></label>
+                                    <input type="text" name="code" class="form-control font-monospace text-dark" value="<?= htmlspecialchars($wh['code']) ?>" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold">Link Branch Office</label>
+                                    <select name="branch_id" class="form-select text-dark">
+                                        <option value="">-- No Branch Mapping --</option>
+                                        <?php foreach ($branches as $br): ?>
+                                            <option value="<?= $br['id'] ?>" <?= ($br['id'] == ($wh['branch_id'] ?? null)) ? 'selected' : '' ?>><?= htmlspecialchars($br['name']) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold">Storage Type <span class="text-danger">*</span></label>
+                                    <select name="type" class="form-select text-dark" required>
+                                        <option value="raw_material" <?= ($wh['type'] === 'raw_material') ? 'selected' : '' ?>>Raw Materials</option>
+                                        <option value="yarn" <?= ($wh['type'] === 'yarn') ? 'selected' : '' ?>>Yarn Storage</option>
+                                        <option value="fabric" <?= ($wh['type'] === 'fabric') ? 'selected' : '' ?>>Fabric Store</option>
+                                        <option value="accessories" <?= ($wh['type'] === 'accessories') ? 'selected' : '' ?>>Accessories/Trims</option>
+                                        <option value="chemical" <?= ($wh['type'] === 'chemical') ? 'selected' : '' ?>>Chemicals & Dyes</option>
+                                        <option value="packing" <?= ($wh['type'] === 'packing') ? 'selected' : '' ?>>Packing Store</option>
+                                        <option value="wip" <?= ($wh['type'] === 'wip') ? 'selected' : '' ?>>WIP Floor Stock</option>
+                                        <option value="finished_goods" <?= ($wh['type'] === 'finished_goods') ? 'selected' : '' ?>>Finished Goods Warehouse</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-primary px-4">Update Warehouse</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        <?php endforeach; ?>
+    <?php endif; ?>
 
     <!-- 4. Shifts & Hours Pane -->
     <div class="tab-pane fade" id="shifts-pane" role="tabpanel" tabindex="0">

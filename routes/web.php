@@ -693,7 +693,13 @@ $router->post('/company/masterdata/stylevariables/delete/{id}', [\App\Controller
 $router->post('/company/masterdata/warehouses/delete/{id}', [\App\Controllers\MasterDataController::class, 'deleteWarehouse'])
        ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
 
+$router->post('/company/masterdata/warehouses/edit/{id}', [\App\Controllers\MasterDataController::class, 'editWarehouse'])
+       ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
+
 $router->post('/company/masterdata/branches/delete/{id}', [\App\Controllers\MasterDataController::class, 'deleteBranch'])
+       ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
+
+$router->post('/company/masterdata/branches/edit/{id}', [\App\Controllers\MasterDataController::class, 'editBranch'])
        ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
 
 $router->post('/company/styles/delete/{id}', [\App\Controllers\StyleMasterController::class, 'deleteStyle'])

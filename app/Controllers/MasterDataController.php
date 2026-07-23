@@ -245,6 +245,62 @@ class MasterDataController extends Controller {
         $this->redirect('company/masterdata?tab=locations');
     }
 
+    /**
+     * Edit Company Branch Office
+     */
+    public function editBranch(Request $request, Response $response, string $id): void {
+        $name = trim($request->get('name'));
+        $code = trim($request->get('code'));
+        $address = trim($request->get('address'));
+
+        if (empty($name) || empty($code)) {
+            Session::setFlash('error', 'Branch Name and Code are required.');
+            $this->redirect('company/masterdata?tab=locations');
+            return;
+        }
+
+        $branchModel = new Branch();
+        $branchModel->update((int)$id, [
+            'name' => $name,
+            'code' => $code,
+            'address' => $address ?: null,
+            'updated_by' => Session::get('user_id')
+        ]);
+
+        AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'edit_branch', 'Branch', (int)$id, null, null, "Updated branch office: {$name}");
+        Session::setFlash('success', "Branch office '{$name}' updated successfully.");
+        $this->redirect('company/masterdata?tab=locations');
+    }
+
+    /**
+     * Edit Warehouse Store
+     */
+    public function editWarehouse(Request $request, Response $response, string $id): void {
+        $name = trim($request->get('name'));
+        $code = trim($request->get('code'));
+        $type = trim($request->get('type'));
+        $branchId = $request->get('branch_id') ? (int)$request->get('branch_id') : null;
+
+        if (empty($name) || empty($code) || empty($type)) {
+            Session::setFlash('error', 'Warehouse Name, Code, and Storage Type are required.');
+            $this->redirect('company/masterdata?tab=locations');
+            return;
+        }
+
+        $warehouseModel = new Warehouse();
+        $warehouseModel->update((int)$id, [
+            'name' => $name,
+            'code' => $code,
+            'type' => $type,
+            'branch_id' => $branchId,
+            'updated_by' => Session::get('user_id')
+        ]);
+
+        AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'edit_warehouse', 'Warehouse', (int)$id, null, null, "Updated warehouse: {$name}");
+        Session::setFlash('success', "Warehouse '{$name}' updated successfully.");
+        $this->redirect('company/masterdata?tab=locations');
+    }
+
     public function deleteContact(Request $request, Response $response, string $id): void {
         $model = new Contact();
         $model->delete($id, Session::get('user_id'));
