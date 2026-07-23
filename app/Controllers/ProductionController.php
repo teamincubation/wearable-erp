@@ -510,6 +510,12 @@ class ProductionController extends Controller {
         $companyId = Session::get('company_id');
         $userId = Session::get('user_id');
 
+        // Dynamically enforce tenant company's assigned timezone for accurate timestamps
+        $stmtTz = $db->prepare("SELECT timezone FROM companies WHERE id = ?");
+        $stmtTz->execute([$companyId]);
+        $companyTz = $stmtTz->fetchColumn() ?: 'Asia/Kolkata';
+        date_default_timezone_set($companyTz);
+
         $qrCode = trim($request->get('qr_code'));
         $stage = trim($request->get('stage'));
         $status = trim($request->get('status')); // 'pass' or 'fail'
@@ -517,6 +523,23 @@ class ProductionController extends Controller {
 
         if (empty($qrCode) || empty($stage) || empty($status)) {
             echo json_encode(['success' => false, 'message' => 'Missing scanned QR code, stage, or pass/fail status.']);
+            exit;
+        }
+
+        // Duplicate check: Prevent logging the same QR code twice under the same WIP stage
+        $stmtCheckAlready = $db->prepare("
+            SELECT id FROM production_stage_logs 
+            WHERE company_id = ? AND qr_code = ? AND stage = ? AND deleted_at IS NULL 
+            LIMIT 1
+        ");
+        $stmtCheckAlready->execute([$companyId, $qrCode, $stage]);
+        if ($stmtCheckAlready->fetchColumn()) {
+            $formattedStage = strtoupper(str_replace('_', ' ', $stage));
+            echo json_encode([
+                'success' => false,
+                'already_validated' => true,
+                'message' => "This QR Code ({$qrCode}) has ALREADY been validated in stage '{$formattedStage}'."
+            ]);
             exit;
         }
 
@@ -548,9 +571,10 @@ class ProductionController extends Controller {
         $qtyOut = ($status === 'pass') ? 1 : 0;
         $wasteQty = ($status === 'pass') ? 0 : 1;
 
-        // Calculate dates & duration in minutes
-        $endTime = date('Y-m-d H:i:s');
-        $startTime = date('Y-m-d H:i:s', time() - max(1, $durationSeconds));
+        // Calculate dates & duration in assigned company timezone
+        $nowTs = time();
+        $endTime = date('Y-m-d H:i:s', $nowTs);
+        $startTime = date('Y-m-d H:i:s', $nowTs - max(1, $durationSeconds));
         $durationMinutes = (int)max(1, ceil($durationSeconds / 60));
 
         try {
@@ -603,11 +627,45 @@ class ProductionController extends Controller {
         
         $db = Database::getInstance();
         $companyId = Session::get('company_id');
+
+        // Dynamically enforce tenant company's assigned timezone for accurate verification date checks
+        $stmtTz = $db->prepare("SELECT timezone FROM companies WHERE id = ?");
+        $stmtTz->execute([$companyId]);
+        $companyTz = $stmtTz->fetchColumn() ?: 'Asia/Kolkata';
+        date_default_timezone_set($companyTz);
+
         $qrCode = trim($request->get('qr_code'));
+        $stage = trim($request->get('stage'));
 
         if (empty($qrCode)) {
             echo json_encode(['success' => false, 'message' => 'Scanned QR code is empty.']);
             exit;
+        }
+
+        // Duplicate check: Prevent validating QR code if it was already processed in this exact WIP stage
+        if (!empty($stage)) {
+            $stmtCheckAlready = $db->prepare("
+                SELECT psl.*, u.name as operator_name 
+                FROM production_stage_logs psl
+                LEFT JOIN users u ON psl.employee_id = u.id
+                WHERE psl.company_id = ? AND psl.qr_code = ? AND psl.stage = ? AND psl.deleted_at IS NULL
+                ORDER BY psl.id DESC LIMIT 1
+            ");
+            $stmtCheckAlready->execute([$companyId, $qrCode, $stage]);
+            $alreadyLogged = $stmtCheckAlready->fetch();
+
+            if ($alreadyLogged) {
+                $formattedStage = strtoupper(str_replace('_', ' ', $stage));
+                $operatorName = $alreadyLogged['operator_name'] ?: 'Operator';
+                $logTime = date('d-M-Y h:i A', strtotime($alreadyLogged['created_at'] ?? $alreadyLogged['end_time']));
+                
+                echo json_encode([
+                    'success' => false,
+                    'already_validated' => true,
+                    'message' => "This QR Code ({$qrCode}) has ALREADY been validated in stage {$formattedStage} by {$operatorName} on {$logTime}."
+                ]);
+                exit;
+            }
         }
 
         // Parse QR Code e.g. BATCH-TOCCO-001-S-0005

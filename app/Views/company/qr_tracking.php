@@ -623,6 +623,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const formData = new FormData();
         formData.append('qr_code', decodedText);
+        formData.append('stage', stageSelect.value);
         formData.append('csrf_token', "<?= \App\Core\Session::csrfToken() ?>");
 
         fetch("<?= base_url('company/production/qr-tracking/verify') ?>", {
@@ -646,9 +647,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 scanResultCard.style.display = 'block';
             } else {
-                showTemporaryToast('⚠️ QR Code Not Verified: ' + data.message, "danger", 5000);
+                if (data.already_validated) {
+                    showTemporaryToast('ℹ️ ALREADY VALIDATED: ' + data.message, "warning", 6000);
+                } else {
+                    showTemporaryToast('⚠️ QR Code Not Verified: ' + data.message, "danger", 5000);
+                }
                 if (isCameraMode && html5QrCode && html5QrCode.isScanning) {
-                    setTimeout(() => html5QrCode.resume(), 2500);
+                    setTimeout(() => html5QrCode.resume(), 3000);
                 }
             }
         })
