@@ -962,25 +962,44 @@ class ProductionController extends Controller {
             $batchId = $batch['id'];
 
             // WIP stage logs with user/operator details
-            $stmtLogs = $db->prepare("
-                SELECT psl.*, u.name as operator_name, r.name as operator_role
-                FROM production_stage_logs psl
-                LEFT JOIN users u ON (psl.operator_id = u.id OR psl.employee_id = u.id)
-                LEFT JOIN roles r ON u.role_id = r.id
-                WHERE (psl.production_id = ? OR psl.production_order_id = ?) AND psl.deleted_at IS NULL
-                ORDER BY psl.id ASC
-            ");
-            $stmtLogs->execute([$batchId, $batchId]);
-            $batch['stage_logs'] = $stmtLogs->fetchAll() ?: [];
+            try {
+                $stmtLogs = $db->prepare("
+                    SELECT psl.*, u.name as operator_name, r.name as operator_role
+                    FROM production_stage_logs psl
+                    LEFT JOIN users u ON psl.employee_id = u.id
+                    LEFT JOIN roles r ON u.role_id = r.id
+                    WHERE psl.production_order_id = ? AND psl.deleted_at IS NULL
+                    ORDER BY psl.id ASC
+                ");
+                $stmtLogs->execute([$batchId]);
+                $batch['stage_logs'] = $stmtLogs->fetchAll() ?: [];
+            } catch (\Exception $e) {
+                try {
+                    $stmtLogs = $db->prepare("
+                        SELECT psl.*, u.name as operator_name
+                        FROM production_stage_logs psl
+                        LEFT JOIN users u ON psl.created_by = u.id
+                        WHERE psl.production_order_id = ?
+                        ORDER BY psl.id ASC
+                    ");
+                    $stmtLogs->execute([$batchId]);
+                    $batch['stage_logs'] = $stmtLogs->fetchAll() ?: [];
+                } catch (\Exception $ex) {
+                    $batch['stage_logs'] = [];
+                }
+            }
 
             // Aggregate total finished qty & total rejected/wastage qty across logs
             $totalOutput = 0;
             $totalWastage = 0;
             foreach ($batch['stage_logs'] as $log) {
-                if ($log['stage'] === 'packing' || $log['stage'] === 'finishing' || $log['stage'] === 'sewing') {
-                    $totalOutput = max($totalOutput, (int)($log['good_qty'] ?? 0));
+                $goodQty = (int)($log['qty_out'] ?? $log['good_qty'] ?? 0);
+                $wasteQty = (int)($log['waste_qty'] ?? $log['reject_qty'] ?? 0);
+                
+                if (in_array($log['stage'] ?? '', ['packing', 'finishing', 'sewing', 'carton_packing', 'shipment'])) {
+                    $totalOutput = max($totalOutput, $goodQty);
                 }
-                $totalWastage += (int)($log['reject_qty'] ?? 0);
+                $totalWastage += $wasteQty;
             }
 
             $batch['actual_produced_qty'] = $totalOutput ?: $batch['po_target_qty'];

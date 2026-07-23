@@ -271,8 +271,8 @@ $avgMarginVal = ($totalRevenueVal > 0) ? round(($totalProfitVal / $totalRevenueV
                                                 <td><span class="badge bg-primary text-white text-capitalize"><?= htmlspecialchars(str_replace('_', ' ', $log['stage'])) ?></span></td>
                                                 <td><strong class="text-dark"><?= htmlspecialchars($log['operator_name'] ?: 'System Operator') ?></strong></td>
                                                 <td><span class="text-secondary small text-capitalize"><?= htmlspecialchars($log['operator_role'] ?: 'Floor Supervisor') ?></span></td>
-                                                <td class="text-end font-monospace fw-bold text-success"><?= number_format($log['good_qty'] ?? 0) ?></td>
-                                                <td class="text-end font-monospace fw-bold text-danger"><?= number_format($log['reject_qty'] ?? 0) ?></td>
+                                                <td class="text-end font-monospace fw-bold text-success"><?= number_format($log['qty_out'] ?? $log['good_qty'] ?? 0) ?></td>
+                                                <td class="text-end font-monospace fw-bold text-danger"><?= number_format($log['waste_qty'] ?? $log['reject_qty'] ?? 0) ?></td>
                                                 <td><span class="text-secondary small font-monospace"><?= date('d M Y, h:i A', strtotime($log['created_at'])) ?></span></td>
                                                 <td><span class="text-secondary small"><?= htmlspecialchars($log['remarks'] ?: 'Completed without defects') ?></span></td>
                                             </tr>
