@@ -184,6 +184,7 @@ class PurchaseController extends Controller {
                     $price = (float)($prices[$i] ?? 0);
                     $total = $qty * $price;
                     $totalAmount += $total;
+                    $itemCategory = (!empty($itemTypes[$i]) && trim($itemTypes[$i]) !== '') ? trim($itemTypes[$i]) : 'Accessories';
 
                     $stmt = $db->prepare("INSERT INTO purchase_order_items (
                                             company_id, po_id, item_type, item_name, quantity, unit_price, total_price, created_at
@@ -191,7 +192,7 @@ class PurchaseController extends Controller {
                     $stmt->execute([
                         $companyId,
                         $poId,
-                        $itemTypes[$i] ?? 'accessories',
+                        $itemCategory,
                         trim($itemNames[$i]),
                         $qty,
                         $price,
@@ -282,6 +283,7 @@ class PurchaseController extends Controller {
                         $price = (float)($prices[$i] ?? 0);
                         $total = $qty * $price;
                         $totalAmount += $total;
+                        $itemCategory = (!empty($itemTypes[$i]) && trim($itemTypes[$i]) !== '') ? trim($itemTypes[$i]) : 'Accessories';
 
                         $stmt = $db->prepare("INSERT INTO purchase_order_items (
                                                 company_id, po_id, item_type, item_name, quantity, unit_price, total_price, created_at
@@ -289,7 +291,7 @@ class PurchaseController extends Controller {
                         $stmt->execute([
                             $companyId,
                             $id,
-                            $itemTypes[$i] ?? 'accessories',
+                            $itemCategory,
                             trim($itemNames[$i]),
                             $qty,
                             $price,

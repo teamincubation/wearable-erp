@@ -50,11 +50,7 @@ $paymentAccountsList = $stmtAccs->fetchAll() ?: [];
                                 <td><?= htmlspecialchars($o['supplier_name']) ?></td>
                                 <td>
                                     <?php if (!empty($o['categories'])): ?>
-                                        <div class="d-flex flex-wrap gap-1">
-                                            <?php foreach ($o['categories'] as $cat): ?>
-                                                <span class="badge bg-light text-dark border text-capitalize"><?= htmlspecialchars($cat) ?></span>
-                                            <?php endforeach; ?>
-                                        </div>
+                                        <span class="fw-semibold text-dark text-capitalize"><?= htmlspecialchars(implode(', ', array_filter($o['categories']))) ?></span>
                                     <?php else: ?>
                                         <span class="text-secondary small">N/A</span>
                                     <?php endif; ?>
