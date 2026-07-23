@@ -217,7 +217,10 @@ class AuthController extends Controller {
         if ($cik === '000000') {
             // Developer Portal CIK
             Session::remove('company_id');
-            Session::remove('current_tenant');
+            Session::set('current_tenant', [
+                'name' => 'Developer Portal',
+                'subdomain' => 'erp'
+            ]);
             Session::remove('active_tenant_subdomain');
             
             Session::remove($attemptsKey);
