@@ -177,7 +177,7 @@ if (!empty($categories)) {
                             <table class="table table-bordered table-sm align-middle" id="poItemsTable">
                                 <thead>
                                     <tr class="bg-light">
-                                        <th style="width: 28%;">Category</th>
+                                        <th style="width: 28%;">BOM Category</th>
                                         <th style="width: 38%;">Item Name / Spec</th>
                                         <th style="width: 15%;">Quantity</th>
                                         <th style="width: 15%;">Unit Rate</th>
@@ -282,7 +282,7 @@ if (!empty($categories)) {
                             <table class="table table-bordered table-sm align-middle" id="editPoItemsTable-<?= $o['id'] ?>">
                                 <thead>
                                     <tr class="bg-light text-dark">
-                                        <th style="width: 28%;">Category</th>
+                                        <th style="width: 28%;">BOM Category</th>
                                         <th style="width: 38%;">Item Name / Spec</th>
                                         <th style="width: 15%;">Quantity</th>
                                         <th style="width: 15%;">Unit Rate</th>

@@ -312,6 +312,58 @@
                 </div>
             </div>
 
+            <!-- Warehouse Storage Types Variable Manager -->
+            <div class="col-12 mt-3">
+                <div class="pepp-card">
+                    <div class="pepp-card-header d-flex justify-content-between align-items-center">
+                        <h5 class="pepp-card-title m-0"><i class="fa-solid fa-boxes-packing text-warning me-2"></i> Warehouse Storage Types</h5>
+                        <?php if (\App\Core\Auth::hasPermission('company.styles.manage')): ?>
+                            <button class="btn btn-sm btn-warning text-white rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#addWarehouseTypeModal">
+                                <i class="fa-solid fa-plus-circle me-1"></i> Add Storage Type
+                            </button>
+                        <?php endif; ?>
+                    </div>
+                    <div class="pepp-card-body p-0">
+                        <div class="table-responsive border-0">
+                            <table class="table pepp-table mb-0 align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Storage Type Label</th>
+                                        <th>Key / System Code</th>
+                                        <th>Status</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php if (!empty($warehouseTypes)): ?>
+                                        <?php foreach ($warehouseTypes as $wt): ?>
+                                            <tr>
+                                                <td><strong class="text-dark"><?= htmlspecialchars($wt['type_label']) ?></strong></td>
+                                                <td><span class="badge bg-light text-dark font-monospace text-uppercase"><?= htmlspecialchars($wt['type_key']) ?></span></td>
+                                                <td><span class="badge bg-success-subtle text-success rounded-pill px-2">Active</span></td>
+                                                <td class="text-end">
+                                                    <?php if (\App\Core\Auth::hasPermission('company.styles.manage')): ?>
+                                                        <button class="btn btn-sm btn-light border me-1" data-bs-toggle="modal" data-bs-target="#editWarehouseTypeModal-<?= $wt['id'] ?>"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
+                                                        <form action="<?= base_url('company/masterdata/warehousetypes/delete/' . $wt['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete this Storage Type variable?');">
+                                                            <?= \App\Core\Session::csrfField() ?>
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                                                        </form>
+                                                    <?php endif; ?>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <tr>
+                                            <td colspan="4" class="text-center p-4 text-secondary">No storage type variables configured.</td>
+                                        </tr>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -385,20 +437,59 @@
                                 <div class="mb-3">
                                     <label class="form-label small fw-bold">Storage Type <span class="text-danger">*</span></label>
                                     <select name="type" class="form-select text-dark" required>
-                                        <option value="raw_material" <?= ($wh['type'] === 'raw_material') ? 'selected' : '' ?>>Raw Materials</option>
-                                        <option value="yarn" <?= ($wh['type'] === 'yarn') ? 'selected' : '' ?>>Yarn Storage</option>
-                                        <option value="fabric" <?= ($wh['type'] === 'fabric') ? 'selected' : '' ?>>Fabric Store</option>
-                                        <option value="accessories" <?= ($wh['type'] === 'accessories') ? 'selected' : '' ?>>Accessories/Trims</option>
-                                        <option value="chemical" <?= ($wh['type'] === 'chemical') ? 'selected' : '' ?>>Chemicals & Dyes</option>
-                                        <option value="packing" <?= ($wh['type'] === 'packing') ? 'selected' : '' ?>>Packing Store</option>
-                                        <option value="wip" <?= ($wh['type'] === 'wip') ? 'selected' : '' ?>>WIP Floor Stock</option>
-                                        <option value="finished_goods" <?= ($wh['type'] === 'finished_goods') ? 'selected' : '' ?>>Finished Goods Warehouse</option>
+                                        <?php if (!empty($warehouseTypes)): ?>
+                                            <?php foreach ($warehouseTypes as $wt): ?>
+                                                <option value="<?= htmlspecialchars($wt['type_key']) ?>" <?= ($wt['type_key'] === $wh['type']) ? 'selected' : '' ?>><?= htmlspecialchars($wt['type_label']) ?></option>
+                                            <?php endforeach; ?>
+                                        <?php else: ?>
+                                            <option value="raw_material" <?= ($wh['type'] === 'raw_material') ? 'selected' : '' ?>>Raw Materials</option>
+                                            <option value="yarn" <?= ($wh['type'] === 'yarn') ? 'selected' : '' ?>>Yarn Storage</option>
+                                            <option value="fabric" <?= ($wh['type'] === 'fabric') ? 'selected' : '' ?>>Fabric Store</option>
+                                            <option value="accessories" <?= ($wh['type'] === 'accessories') ? 'selected' : '' ?>>Accessories/Trims</option>
+                                            <option value="chemical" <?= ($wh['type'] === 'chemical') ? 'selected' : '' ?>>Chemicals & Dyes</option>
+                                            <option value="packing" <?= ($wh['type'] === 'packing') ? 'selected' : '' ?>>Packing Store</option>
+                                            <option value="wip" <?= ($wh['type'] === 'wip') ? 'selected' : '' ?>>WIP Floor Stock</option>
+                                            <option value="finished_goods" <?= ($wh['type'] === 'finished_goods') ? 'selected' : '' ?>>Finished Goods Warehouse</option>
+                                        <?php endif; ?>
                                     </select>
                                 </div>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
                                 <button type="submit" class="btn btn-primary px-4">Update Warehouse</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        <?php endforeach; ?>
+    <?php endif; ?>
+
+    <!-- Edit Warehouse Storage Type Modals -->
+    <?php if (!empty($warehouseTypes)): ?>
+        <?php foreach ($warehouseTypes as $wt): ?>
+            <div class="modal fade" id="editWarehouseTypeModal-<?= $wt['id'] ?>" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <form action="<?= base_url('company/masterdata/warehousetypes/edit/' . $wt['id']) ?>" method="POST">
+                        <?= \App\Core\Session::csrfField() ?>
+                        <div class="modal-content text-start" style="border-radius: 12px;">
+                            <div class="modal-header">
+                                <h5 class="modal-title fw-bold">Edit Storage Type: <?= htmlspecialchars($wt['type_label']) ?></h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body text-start">
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold">Storage Type Name <span class="text-danger">*</span></label>
+                                    <input type="text" name="type_label" class="form-control text-dark" value="<?= htmlspecialchars($wt['type_label']) ?>" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold">Storage Key / System Code <span class="text-danger">*</span></label>
+                                    <input type="text" name="type_key" class="form-control font-monospace text-dark" value="<?= htmlspecialchars($wt['type_key']) ?>" required>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-warning text-white px-4">Update Type</button>
                             </div>
                         </div>
                     </form>
@@ -927,20 +1018,55 @@
                     <div class="mb-3">
                         <label class="form-label small fw-bold">Storage Type <span class="text-danger">*</span></label>
                         <select name="type" class="form-select text-dark" required>
-                            <option value="raw_material">Raw Materials</option>
-                            <option value="yarn">Yarn Storage</option>
-                            <option value="fabric" selected>Fabric Store</option>
-                            <option value="accessories">Accessories/Trims</option>
-                            <option value="chemical">Chemicals & Dyes</option>
-                            <option value="packing">Packing Store</option>
-                            <option value="wip">WIP Floor Stock</option>
-                            <option value="finished_goods">Finished Goods Warehouse</option>
+                            <?php if (!empty($warehouseTypes)): ?>
+                                <?php foreach ($warehouseTypes as $wt): ?>
+                                    <option value="<?= htmlspecialchars($wt['type_key']) ?>"><?= htmlspecialchars($wt['type_label']) ?></option>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <option value="raw_material">Raw Materials</option>
+                                <option value="yarn">Yarn Storage</option>
+                                <option value="fabric" selected>Fabric Store</option>
+                                <option value="accessories">Accessories/Trims</option>
+                                <option value="chemical">Chemicals & Dyes</option>
+                                <option value="packing">Packing Store</option>
+                                <option value="wip">WIP Floor Stock</option>
+                                <option value="finished_goods">Finished Goods Warehouse</option>
+                            <?php endif; ?>
                         </select>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
                     <button type="submit" class="btn btn-primary px-4">Create Warehouse</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Add Warehouse Storage Type -->
+<div class="modal fade" id="addWarehouseTypeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form action="<?= base_url('company/masterdata/warehousetypes/create') ?>" method="POST">
+            <?= \App\Core\Session::csrfField() ?>
+            <div class="modal-content" style="border-radius: 12px;">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-boxes-packing text-warning me-2"></i> Add Warehouse Storage Type</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-start">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Storage Type Name / Label <span class="text-danger">*</span></label>
+                        <input type="text" name="type_label" class="form-control text-dark" placeholder="e.g. Spare Parts Store, Hanger Stock" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Storage Key / System Code</label>
+                        <input type="text" name="type_key" class="form-control font-monospace text-dark" placeholder="e.g. spare_parts (auto-generated if left blank)">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-warning text-white px-4">Save Storage Type</button>
                 </div>
             </div>
         </form>

@@ -145,6 +145,49 @@ class Migrator {
                 $db->exec("UPDATE inventory_transactions it JOIN purchase_order_items poi ON it.reference_id = poi.po_id AND it.item_name = poi.item_name SET it.item_type = poi.item_type WHERE (it.item_type IS NULL OR TRIM(it.item_type) = '' OR LOWER(it.item_type) = 'accessories') AND poi.item_type IS NOT NULL AND TRIM(poi.item_type) != ''");
             } catch (\PDOException $e) {}
 
+            // Auto-heal warehouse_types table
+            try {
+                $db->exec("
+                    CREATE TABLE IF NOT EXISTS `warehouse_types` (
+                        `id` INT AUTO_INCREMENT PRIMARY KEY,
+                        `company_id` INT NOT NULL,
+                        `type_key` VARCHAR(100) NOT NULL,
+                        `type_label` VARCHAR(150) NOT NULL,
+                        `status` ENUM('active', 'inactive') DEFAULT 'active',
+                        `created_by` INT DEFAULT NULL,
+                        `updated_by` INT DEFAULT NULL,
+                        `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        `deleted_at` DATETIME DEFAULT NULL,
+                        KEY `idx_company` (`company_id`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                ");
+
+                // Seed default warehouse storage types for existing companies if empty
+                $stmtComps = $db->query("SELECT id FROM companies WHERE deleted_at IS NULL");
+                $comps = $stmtComps->fetchAll(\PDO::FETCH_COLUMN) ?: [];
+                $defaults = [
+                    ['raw_material', 'Raw Materials'],
+                    ['yarn', 'Yarn Storage'],
+                    ['fabric', 'Fabric Store'],
+                    ['accessories', 'Accessories/Trims'],
+                    ['chemical', 'Chemicals & Dyes'],
+                    ['packing', 'Packing Store'],
+                    ['wip', 'WIP Floor Stock'],
+                    ['finished_goods', 'Finished Goods Warehouse']
+                ];
+                foreach ($comps as $cId) {
+                    $chk = $db->prepare("SELECT COUNT(*) FROM warehouse_types WHERE company_id = ? AND deleted_at IS NULL");
+                    $chk->execute([$cId]);
+                    if ((int)$chk->fetchColumn() === 0) {
+                        $ins = $db->prepare("INSERT INTO warehouse_types (company_id, type_key, type_label, status, created_at) VALUES (?, ?, ?, 'active', NOW())");
+                        foreach ($defaults as $d) {
+                            $ins->execute([$cId, $d[0], $d[1]]);
+                        }
+                    }
+                }
+            } catch (\PDOException $e) {}
+
             // Auto-heal feature_flags table columns for feature labels
             try {
                 $checkLabel = $db->query("SHOW COLUMNS FROM `feature_flags` LIKE 'label'");

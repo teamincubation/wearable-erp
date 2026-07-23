@@ -124,6 +124,21 @@ CREATE TABLE IF NOT EXISTS `contacts` (
   INDEX `idx_contact_type` (`type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Warehouse Storage Types Table
+CREATE TABLE IF NOT EXISTS `warehouse_types` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `company_id` INT NOT NULL,
+    `type_key` VARCHAR(100) NOT NULL,
+    `type_label` VARCHAR(150) NOT NULL,
+    `status` ENUM('active', 'inactive') DEFAULT 'active',
+    `created_by` INT DEFAULT NULL,
+    `updated_by` INT DEFAULT NULL,
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` DATETIME DEFAULT NULL,
+    KEY `idx_company` (`company_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- 7. UOM TABLE
 CREATE TABLE IF NOT EXISTS `uoms` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,

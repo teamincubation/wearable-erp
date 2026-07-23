@@ -37,6 +37,9 @@ class MasterDataController extends Controller {
         $branchModel = new Branch();
         $branches = $branchModel->all();
 
+        $whTypeModel = new \App\Models\WarehouseType();
+        $warehouseTypes = $whTypeModel->all();
+
         // Fetch General Working Hours setting
         $stmtGwh = $db->prepare("SELECT setting_value FROM system_settings WHERE company_id = ? AND setting_key = 'general_working_hours' AND deleted_at IS NULL LIMIT 1");
         $stmtGwh->execute([$companyId]);
@@ -95,6 +98,7 @@ class MasterDataController extends Controller {
             'categories' => $categories,
             'warehouses' => $warehouses,
             'branches' => $branches,
+            'warehouseTypes' => $warehouseTypes,
             'general_working_hours' => $gwh,
             'shifts' => $shifts,
             'policySettings' => $policySettings,
@@ -298,6 +302,67 @@ class MasterDataController extends Controller {
 
         AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'edit_warehouse', 'Warehouse', (int)$id, null, null, "Updated warehouse: {$name}");
         Session::setFlash('success', "Warehouse '{$name}' updated successfully.");
+        $this->redirect('company/masterdata?tab=locations');
+    }
+
+    /**
+     * Create Warehouse Storage Type
+     */
+    public function createWarehouseType(Request $request, Response $response): void {
+        $label = trim($request->get('type_label'));
+        $key = strtolower(preg_replace('/[^a-zA-Z0-9_]/', '_', trim($request->get('type_key') ?: $label)));
+
+        if (empty($label)) {
+            Session::setFlash('error', 'Storage Type Name is required.');
+            $this->redirect('company/masterdata?tab=locations');
+            return;
+        }
+
+        $typeModel = new \App\Models\WarehouseType();
+        $typeModel->insert([
+            'type_key' => $key,
+            'type_label' => $label,
+            'status' => 'active',
+            'created_by' => Session::get('user_id')
+        ]);
+
+        AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'create_warehouse_type', 'WarehouseType', null, null, null, "Created storage type: {$label}");
+        Session::setFlash('success', "Storage Type '{$label}' registered successfully.");
+        $this->redirect('company/masterdata?tab=locations');
+    }
+
+    /**
+     * Edit Warehouse Storage Type
+     */
+    public function editWarehouseType(Request $request, Response $response, string $id): void {
+        $label = trim($request->get('type_label'));
+        $key = strtolower(preg_replace('/[^a-zA-Z0-9_]/', '_', trim($request->get('type_key') ?: $label)));
+
+        if (empty($label)) {
+            Session::setFlash('error', 'Storage Type Name is required.');
+            $this->redirect('company/masterdata?tab=locations');
+            return;
+        }
+
+        $typeModel = new \App\Models\WarehouseType();
+        $typeModel->update((int)$id, [
+            'type_key' => $key,
+            'type_label' => $label,
+            'updated_by' => Session::get('user_id')
+        ]);
+
+        AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'edit_warehouse_type', 'WarehouseType', (int)$id, null, null, "Updated storage type: {$label}");
+        Session::setFlash('success', "Storage Type '{$label}' updated successfully.");
+        $this->redirect('company/masterdata?tab=locations');
+    }
+
+    /**
+     * Delete Warehouse Storage Type
+     */
+    public function deleteWarehouseType(Request $request, Response $response, string $id): void {
+        $model = new \App\Models\WarehouseType();
+        $model->delete((int)$id, Session::get('user_id'));
+        Session::setFlash('success', 'Storage type deleted successfully.');
         $this->redirect('company/masterdata?tab=locations');
     }
 

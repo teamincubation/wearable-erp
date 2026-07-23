@@ -702,6 +702,15 @@ $router->post('/company/masterdata/branches/delete/{id}', [\App\Controllers\Mast
 $router->post('/company/masterdata/branches/edit/{id}', [\App\Controllers\MasterDataController::class, 'editBranch'])
        ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
 
+$router->post('/company/masterdata/warehousetypes/create', [\App\Controllers\MasterDataController::class, 'createWarehouseType'])
+       ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
+
+$router->post('/company/masterdata/warehousetypes/edit/{id}', [\App\Controllers\MasterDataController::class, 'editWarehouseType'])
+       ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
+
+$router->post('/company/masterdata/warehousetypes/delete/{id}', [\App\Controllers\MasterDataController::class, 'deleteWarehouseType'])
+       ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
+
 $router->post('/company/styles/delete/{id}', [\App\Controllers\StyleMasterController::class, 'deleteStyle'])
        ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);
 
