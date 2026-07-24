@@ -1042,6 +1042,95 @@ class ProductionController extends Controller {
     }
 
     /**
+     * AJAX Endpoint: Live Operations Stage Data Polling for Instant Sync
+     */
+    public function stageLiveApi(Request $request, Response $response, string $id): void {
+        header('Content-Type: application/json');
+        $companyId = Session::get('company_id');
+        $db = Database::getInstance();
+
+        // Fetch production order details
+        $stmt = $db->prepare("
+            SELECT pro.*, s.style_no, s.name as style_name, s.category as style_category, s.composition as fabric_composition,
+                   po.po_no as buyer_po_no, po.quantity as target_qty, po.sizes_json
+            FROM production_orders pro
+            JOIN buyer_pos po ON pro.po_id = po.id
+            JOIN styles s ON po.style_id = s.id
+            WHERE pro.id = ? AND pro.company_id = ? AND pro.deleted_at IS NULL
+            LIMIT 1
+        ");
+        $stmt->execute([$id, $companyId]);
+        $order = $stmt->fetch();
+
+        if (!$order) {
+            echo json_encode(['success' => false, 'error' => 'Production order not found']);
+            exit;
+        }
+
+        $productionService = new ProductionService();
+        $wipSummary = $productionService->getOrderWipSummary($companyId, (int)$id);
+
+        $batchStagesObj = self::getBatchStagesList((int)$id);
+        $stagesList = array_column($batchStagesObj, 'key');
+        if (empty($stagesList)) {
+            $stagesList = ['knitting', 'dyeing', 'compacting', 'relaxing', 'spreading', 'cutting', 'bundling', 'printing', 'embroidery', 'sewing', 'checking', 'thread_cutting', 'washing', 'ironing', 'packing', 'carton_packing', 'shipment'];
+        }
+
+        $stmtComp = $db->prepare("SELECT timezone FROM companies WHERE id = ?");
+        $stmtComp->execute([$companyId]);
+        $tenantTimezone = $stmtComp->fetchColumn() ?: 'Asia/Kolkata';
+
+        $stmtLogs = $db->prepare("
+            SELECT psl.*, u.name as employee_name, m.name as machine_name
+            FROM production_stage_logs psl
+            LEFT JOIN users u ON psl.employee_id = u.id
+            LEFT JOIN machines m ON psl.machine_id = m.id
+            WHERE psl.production_order_id = ? AND psl.company_id = ?
+            ORDER BY psl.id DESC
+            LIMIT 15
+        ");
+        $stmtLogs->execute([$id, $companyId]);
+        $recentLogs = $stmtLogs->fetchAll() ?: [];
+
+        foreach ($recentLogs as &$log) {
+            $log['formatted_time'] = \App\Helpers\TimezoneHelper::formatTenantTime($log['created_at'] ?? 'now', $tenantTimezone, 'h:i:s A');
+            $log['formatted_datetime'] = \App\Helpers\TimezoneHelper::formatTenantTime($log['created_at'] ?? 'now', $tenantTimezone, 'd M, h:i A');
+            $log['time_ago'] = \App\Helpers\TimezoneHelper::timeAgo($log['created_at'] ?? 'now');
+            $log['stage_clean'] = str_replace('_', ' ', $log['stage']);
+        }
+        unset($log);
+
+        $targetQty = (int)$order['target_qty'];
+        $lastStage = end($stagesList);
+        reset($stagesList);
+        $finishedQty = isset($wipSummary[$lastStage]) ? (int)$wipSummary[$lastStage]['out'] : 0;
+        $completionPct = $targetQty > 0 ? round(($finishedQty / $targetQty) * 100, 1) : 0;
+
+        $totalWaste = 0;
+        foreach ($stagesList as $stg) {
+            $totalWaste += (isset($wipSummary[$stg]) ? (int)$wipSummary[$stg]['waste'] : 0);
+        }
+        $wastePct = $targetQty > 0 ? round(($totalWaste / $targetQty) * 100, 1) : 0;
+
+        $latestLog = $recentLogs[0] ?? null;
+
+        echo json_encode([
+            'success' => true,
+            'target_qty' => number_format($targetQty),
+            'finished_qty' => number_format($finishedQty),
+            'completion_pct' => $completionPct,
+            'total_waste' => number_format($totalWaste),
+            'waste_pct' => $wastePct,
+            'latest_log' => $latestLog,
+            'recent_logs' => $recentLogs,
+            'wip_summary' => $wipSummary,
+            'stages_list' => $stagesList,
+            'server_time' => \App\Helpers\TimezoneHelper::formatTenantTime('now', $tenantTimezone, 'h:i:s A')
+        ]);
+        exit;
+    }
+
+    /**
      * Start Production Order Batch
      */
     public function startOrder(Request $request, Response $response, string $id): void {

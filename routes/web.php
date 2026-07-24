@@ -600,6 +600,11 @@ $router->get('/company/production/stage/{id}/live-report', [\App\Controllers\Pro
        ->middleware(PermissionMiddleware::class)
        ->permission('company.production.view');
 
+$router->get('/company/production/stage/{id}/live-api', [\App\Controllers\ProductionController::class, 'stageLiveApi'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.production.view');
+
 $router->get('/company/production/stage/{id}/clear-logs', [\App\Controllers\ProductionController::class, 'clearStageLogs'])
        ->middleware(AuthMiddleware::class)
        ->middleware(PermissionMiddleware::class)
