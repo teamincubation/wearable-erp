@@ -23,6 +23,11 @@
         </a>
     </li>
     <li class="nav-item">
+        <a class="nav-link text-secondary fw-semibold" href="<?= base_url('company/merchandising/completed-contracts') ?>">
+            <i class="fa-solid fa-circle-check me-1"></i> Completed Contracts Archive
+        </a>
+    </li>
+    <li class="nav-item">
         <a class="nav-link text-secondary fw-semibold" href="<?= base_url('company/merchandising/costsheets') ?>">
             <i class="fa-solid fa-calculator me-1"></i> Cost Sheet Estimates
         </a>
@@ -183,69 +188,7 @@
     </div>
 </div>
 
-<!-- Completed Buyer Contracts Archive Section -->
-<div class="pepp-card mt-4">
-    <div class="pepp-card-header bg-light d-flex justify-content-between align-items-center">
-        <h5 class="pepp-card-title text-success m-0"><i class="fa-solid fa-circle-check me-2"></i> Completed Buyer Contracts Archive</h5>
-        <span class="badge bg-white text-secondary border"><?= count($completed_orders ?? []) ?> Completed Contract(s)</span>
-    </div>
-    <div class="pepp-card-body p-0">
-        <div class="table-responsive border-0">
-            <table class="table pepp-table mb-0 align-middle">
-                <thead>
-                    <tr class="bg-light">
-                        <th>PO Number</th>
-                        <th>Buyer Client</th>
-                        <th>Style Code / Name</th>
-                        <th>Order Qty</th>
-                        <th>Unit Price</th>
-                        <th>Total Contract Value</th>
-                        <th>PO Date</th>
-                        <th>Delivery Due Date</th>
-                        <th>Completion Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (!empty($completed_orders)): ?>
-                        <?php foreach ($completed_orders as $co): ?>
-                            <tr>
-                                <td>
-                                    <strong class="text-success font-monospace fs-6"><?= htmlspecialchars($co['po_no']) ?></strong>
-                                </td>
-                                <td>
-                                    <strong class="text-dark d-block"><?= htmlspecialchars($co['buyer_name']) ?></strong>
-                                    <span class="badge bg-light text-secondary border font-monospace"><?= htmlspecialchars($co['buyer_code'] ?? '') ?></span>
-                                </td>
-                                <td>
-                                    <div>
-                                        <strong class="text-dark"><?= htmlspecialchars($co['style_no']) ?></strong>
-                                        <div class="text-secondary small"><?= htmlspecialchars($co['style_name']) ?></div>
-                                    </div>
-                                </td>
-                                <td><strong class="font-monospace text-dark"><?= number_format($co['quantity']) ?> pcs</strong></td>
-                                <td><span class="font-monospace text-dark">₹<?= number_format($co['unit_price'], 2) ?></span></td>
-                                <td><strong class="font-monospace text-success fs-6">₹<?= number_format($co['total_amount'], 2) ?></strong></td>
-                                <td><span class="small text-secondary font-monospace"><?= date('d-M-Y', strtotime($co['po_date'])) ?></span></td>
-                                <td><span class="small text-secondary font-monospace"><?= date('d-M-Y', strtotime($co['delivery_date'])) ?></span></td>
-                                <td>
-                                    <span class="badge bg-success text-white font-monospace text-uppercase px-2.5 py-1.5">
-                                        <i class="fa-solid fa-circle-check me-1"></i> Completed
-                                    </span>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <tr>
-                            <td colspan="9" class="text-center py-4 text-secondary small">
-                                <i class="fa-solid fa-box-archive me-1 text-muted"></i> No completed buyer contracts recorded in the archive yet.
-                            </td>
-                        </tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
+
 
 <!-- Add Buyer PO Modal -->
 <?php if (\App\Core\Auth::hasPermission('company.styles.manage')): ?>

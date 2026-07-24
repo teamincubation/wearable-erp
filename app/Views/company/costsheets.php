@@ -22,6 +22,11 @@
         </a>
     </li>
     <li class="nav-item">
+        <a class="nav-link text-secondary fw-semibold" href="<?= base_url('company/merchandising/completed-contracts') ?>">
+            <i class="fa-solid fa-circle-check me-1"></i> Completed Contracts Archive
+        </a>
+    </li>
+    <li class="nav-item">
         <a class="nav-link active fw-bold text-primary" href="<?= base_url('company/merchandising/costsheets') ?>">
             <i class="fa-solid fa-calculator me-1"></i> Cost Sheet Estimates
         </a>

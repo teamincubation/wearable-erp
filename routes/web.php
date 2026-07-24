@@ -415,6 +415,11 @@ $router->get('/company/merchandising/buyerpos', [\App\Controllers\MerchandisingC
        ->middleware(PermissionMiddleware::class)
        ->permission('company.styles.view');
 
+$router->get('/company/merchandising/completed-contracts', [\App\Controllers\MerchandisingController::class, 'completedContracts'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.view');
+
 $router->post('/company/merchandising/buyerpos/create', [\App\Controllers\MerchandisingController::class, 'createBuyerpo'])
        ->middleware(AuthMiddleware::class)
        ->middleware(CsrfMiddleware::class)

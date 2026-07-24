@@ -198,6 +198,28 @@ class MerchandisingController extends Controller {
     }
 
     /**
+     * Completed Buyer Contracts Archive View
+     */
+    public function completedContracts(Request $request, Response $response): void {
+        $db = Database::getInstance();
+        $companyId = Session::get('company_id');
+
+        $stmt = $db->prepare("SELECT po.*, s.style_no, s.name as style_name, c.name as buyer_name, c.code as buyer_code 
+                             FROM buyer_pos po
+                             JOIN styles s ON po.style_id = s.id
+                             JOIN contacts c ON po.buyer_id = c.id
+                             WHERE po.company_id = ? AND po.deleted_at IS NULL AND po.status IN ('completed', 'closed')
+                             ORDER BY po.id DESC");
+        $stmt->execute([$companyId]);
+        $completedOrders = $stmt->fetchAll() ?: [];
+
+        $this->renderView('company/completed_contracts', [
+            'title' => 'Completed Buyer Contracts Archive | Merchandising',
+            'completed_orders' => $completedOrders
+        ]);
+    }
+
+    /**
      * Create Buyer Purchase Order (PO)
      */
     public function createBuyerpo(Request $request, Response $response): void {
