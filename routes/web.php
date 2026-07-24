@@ -35,6 +35,7 @@ $router->post('/api/v1/qr/scan', [ApiController::class, 'logQrScan']);
 // Style Master & Associated WIP Stages API Routes
 $router->get('/api/v1/styles', [ApiController::class, 'getStyles']);
 $router->get('/api/v1/styles/{id}', [ApiController::class, 'getStyleDetails']);
+$router->get('/api/v1/styles/{id}/stages', [ApiController::class, 'getQrStages']);
 
 // Single Universal SaaS Portal Login Routes
 $router->get('/login', [AuthController::class, 'showLogin']);

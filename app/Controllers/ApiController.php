@@ -267,10 +267,11 @@ class ApiController extends Controller {
     }
 
     /**
-     * Get Company WIP Stages for Mobile Scanner
-     * GET /api/v1/qr/stages
+     * Get WIP Stages for a Specific Style, Batch, or Company Default
+     * GET /api/v1/qr/stages (Supports ?style_id=X, ?style_no=X, or ?batch_id=X)
+     * GET /api/v1/styles/{id}/stages
      */
-    public function getQrStages(Request $request, Response $response): void {
+    public function getQrStages(Request $request, Response $response, string $id = ''): void {
         $this->setCorsHeaders();
 
         $token = $this->extractToken($request);
@@ -284,11 +285,59 @@ class ApiController extends Controller {
             return;
         }
 
-        $stages = \App\Controllers\CompanyController::getCompanyWipStages((int)$userData['company_id']);
+        $companyId = (int)$userData['company_id'];
+        $db = Database::getInstance();
 
+        $styleIdOrNo = trim($id ?: (string)$request->get('style_id', '') ?: (string)$request->get('style_no', '') ?: (string)$request->get('style', ''));
+        $batchIdOrNo = trim((string)$request->get('batch_id', '') ?: (string)$request->get('production_no', '') ?: (string)$request->get('batch', ''));
+
+        $styleId = null;
+
+        // If batch_id or production_no is provided, resolve style_id from production order
+        if (!empty($batchIdOrNo)) {
+            $stmtBatch = $db->prepare("
+                SELECT po.style_id 
+                FROM production_orders pro 
+                JOIN buyer_pos po ON pro.po_id = po.id 
+                WHERE (pro.id = ? OR pro.production_no = ?) AND pro.company_id = ? AND pro.deleted_at IS NULL 
+                LIMIT 1
+            ");
+            $stmtBatch->execute([is_numeric($batchIdOrNo) ? (int)$batchIdOrNo : 0, $batchIdOrNo, $companyId]);
+            $styleId = $stmtBatch->fetchColumn() ?: null;
+        }
+
+        // If style_id or style_no is provided directly
+        if (!$styleId && !empty($styleIdOrNo)) {
+            $stmtStyle = $db->prepare("SELECT id FROM styles WHERE (id = ? OR style_no = ?) AND company_id = ? AND deleted_at IS NULL LIMIT 1");
+            $stmtStyle->execute([is_numeric($styleIdOrNo) ? (int)$styleIdOrNo : 0, $styleIdOrNo, $companyId]);
+            $styleId = $stmtStyle->fetchColumn() ?: null;
+        }
+
+        $companyDefaultStages = \App\Controllers\CompanyController::getCompanyWipStages($companyId);
+
+        if ($styleId) {
+            $stmtTp = $db->prepare("SELECT stages_json FROM tech_packs WHERE style_id = ? AND company_id = ? AND deleted_at IS NULL LIMIT 1");
+            $stmtTp->execute([$styleId, $companyId]);
+            $rawStages = $stmtTp->fetchColumn();
+
+            if (!empty($rawStages)) {
+                $customStages = json_decode($rawStages, true);
+                if (is_array($customStages) && !empty($customStages)) {
+                    $response->json([
+                        'status' => 'success',
+                        'style_id' => (int)$styleId,
+                        'data' => $customStages
+                    ], 200);
+                    return;
+                }
+            }
+        }
+
+        // Fallback to company default WIP stages
         $response->json([
             'status' => 'success',
-            'data' => $stages
+            'style_id' => $styleId ? (int)$styleId : null,
+            'data' => $companyDefaultStages
         ], 200);
     }
 
