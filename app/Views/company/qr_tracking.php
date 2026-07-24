@@ -61,7 +61,7 @@
     }
 </style>
 
-<!-- Hidden temporary canvas element for manual frame decoding -->
+<!-- Hidden temporary canvas element for manual frame decoding if needed -->
 <div id="reader-temp-canvas" style="display: none;"></div>
 
 <!-- Mobile Application Container Wrapper -->
@@ -158,7 +158,7 @@
                         </div>
                     </div>
 
-                    <!-- Scanned Result Card Overlay (Directly Over Camera Viewport - Zero Scroll) -->
+                    <!-- Verified Item Modal Popup (Opens over Camera when valid QR is scanned) -->
                     <div id="scan-result-card" class="position-absolute top-0 start-0 w-100 h-100 p-3 bg-white d-flex flex-column justify-content-between" style="display: none; z-index: 1050; border-radius: 16px; overflow-y: auto;">
                         <div class="text-center">
                             <span class="badge bg-success text-white text-uppercase mb-1 fw-bold" style="font-size: 10px; letter-spacing: 0.5px;">
@@ -211,13 +211,6 @@
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <!-- Action Button: SCAN / CAPTURE QR CODE -->
-                <div id="scan-trigger-container" class="mb-3 text-center">
-                    <button type="button" id="trigger-scan-btn" class="btn btn-primary btn-lg w-100 py-3 rounded-pill fw-bold shadow-sm" style="font-size: 15px; letter-spacing: 0.5px;">
-                        <i class="fa-solid fa-expand me-2"></i> SCAN / CAPTURE QR CODE
-                    </button>
                 </div>
 
                 <!-- Flashlight Button (hidden by default) -->
@@ -332,9 +325,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const manualCodeInput = document.getElementById('manual-code-input');
     const manualSubmitBtn = document.getElementById('manual-submit-btn');
 
-    const triggerScanBtn = document.getElementById('trigger-scan-btn');
-    const scanTriggerContainer = document.getElementById('scan-trigger-container');
-
     const cameraSelect = document.getElementById('camera-select');
     const cameraSelectContainer = document.getElementById('camera-select-container');
     const flashlightContainer = document.getElementById('flashlight-container');
@@ -348,7 +338,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ===================== STATE =====================
     let html5QrCode = null;
-    let tempFileDecoder = null;
     let scanCount = 0;
     let sessionStartTime = null;
     let pieceStartTime = null;
@@ -385,7 +374,7 @@ document.addEventListener('DOMContentLoaded', function() {
         clearInterval(timerInterval);
         timerInterval = setInterval(updateTimer, 1000);
 
-        // Launch camera scanner
+        // Launch camera scanner directly
         initScanner();
     });
 
@@ -458,7 +447,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function initScanner() {
         isCameraMode = true;
         scannerContainer.style.display = 'flex';
-        scanTriggerContainer.style.display = 'block';
         manualContainer.style.display = 'none';
         toggleModeBtn.innerHTML = '<i class="fa-solid fa-keyboard me-1"></i> Switch to Manual Entry Mode';
 
@@ -502,8 +490,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         html5QrCode = new Html5Qrcode("reader");
         const config = {
-            fps: 15,
-            qrbox: { width: 250, height: 250 },
+            fps: 20,
+            qrbox: { width: 260, height: 260 },
             aspectRatio: 1.333333
         };
 
@@ -573,79 +561,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // ===================== TRIGGER SCAN BUTTON PRESS ACTION =====================
-    triggerScanBtn.addEventListener('click', function() {
-        captureAndAnalyzeFrame();
-    });
-
-    function captureAndAnalyzeFrame() {
-        const video = document.querySelector('#reader video');
-        if (!video || video.readyState < 2) {
-            showTemporaryToast("Camera stream loading... Align QR code and press SCAN again.", "warning");
-            return;
-        }
-
-        const origHtml = triggerScanBtn.innerHTML;
-        triggerScanBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span> Analyzing QR Code...';
-        triggerScanBtn.disabled = true;
-
-        const canvas = document.createElement('canvas');
-        const vw = video.videoWidth || 640;
-        const vh = video.videoHeight || 480;
-
-        const angles = [0, 90];
-        let angleIdx = 0;
-
-        function tryNextAngle() {
-            if (angleIdx >= angles.length) {
-                triggerScanBtn.innerHTML = origHtml;
-                triggerScanBtn.disabled = false;
-                showTemporaryToast("No valid QR code detected. Hold camera steady over QR sticker and press SCAN.", "warning", 3500);
-                return;
-            }
-
-            const angle = angles[angleIdx++];
-            if (angle === 0) {
-                canvas.width = vw;
-                canvas.height = vh;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(video, 0, 0, vw, vh);
-            } else {
-                canvas.width = vh;
-                canvas.height = vw;
-                const ctx = canvas.getContext('2d');
-                ctx.translate(vh / 2, vw / 2);
-                ctx.rotate(angle * Math.PI / 180);
-                ctx.drawImage(video, -vw / 2, -vh / 2);
-            }
-
-            canvas.toBlob(blob => {
-                if (!blob) {
-                    tryNextAngle();
-                    return;
-                }
-
-                const file = new File([blob], "scan_frame.png", { type: "image/png" });
-
-                if (!tempFileDecoder) {
-                    tempFileDecoder = new Html5Qrcode("reader-temp-canvas");
-                }
-
-                tempFileDecoder.scanFile(file, true)
-                    .then(decodedText => {
-                        triggerScanBtn.innerHTML = origHtml;
-                        triggerScanBtn.disabled = false;
-                        onScanSuccess(decodedText);
-                    })
-                    .catch(err => {
-                        tryNextAngle();
-                    });
-            }, 'image/png');
-        }
-
-        tryNextAngle();
-    }
-
     // ===================== MODE TOGGLE =====================
     toggleModeBtn.addEventListener('click', function() {
         if (manualContainer.style.display === 'none') {
@@ -658,7 +573,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function switchToManualMode(reason = null) {
         stopScanner(true);
         scannerContainer.style.display = 'none';
-        scanTriggerContainer.style.display = 'none';
         cameraSelectContainer.style.display = 'none';
         flashlightContainer.style.display = 'none';
         manualContainer.style.display = 'block';
@@ -711,7 +625,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function onScanSuccess(decodedText) {
         hideAlertBanner();
 
-        // Pause camera during verification
+        // Pause live camera scan while displaying verified item popup
         if (html5QrCode && html5QrCode.isScanning) {
             html5QrCode.pause(true);
         }
@@ -747,7 +661,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 sizeDisplay.innerText = data.product.size;
                 serialDisplay.innerText = '#' + String(data.product.serial).padStart(4, '0') + ' / ' + String(data.product.target_qty).padStart(4, '0');
 
-                // Display verification card overlay directly over camera (0 scrolling)
+                // Open verified active item popup modal over camera viewport
                 scanResultCard.style.display = 'flex';
             } else {
                 if (data.already_validated) {
@@ -796,11 +710,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 showTemporaryToast(data.message, status === 'pass' ? "success" : "danger", 2500);
                 
+                // Hide popup modal and reset state
                 scanResultCard.style.display = 'none';
                 currentScannedCode = null;
                 manualCodeInput.value = '';
                 pieceStartTime = new Date();
                 
+                // Automatically resume live camera scanning for next QR
                 if (manualContainer.style.display !== 'none') {
                     manualCodeInput.focus();
                 } else if (html5QrCode && html5QrCode.isScanning) {
