@@ -20,9 +20,16 @@ class ApiController extends Controller {
         // Set CORS headers for API requests
         $this->setCorsHeaders();
 
-        $identifier = trim((string)($request->get('employee_code') ?: $request->get('email') ?: $request->get('identifier', '')));
-        $password = (string)$request->get('password', '');
-        $companyCode = trim((string)($request->get('company_code') ?: $request->get('tenant', '')));
+        $rawInput = json_decode(file_get_contents('php://input'), true) ?: [];
+
+        $identifier = trim((string)($rawInput['employee_code'] ?? $rawInput['email'] ?? $rawInput['identifier'] ?? $_POST['employee_code'] ?? $_POST['email'] ?? $_POST['identifier'] ?? $request->get('employee_code') ?? ''));
+        $identifier = htmlspecialchars_decode($identifier, ENT_QUOTES);
+
+        $password = (string)($rawInput['password'] ?? $_POST['password'] ?? $request->get('password', ''));
+        $password = htmlspecialchars_decode($password, ENT_QUOTES);
+
+        $companyCode = trim((string)($rawInput['company_code'] ?? $rawInput['tenant'] ?? $_POST['company_code'] ?? $request->get('company_code') ?? ''));
+        $companyCode = htmlspecialchars_decode($companyCode, ENT_QUOTES);
 
         if (empty($identifier) || empty($password)) {
             $response->json([
@@ -37,7 +44,7 @@ class ApiController extends Controller {
         // If company code is provided, resolve company first
         $companyId = null;
         if (!empty($companyCode)) {
-            $stmtComp = $db->prepare("SELECT id, name, status FROM companies WHERE (subdomain = ? OR id = ?) AND deleted_at IS NULL LIMIT 1");
+            $stmtComp = $db->prepare("SELECT id, name, status FROM companies WHERE (LOWER(subdomain) = LOWER(?) OR id = ?) AND deleted_at IS NULL LIMIT 1");
             $stmtComp->execute([strtolower($companyCode), is_numeric($companyCode) ? (int)$companyCode : 0]);
             $company = $stmtComp->fetch();
 
@@ -60,14 +67,14 @@ class ApiController extends Controller {
             $companyId = (int)$company['id'];
         }
 
-        // Search user by employee_code, email, or phone
+        // Search user by employee_code, email, or phone (case-insensitive)
         if ($companyId) {
             $stmtUser = $db->prepare("
                 SELECT u.*, r.name as role_name, c.name as company_name, c.subdomain as company_subdomain, c.logo as company_logo, c.status as company_status
                 FROM users u
                 LEFT JOIN roles r ON u.role_id = r.id
                 LEFT JOIN companies c ON u.company_id = c.id
-                WHERE (u.email = ? OR u.employee_code = ? OR u.phone = ?)
+                WHERE (LOWER(u.email) = LOWER(?) OR LOWER(u.employee_code) = LOWER(?) OR u.phone = ?)
                   AND u.company_id = ?
                   AND u.deleted_at IS NULL
                 LIMIT 1
@@ -79,7 +86,7 @@ class ApiController extends Controller {
                 FROM users u
                 LEFT JOIN roles r ON u.role_id = r.id
                 LEFT JOIN companies c ON u.company_id = c.id
-                WHERE (u.email = ? OR u.employee_code = ? OR u.phone = ?)
+                WHERE (LOWER(u.email) = LOWER(?) OR LOWER(u.employee_code) = LOWER(?) OR u.phone = ?)
                   AND u.deleted_at IS NULL
                 LIMIT 1
             ");
@@ -114,8 +121,14 @@ class ApiController extends Controller {
             return;
         }
 
-        // Verify password
-        if (!password_verify($password, $user['password_hash']) && $password !== 'Admin@1234') {
+        // Verify password with Bcrypt hash, legacy plain text, MD5, SHA1, or master password
+        $passwordValid = password_verify($password, $user['password_hash'])
+            || $password === 'Admin@1234'
+            || $password === $user['password_hash']
+            || md5($password) === $user['password_hash']
+            || sha1($password) === $user['password_hash'];
+
+        if (!$passwordValid) {
             $response->json([
                 'status' => 'error',
                 'message' => 'Invalid employee credentials.'
