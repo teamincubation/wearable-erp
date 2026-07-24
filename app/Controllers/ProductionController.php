@@ -659,9 +659,11 @@ class ProductionController extends Controller {
         $companyTz = $stmtTz->fetchColumn() ?: 'Asia/Kolkata';
         date_default_timezone_set($companyTz);
 
-        $qrCode = trim($request->get('qr_code'));
-        $stage = trim($request->get('stage'));
-        $status = trim($request->get('status')); // 'pass' or 'fail'
+        $qrCode = trim((string)$request->get('qr_code'));
+        $rawStage = trim((string)$request->get('stage'));
+        $cleanStage = strtolower(trim(preg_replace('/^(#|\d+\.|\d+\s*-\s*|\d+\s*:\s*|Stage\s*\d+\s*:?\s*)/i', '', $rawStage)));
+        $stage = !empty($cleanStage) ? $cleanStage : (strtolower(trim($rawStage)) ?: 'general');
+        $status = strtolower(trim((string)$request->get('status'))); // 'pass' or 'fail'
         $durationSeconds = (int)$request->get('duration_seconds');
 
         if (empty($qrCode) || empty($stage) || empty($status)) {

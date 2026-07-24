@@ -438,7 +438,8 @@ class ApiController extends Controller {
 
         $qrCode = trim((string)($request->get('qr_code') ?: $request->get('qr', '')));
         $rawStage = trim((string)($request->get('stage') ?: $request->get('stage_name') ?: $request->get('stage_key', '')));
-        $stage = strtolower(trim(preg_replace('/^(#|\d+\.|\d+\s*-|\d+\s*:|Stage\s*\d+:?)\s*/i', '', $rawStage)));
+        $cleanStage = strtolower(trim(preg_replace('/^(#|\d+\.|\d+\s*-\s*|\d+\s*:\s*|Stage\s*\d+\s*:?\s*)/i', '', $rawStage)));
+        $stage = !empty($cleanStage) ? $cleanStage : (strtolower(trim($rawStage)) ?: 'general');
         
         $status = strtolower(trim((string)$request->get('status', 'pass')));
         if ($status !== 'pass' && $status !== 'fail') {
@@ -588,7 +589,8 @@ class ApiController extends Controller {
 
         $qrCode = trim((string)($request->get('qr_code') ?: $request->get('qr', '') ?: $request->get('tag', '')));
         $rawStage = trim((string)($request->get('stage') ?: $request->get('stage_name') ?: $request->get('stage_key', '')));
-        $targetStage = strtolower(trim(preg_replace('/^(#|\d+\.|\d+\s*-|\d+\s*:|Stage\s*\d+:?)\s*/i', '', $rawStage)));
+        $cleanTargetStage = strtolower(trim(preg_replace('/^(#|\d+\.|\d+\s*-\s*|\d+\s*:\s*|Stage\s*\d+\s*:?\s*)/i', '', $rawStage)));
+        $targetStage = !empty($cleanTargetStage) ? $cleanTargetStage : strtolower(trim($rawStage));
 
         if (empty($qrCode)) {
             $response->json([

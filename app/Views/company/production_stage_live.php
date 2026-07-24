@@ -427,8 +427,12 @@
                                         <span class="badge <?= $badgeClass ?> font-monospace fw-bold" style="font-size: 0.65rem; padding: 0.25em 0.6em;"><?= $statusText ?></span>
                                         <small class="text-dash-muted font-monospace" style="font-size: 10.5px;"><?= $formattedLogTime ?></small>
                                     </div>
+                                    <?php 
+                                        $rawLogStage = trim((string)($log['stage'] ?? ''));
+                                        $displayStage = !empty($rawLogStage) ? str_replace('_', ' ', $rawLogStage) : 'Production Stage';
+                                    ?>
                                     <p class="mb-0 small text-dash-main" style="font-size: 12.5px;">
-                                        Stage <strong class="text-capitalize text-primary"><?= !empty($log['stage']) ? str_replace('_', ' ', $log['stage']) : 'Unassigned Stage' ?></strong>
+                                        Stage <strong class="text-capitalize text-primary"><?= htmlspecialchars($displayStage) ?></strong>
                                     </p>
                                     <small class="text-dash-sub d-block font-monospace mt-0.5" style="font-size: 10.5px;">
                                         Tag: <span class="text-dash-main"><?= htmlspecialchars($tagLabel) ?></span> | 

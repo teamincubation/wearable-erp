@@ -217,9 +217,11 @@
                                     <?php 
                                         $dtH = new \DateTime($h['created_at'], new \DateTimeZone('UTC'));
                                         try { $dtH->setTimezone(new \DateTimeZone($tzStr)); } catch (\Exception $e) {}
+                                        $rawHStage = trim((string)($h['stage'] ?? ''));
+                                        $displayHStage = !empty($rawHStage) ? str_replace('_', ' ', $rawHStage) : 'Production Stage';
                                     ?>
                                     <tr>
-                                        <td><span class="badge bg-light text-dark text-capitalize"><?= str_replace('_', ' ', $h['stage']) ?></span></td>
+                                        <td><span class="badge bg-light text-dark text-capitalize"><?= htmlspecialchars($displayHStage) ?></span></td>
                                         <td><?= htmlspecialchars($h['employee_name'] ?: 'System / Admin') ?></td>
                                         <td><?= htmlspecialchars($h['machine_name'] ?: ($h['qr_code'] ? 'QR: ' . $h['qr_code'] : 'Manual')) ?></td>
                                         <td class="font-monospace small">
