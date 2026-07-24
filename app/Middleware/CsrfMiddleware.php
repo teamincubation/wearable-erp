@@ -21,9 +21,10 @@ class CsrfMiddleware extends Middleware {
                     return false;
                 }
 
-                $response->setStatusCode(403);
-                echo "<h3>Security Warning: CSRF token validation failed.</h3><p>Please go back, refresh the page and try again.</p>";
-                exit;
+                Session::setFlash('error', 'Security Notice: Session expired or CSRF token mismatch. Please try again.');
+                $referer = $_SERVER['HTTP_REFERER'] ?? base_url('login');
+                $response->redirect($referer);
+                return false;
             }
         }
         return true;

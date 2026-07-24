@@ -177,7 +177,7 @@ class AuthController extends Controller {
      * Redirect active user to appropriate home dashboard
      */
     private function redirectToDashboard(): void {
-        if (Session::get('is_developer_session') || Session::get('company_id') === null || Auth::hasPermission('developer.dashboard')) {
+        if (Session::get('is_developer_session') && Session::get('company_id') === null) {
             $this->redirect('developer/dashboard');
         } else {
             $this->redirect(Auth::getFirstAccessibleCompanyUrl());

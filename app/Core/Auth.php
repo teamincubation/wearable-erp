@@ -97,8 +97,8 @@ class Auth {
             }
         }
 
-        // Check if user is a global developer / super admin (company_id is null or role_id = 1)
-        if ($user['company_id'] === null || (isset($user['role_id']) && (int)$user['role_id'] === 1)) {
+        // Check if user is a global developer / platform super admin (company_id is null or is_developer flag set)
+        if ($user['company_id'] === null || (!empty($user['is_developer']) && (int)$user['is_developer'] === 1)) {
             $user['is_developer_session'] = true;
         }
 
@@ -127,6 +127,8 @@ class Auth {
             }
             Session::set('permissions', $permissions);
             return;
+        } else {
+            Session::remove('is_developer_session');
         }
 
         // Load permissions
