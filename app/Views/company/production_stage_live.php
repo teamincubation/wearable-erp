@@ -3,10 +3,10 @@
     <!-- Theme Switcher & Dashboard CSS Custom Properties -->
     <style>
         :root, [data-theme="dark"] {
-            --bg-main: #0b0f19;
-            --card-bg: #151c2c;
+            --bg-main: #090d16;
+            --card-bg: #131a29;
             --card-border: rgba(255, 255, 255, 0.08);
-            --card-hover-border: rgba(99, 102, 241, 0.4);
+            --card-hover-border: rgba(99, 102, 241, 0.5);
             --text-main: #f8fafc;
             --text-sub: #94a3b8;
             --text-muted: #64748b;
@@ -79,13 +79,14 @@
         .live-card {
             background-color: var(--card-bg) !important;
             border: 1px solid var(--card-border) !important;
-            border-radius: 14px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
-            transition: border-color 0.25s ease, transform 0.25s ease;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
         }
         .live-card:hover {
             border-color: var(--card-hover-border) !important;
             transform: translateY(-2px);
+            box-shadow: 0 14px 35px rgba(0, 0, 0, 0.22);
         }
 
         .text-dash-main { color: var(--text-main) !important; }
@@ -94,14 +95,14 @@
 
         /* Icon Badge Styles */
         .icon-badge {
-            width: 44px;
-            height: 44px;
-            min-width: 44px;
-            border-radius: 12px;
+            width: 48px;
+            height: 48px;
+            min-width: 48px;
+            border-radius: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.25rem;
+            font-size: 1.35rem;
             line-height: 1;
             background: transparent;
         }
@@ -111,7 +112,7 @@
         .icon-badge-danger { background: rgba(239, 68, 68, 0.15) !important; color: var(--color-danger) !important; }
 
         .animate-pulse-slow {
-            animation: pulse-slow 2.5s infinite;
+            animation: pulse-slow 2s infinite;
         }
         @keyframes pulse-slow {
             0%, 100% { opacity: 1; }
@@ -124,25 +125,25 @@
         .theme-btn-group .btn {
             font-size: 11px;
             font-weight: 600;
-            padding: 4px 11px;
+            padding: 4px 12px;
             border-radius: 20px;
             transition: all 0.2s ease;
         }
         .theme-btn-group .btn.active {
-            box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+            box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
         }
 
         /* Minimal QR Bar */
         .qr-lookup-bar {
             background-color: var(--card-bg);
             border: 1px solid var(--card-border);
-            border-radius: 14px;
+            border-radius: 16px;
         }
         .qr-lookup-input {
             background-color: var(--input-bg) !important;
             border: 1px solid var(--input-border) !important;
             color: var(--input-text) !important;
-            border-radius: 8px;
+            border-radius: 10px;
             font-size: 13.5px;
         }
         .qr-lookup-input::placeholder {
@@ -150,7 +151,7 @@
             opacity: 0.8;
         }
         .qr-lookup-input:focus {
-            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3) !important;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3) !important;
             border-color: var(--color-primary) !important;
         }
 
@@ -165,25 +166,54 @@
             background: var(--input-border);
             border-radius: 10px;
         }
+
+        .pulse-live-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #10b981;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            animation: pulse-green 1.6s infinite;
+        }
+        @keyframes pulse-green {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
     </style>
 
-    <!-- TOP HEADER BAR WITH THEME SWITCHER -->
+    <!-- TOP NAVIGATION & HEADER BAR WITH CONTROLS -->
     <div class="row align-items-center mb-4 g-3">
-        <div class="col-lg-6 col-12">
-            <div class="d-flex align-items-center gap-2.5">
-                <div class="bg-primary text-white rounded-pill px-3 py-1 fw-bold text-uppercase d-inline-flex align-items-center gap-1.5 animate-pulse-slow" style="font-size: 0.68rem; letter-spacing: 0.05em;">
-                    <span class="d-inline-block rounded-circle bg-white" style="width: 6px; height: 6px;"></span> Live Monitoring
+        <div class="col-lg-7 col-12">
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                <a href="<?= base_url('company/production/orders') ?>" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 text-dash-sub" style="font-size: 11.5px; border-color: var(--card-border);">
+                    <i class="fa-solid fa-arrow-left me-1"></i> Orders
+                </a>
+                <div class="bg-emerald-500 text-white rounded-pill px-3 py-1 fw-bold text-uppercase d-inline-flex align-items-center gap-2 shadow-sm" style="font-size: 0.68rem; letter-spacing: 0.05em; background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">
+                    <span class="pulse-live-dot"></span> LIVE MONITOR
                 </div>
-                <h3 class="m-0 fw-bold font-outfit text-dash-main" style="letter-spacing: -0.02em;">Operations Stage Live Dashboard</h3>
+                <span class="badge bg-primary bg-opacity-20 text-primary font-monospace fw-bold px-2.5 py-1.5 rounded-pill" style="font-size: 11px;">
+                    <i class="fa-solid fa-layer-group me-1"></i> <?= htmlspecialchars($order['production_no']) ?>
+                </span>
+                <?php if (!empty($order['buyer_po_no'])): ?>
+                    <span class="badge bg-secondary bg-opacity-20 text-dash-sub font-monospace px-2.5 py-1.5 rounded-pill" style="font-size: 11px;">
+                        PO: <?= htmlspecialchars($order['buyer_po_no']) ?>
+                    </span>
+                <?php endif; ?>
             </div>
+            
+            <h3 class="m-0 fw-bold font-outfit text-dash-main" style="letter-spacing: -0.02em;">
+                <?= htmlspecialchars($order['style_name']) ?> 
+                <span class="fs-5 text-dash-sub fw-normal font-monospace">(<?= htmlspecialchars($order['style_no']) ?>)</span>
+            </h3>
             <p class="text-dash-sub small mt-1 mb-0" style="font-size: 12.5px;">
-                Batch: <strong class="text-dash-main font-monospace"><?= htmlspecialchars($order['production_no']) ?></strong> | 
-                Style: <strong class="text-dash-main"><?= htmlspecialchars($order['style_no']) ?> (<?= htmlspecialchars($order['style_name']) ?>)</strong> | 
-                Fabric: <strong class="text-dash-main"><?= htmlspecialchars($order['fabric_composition'] ?: 'Standard Export Fabric') ?></strong>
+                Fabric: <strong class="text-dash-main"><?= htmlspecialchars($order['fabric_composition'] ?: 'Standard Garment Fabric') ?></strong> | 
+                Category: <strong class="text-dash-main text-uppercase"><?= htmlspecialchars($order['style_category'] ?? 'Unisex') ?></strong>
             </p>
         </div>
 
-        <div class="col-lg-6 col-12 text-lg-end text-start">
+        <div class="col-lg-5 col-12 text-lg-end text-start">
             <div class="d-inline-flex flex-wrap align-items-center gap-2 p-2 rounded-pill shadow-sm" style="background: var(--toolbar-bg); border: 1px solid var(--toolbar-border);">
                 <!-- Theme Switcher Controls -->
                 <div class="theme-btn-group btn-group" role="group" aria-label="Theme Selector">
@@ -200,11 +230,13 @@
 
                 <div class="vr opacity-25 d-none d-sm-block" style="height: 18px; color: var(--text-sub);"></div>
 
-                <!-- Clock & Refresh Timer -->
-                <div class="d-inline-flex align-items-center gap-2 px-2" style="font-size: 12px;">
-                    <span class="fw-semibold text-dash-sub font-monospace" id="refresh-countdown">30s</span>
+                <!-- Clock & Auto Refresh Toggle -->
+                <div class="d-inline-flex align-items-center gap-2 px-1" style="font-size: 12px;">
+                    <button type="button" id="auto-refresh-toggle-btn" onclick="toggleAutoRefresh()" class="btn btn-sm btn-outline-success rounded-pill px-2.5 py-0.5 font-monospace" style="font-size: 11px;">
+                        <i class="fa-solid fa-pause me-1"></i> <span id="refresh-countdown">30s</span>
+                    </button>
                     <button onclick="window.location.reload();" class="btn btn-sm btn-link p-0 text-dash-sub text-decoration-none" title="Refresh Now">
-                        <i class="fa-solid fa-arrows-rotate"></i>
+                        <i class="fa-solid fa-arrows-rotate fs-6"></i>
                     </button>
                     <span class="fw-bold text-dash-main font-monospace ms-1" id="live-clock">00:00:00 AM</span>
                 </div>
@@ -212,7 +244,7 @@
         </div>
     </div>
 
-    <!-- MAIN METRICS PANEL (4 CLEAN EQUAL CARDS WITH Crisp ICONS) -->
+    <!-- MAIN METRICS PANEL (4 CLEAN EQUAL CARDS) -->
     <?php
         $targetQty = (int)$order['target_qty'];
         
@@ -257,12 +289,12 @@
             </div>
         </div>
 
-        <!-- 3. LATEST LIVE WIP UPDATE CARD (REPLACES ACTIVE WIP STOCK CARD) -->
+        <!-- 3. LATEST LIVE WIP UPDATE CARD -->
         <div class="col-xl-3 col-sm-6">
             <div class="live-card p-3.5 h-100 d-flex flex-column justify-content-between" style="border-left: 4px solid var(--color-primary) !important;">
                 <div>
                     <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span class="text-dash-sub small fw-bold text-uppercase d-block" style="font-size: 0.68rem; letter-spacing: 0.05em;">Latest Live WIP Update</span>
+                        <span class="text-dash-sub small fw-bold text-uppercase d-block" style="font-size: 0.68rem; letter-spacing: 0.05em;">Latest Live Scan Update</span>
                         <?php if ($latestLog): ?>
                             <?php $timeAgoStr = \App\Helpers\TimezoneHelper::timeAgo($latestLog['created_at'] ?? 'now'); ?>
                             <span class="badge bg-primary bg-opacity-20 text-primary font-monospace" style="font-size: 9.5px;"><?= $timeAgoStr ?></span>
@@ -296,11 +328,11 @@
         <div class="col-xl-3 col-sm-6">
             <div class="live-card p-3.5 h-100 d-flex align-items-center justify-content-between" style="border-left: 4px solid var(--color-danger) !important;">
                 <div>
-                    <span class="text-dash-sub small fw-bold text-uppercase d-block mb-1" style="font-size: 0.68rem; letter-spacing: 0.05em;">Cumulative Waste</span>
+                    <span class="text-dash-sub small fw-bold text-uppercase d-block mb-1" style="font-size: 0.68rem; letter-spacing: 0.05em;">Cumulative Wastage</span>
                     <h3 class="m-0 fw-bold font-outfit" style="color: var(--color-danger) !important;"><?= number_format($totalWaste) ?> <span class="fs-6 fw-normal text-dash-sub">(<?= $wastePct ?>%)</span></h3>
                 </div>
                 <div class="icon-badge icon-badge-danger">
-                    <i class="fa-solid fa-dumpster-fire"></i>
+                    <i class="fa-solid fa-triangle-exclamation"></i>
                 </div>
             </div>
         </div>
@@ -311,7 +343,7 @@
         <form id="track-qr-unit-form" class="row align-items-center g-2">
             <div class="col-md-4 col-12">
                 <div class="d-flex align-items-center gap-2.5">
-                    <div class="icon-badge icon-badge-primary" style="width: 36px; height: 36px; min-width: 36px; font-size: 1rem; border-radius: 10px;">
+                    <div class="icon-badge icon-badge-primary" style="width: 38px; height: 38px; min-width: 38px; font-size: 1rem; border-radius: 10px;">
                         <i class="fa-solid fa-qrcode"></i>
                     </div>
                     <div>
@@ -322,14 +354,14 @@
             </div>
             <div class="col-md-6 col-8">
                 <div class="input-group input-group-sm">
-                    <span class="input-group-text border-end-0 bg-transparent text-primary" style="border-color: var(--input-border); border-top-left-radius: 8px; border-bottom-left-radius: 8px;">
+                    <span class="input-group-text border-end-0 bg-transparent text-primary" style="border-color: var(--input-border); border-top-left-radius: 10px; border-bottom-left-radius: 10px;">
                         <i class="fa-solid fa-barcode"></i>
                     </span>
-                    <input type="text" id="track-qr-unit-input" class="form-control qr-lookup-input font-monospace fw-bold ps-1" placeholder="Scan or type QR Code e.g. BATCH-03-S-0001" required style="border-top-left-radius: 0; border-bottom-left-radius: 0;">
+                    <input type="text" id="track-qr-unit-input" class="form-control qr-lookup-input font-monospace fw-bold ps-1" placeholder="Scan or type QR Code e.g. PO-TOCCO-2026-001-S-0001" required style="border-top-left-radius: 0; border-bottom-left-radius: 0;">
                 </div>
             </div>
             <div class="col-md-2 col-4 text-end">
-                <button type="submit" id="track-qr-unit-btn" class="btn btn-primary btn-sm w-100 fw-bold rounded-pill shadow-sm" style="font-size: 12px; padding: 6px 14px;">
+                <button type="submit" id="track-qr-unit-btn" class="btn btn-primary btn-sm w-100 fw-bold rounded-pill shadow-sm" style="font-size: 12px; padding: 7px 14px;">
                     <i class="fa-solid fa-magnifying-glass me-1"></i> Track Unit
                 </button>
             </div>
@@ -345,7 +377,7 @@
                     <h6 class="m-0 fw-bold font-outfit text-dash-main"><i class="fa-solid fa-chart-line text-primary me-2"></i> Stage Production Completion vs Target</h6>
                     <span class="small text-dash-sub" style="font-size: 11.5px;">All Active WIP Stages</span>
                 </div>
-                <div style="height: 310px;">
+                <div style="height: 320px;">
                     <canvas id="liveStageChart"></canvas>
                 </div>
             </div>
@@ -355,7 +387,7 @@
         <div class="col-lg-4 col-12">
             <div class="live-card p-4 h-100 d-flex flex-column">
                 <h6 class="mb-3 fw-bold font-outfit text-dash-main"><i class="fa-solid fa-clock-rotate-left text-info me-2"></i> Real-Time Activity Feed</h6>
-                <div class="flex-grow-1 overflow-y-auto pe-1 custom-scroll" style="max-height: 300px;">
+                <div class="flex-grow-1 overflow-y-auto pe-1 custom-scroll" style="max-height: 310px;">
                     <?php if (!empty($recentLogs)): ?>
                         <div class="list-group list-group-flush bg-transparent">
                             <?php foreach ($recentLogs as $log): ?>
@@ -366,9 +398,9 @@
                                     $tagLabel = $log['machine_name'] ?: ($log['qr_code'] ?: 'Manual');
                                     $formattedLogTime = \App\Helpers\TimezoneHelper::formatTenantTime($log['created_at'] ?? 'now', $tzStr, 'h:i:s A');
                                 ?>
-                                <div class="list-group-item bg-transparent text-dash-main px-0 py-2" style="border-color: var(--table-row-border) !important;">
+                                <div class="list-group-item bg-transparent text-dash-main px-0 py-2.5" style="border-color: var(--table-row-border) !important;">
                                     <div class="d-flex w-100 justify-content-between align-items-center mb-1">
-                                        <span class="badge <?= $badgeClass ?> font-monospace fw-bold" style="font-size: 0.65rem; padding: 0.2em 0.5em;"><?= $statusText ?></span>
+                                        <span class="badge <?= $badgeClass ?> font-monospace fw-bold" style="font-size: 0.65rem; padding: 0.25em 0.6em;"><?= $statusText ?></span>
                                         <small class="text-dash-muted font-monospace" style="font-size: 10.5px;"><?= $formattedLogTime ?></small>
                                     </div>
                                     <p class="mb-0 small text-dash-main" style="font-size: 12.5px;">
@@ -398,7 +430,7 @@
             <div class="live-card p-4">
                 <div class="d-flex align-items-center justify-content-between mb-3">
                     <h6 class="m-0 fw-bold font-outfit text-dash-main"><i class="fa-solid fa-list-check text-primary me-2"></i> Stage-Wise Pipeline Inventory Summary</h6>
-                    <span class="badge bg-secondary-subtle text-secondary font-monospace small px-3 py-1 rounded-pill">Total Active Stages: <?= count($stagesList) ?></span>
+                    <span class="badge bg-secondary bg-opacity-20 text-dash-sub font-monospace small px-3 py-1.5 rounded-pill">Total Stages: <?= count($stagesList) ?></span>
                 </div>
                 <div class="table-responsive border-0">
                     <table class="table table-hover mb-0 align-middle" style="color: var(--text-main); --bs-table-bg: transparent; --bs-table-border-color: var(--table-row-border);">
@@ -423,7 +455,7 @@
                                 ?>
                                 <tr style="border-bottom: 1px solid var(--table-row-border);">
                                     <td>
-                                        <span class="fw-bold text-dash-main text-capitalize text-nowrap" style="font-size: 13px;"><?= str_replace('_', ' ', $stg) ?></span>
+                                        <span class="fw-bold text-dash-main text-capitalize text-nowrap" style="font-size: 13.5px;"><?= str_replace('_', ' ', $stg) ?></span>
                                     </td>
                                     <td class="text-center font-monospace">
                                         <?php if ($in > 0): ?>
@@ -455,10 +487,10 @@
                                     </td>
                                     <td class="text-end">
                                         <div class="d-flex align-items-center justify-content-end gap-2.5">
-                                            <div class="progress w-100" style="height: 6px; background-color: var(--input-bg); border-radius: 4px; overflow: hidden;">
+                                            <div class="progress w-100" style="height: 7px; background-color: var(--input-bg); border-radius: 4px; overflow: hidden;">
                                                 <div class="progress-bar bg-primary rounded-pill" role="progressbar" style="width: <?= $prog ?>%;" aria-valuenow="<?= $prog ?>" aria-valuemin="0" aria-valuemax="100"></div>
                                             </div>
-                                            <span class="small font-monospace fw-bold text-dash-sub text-nowrap" style="font-size: 11px;"><?= $prog ?>%</span>
+                                            <span class="small font-monospace fw-bold text-dash-sub text-nowrap" style="font-size: 11.5px;"><?= $prog ?>%</span>
                                         </div>
                                     </td>
                                 </tr>
@@ -477,7 +509,7 @@
         <div class="modal-content text-start" style="border-radius: 16px; background: var(--card-bg); color: var(--text-main); border: 1px solid var(--card-border);">
             <div class="modal-header border-0 pb-0">
                 <h5 class="modal-title fw-bold text-dash-main"><i class="fa-solid fa-qrcode text-primary me-2"></i> Complete Unit Stage Lifecycle History</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4 text-start" id="track-qr-modal-body">
                 <div class="text-center py-4">
@@ -549,20 +581,105 @@
     setInterval(updateClock, 1000);
     updateClock();
 
-    // 3. Auto Reload countdown timer
+    // 3. Auto Reload countdown & pause/play controls
+    let isAutoRefreshActive = true;
     let refreshSeconds = 30;
     const countdownEl = document.getElementById('refresh-countdown');
+
+    function toggleAutoRefresh() {
+        isAutoRefreshActive = !isAutoRefreshActive;
+        const toggleBtn = document.getElementById('auto-refresh-toggle-btn');
+        if (toggleBtn) {
+            if (isAutoRefreshActive) {
+                toggleBtn.className = "btn btn-sm btn-outline-success rounded-pill px-2.5 py-0.5 font-monospace";
+                toggleBtn.innerHTML = `<i class="fa-solid fa-pause me-1"></i> <span id="refresh-countdown">${refreshSeconds}s</span>`;
+            } else {
+                toggleBtn.className = "btn btn-sm btn-outline-warning rounded-pill px-2.5 py-0.5 font-monospace";
+                toggleBtn.innerHTML = `<i class="fa-solid fa-play me-1"></i> Paused`;
+            }
+        }
+    }
+
     setInterval(function() {
+        if (!isAutoRefreshActive) return;
         refreshSeconds--;
         if (refreshSeconds <= 0) {
             if (countdownEl) countdownEl.innerText = "Reloading...";
             window.location.reload();
         } else {
-            if (countdownEl) countdownEl.innerText = `${refreshSeconds}s`;
+            const cdEl = document.getElementById('refresh-countdown');
+            if (cdEl) cdEl.innerText = `${refreshSeconds}s`;
         }
     }, 1000);
 
-    // 4. Render Chart.js line graph
+    // 4. Track Unit Search Form Submission via AJAX Modal
+    document.addEventListener("DOMContentLoaded", function() {
+        const trackForm = document.getElementById('track-qr-unit-form');
+        if (trackForm) {
+            trackForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const qrCode = document.getElementById('track-qr-unit-input').value.trim();
+                if (!qrCode) return;
+
+                const modalBody = document.getElementById('track-qr-modal-body');
+                modalBody.innerHTML = `
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="mt-2 text-dash-sub">Searching unit lifecycle for <strong>${qrCode}</strong>...</p>
+                    </div>
+                `;
+
+                const modal = new bootstrap.Modal(document.getElementById('trackQrUnitModal'));
+                modal.show();
+
+                fetch('<?= base_url('company/production/verify-qr') ?>?qr_code=' + encodeURIComponent(qrCode) + '&batch_id=<?= $order['id'] ?>')
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!data.success) {
+                            modalBody.innerHTML = `
+                                <div class="alert alert-warning border-0 rounded-3 p-3">
+                                    <i class="fa-solid fa-triangle-exclamation me-1"></i> ${data.message || 'No scan logs found for this QR code tag.'}
+                                </div>
+                            `;
+                            return;
+                        }
+
+                        let logsHtml = '';
+                        if (data.logs && data.logs.length > 0) {
+                            logsHtml = data.logs.map(log => `
+                                <div class="d-flex align-items-center justify-content-between p-3 mb-2 rounded-3" style="background: var(--input-bg); border: 1px solid var(--input-border);">
+                                    <div>
+                                        <h6 class="m-0 fw-bold text-primary font-monospace">${log.stage}</h6>
+                                        <small class="text-dash-sub">Operator: <strong>${log.operator_name}</strong> (${log.operator_role})</small>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="badge ${log.status === 'PASS' ? 'bg-success' : 'bg-danger'} font-monospace px-2.5 py-1 mb-1">${log.status}</span>
+                                        <div class="small text-dash-muted font-monospace">${log.updated_at}</div>
+                                    </div>
+                                </div>
+                            `).join('');
+                        } else {
+                            logsHtml = `<div class="text-center py-3 text-dash-sub">No recorded stage movement yet for ${qrCode}.</div>`;
+                        }
+
+                        modalBody.innerHTML = `
+                            <div class="mb-3 pb-2 border-bottom" style="border-color: var(--table-row-border) !important;">
+                                <h6 class="fw-bold m-0 font-monospace text-dash-main">Tag: ${data.qr_code}</h6>
+                                <span class="small text-dash-sub">Total Stages Passed: <strong>${data.total_stages || 0}</strong></span>
+                            </div>
+                            <div class="custom-scroll" style="max-height: 380px; overflow-y: auto;">
+                                ${logsHtml}
+                            </div>
+                        `;
+                    })
+                    .catch(err => {
+                        modalBody.innerHTML = `<div class="alert alert-danger">Error retrieving unit log history.</div>`;
+                    });
+            });
+        }
+    });
+
+    // 5. Render Chart.js line graph
     document.addEventListener("DOMContentLoaded", function() {
         const ctx = document.getElementById('liveStageChart').getContext('2d');
         
@@ -588,24 +705,23 @@
                     {
                         label: 'Completed Output (pcs)',
                         data: completedData,
-                        borderColor: '#6366f1',
-                        backgroundColor: 'rgba(99, 102, 241, 0.12)',
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.15)',
                         borderWidth: 3,
-                        pointBackgroundColor: '#6366f1',
+                        pointBackgroundColor: '#3b82f6',
                         pointBorderColor: '#ffffff',
                         pointHoverRadius: 6,
                         tension: 0.35,
                         fill: true
                     },
                     {
-                        label: 'Total Target (pcs)',
+                        label: 'Batch Target (pcs)',
                         data: targetData,
-                        borderColor: '#ef4444',
+                        borderColor: 'rgba(148, 163, 184, 0.4)',
                         borderWidth: 2,
-                        borderDash: [6, 4],
+                        borderDash: [5, 5],
                         pointRadius: 0,
-                        fill: false,
-                        tension: 0
+                        fill: false
                     }
                 ]
             },
@@ -616,130 +732,33 @@
                     legend: {
                         position: 'top',
                         labels: {
-                            color: '#cbd5e1',
-                            font: { family: 'Outfit', size: 11, weight: 'bold' }
+                            color: '#94a3b8',
+                            font: { family: 'Outfit', size: 12, weight: '600' },
+                            usePointStyle: true
                         }
                     },
                     tooltip: {
-                        padding: 10,
                         backgroundColor: '#0f172a',
                         titleColor: '#ffffff',
-                        bodyColor: '#e2e8f0',
-                        borderColor: '#334155',
+                        bodyColor: '#cbd5e1',
+                        borderColor: 'rgba(255, 255, 255, 0.1)',
                         borderWidth: 1,
-                        titleFont: { family: 'Outfit', weight: 'bold' },
-                        bodyFont: { family: 'Outfit' }
+                        padding: 12,
+                        cornerRadius: 8
                     }
                 },
                 scales: {
                     x: {
                         grid: { color: 'rgba(255, 255, 255, 0.08)' },
-                        ticks: { color: '#cbd5e1', font: { family: 'Outfit', size: 10.5, weight: 'bold' } }
+                        ticks: { color: '#94a3b8', font: { family: 'Outfit', size: 11 } }
                     },
                     y: {
+                        beginAtZero: true,
                         grid: { color: 'rgba(255, 255, 255, 0.08)' },
-                        ticks: { color: '#cbd5e1', font: { family: 'Outfit', size: 10.5, weight: 'bold' } },
-                        beginAtZero: true
+                        ticks: { color: '#94a3b8', font: { family: 'Outfit', size: 11 } }
                     }
                 }
             }
         });
-
-        // 5. Track QR Code Form Event
-        const trackForm = document.getElementById('track-qr-unit-form');
-        const trackInput = document.getElementById('track-qr-unit-input');
-        const trackModalEl = document.getElementById('trackQrUnitModal');
-        const trackModalBody = document.getElementById('track-qr-modal-body');
-
-        if (trackForm && trackInput) {
-            trackForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                const qrCode = trackInput.value.trim();
-                if (!qrCode) return;
-
-                const modal = new bootstrap.Modal(trackModalEl);
-                trackModalBody.innerHTML = `
-                    <div class="text-center py-4">
-                        <span class="spinner-border text-primary" role="status"></span>
-                        <p class="mt-2 text-dash-sub small font-monospace">Fetching complete lifecycle history for <strong>${qrCode}</strong>...</p>
-                    </div>
-                `;
-                modal.show();
-
-                fetch(`<?= base_url('company/production/track-qr-unit') ?>?qr_code=${encodeURIComponent(qrCode)}&batch_id=<?= $order['id'] ?>`)
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.success && data.logs && data.logs.length > 0) {
-                            let html = `
-                                <div class="p-3 bg-primary bg-opacity-15 border border-primary rounded-3 mb-3">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <span class="badge bg-primary font-monospace fw-bold me-1">QR / CODE</span>
-                                            <strong class="font-monospace text-primary fs-5">${data.qr_code}</strong>
-                                        </div>
-                                        <span class="badge bg-success text-white px-3 py-1.5 rounded-pill fw-bold">
-                                            <i class="fa-solid fa-check-double me-1"></i> ${data.total_stages} Stages Tracked
-                                        </span>
-                                    </div>
-                                </div>
-                                <div class="table-responsive">
-                                    <table class="table table-hover align-middle mb-0" style="font-size: 12.5px;">
-                                        <thead>
-                                            <tr>
-                                                <th>WIP Stage</th>
-                                                <th>Status</th>
-                                                <th>Updated By (Operator)</th>
-                                                <th>Logged Date & Time</th>
-                                                <th>Duration</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                            `;
-
-                            data.logs.forEach(l => {
-                                const badge = l.status === 'PASS' ? 'bg-success' : 'bg-danger';
-                                html += `
-                                    <tr>
-                                        <td><strong class="font-monospace">${l.stage}</strong></td>
-                                        <td><span class="badge ${badge} text-white font-monospace">${l.status}</span></td>
-                                        <td>
-                                            <div class="fw-bold">${l.operator_name}</div>
-                                            <small class="text-secondary opacity-75">${l.operator_role}</small>
-                                        </td>
-                                        <td>
-                                            <div class="fw-bold font-monospace">${l.updated_at}</div>
-                                            <small class="text-secondary font-monospace">${l.time_ago}</small>
-                                        </td>
-                                        <td><span class="badge bg-light text-dark font-monospace">${l.duration}</span></td>
-                                    </tr>
-                                `;
-                            });
-
-                            html += `
-                                        </tbody>
-                                    </table>
-                                </div>
-                            `;
-                            trackModalBody.innerHTML = html;
-                        } else {
-                            trackModalBody.innerHTML = `
-                                <div class="alert alert-warning text-center py-4 my-2">
-                                    <i class="fa-solid fa-circle-exclamation fs-2 mb-2 text-warning"></i>
-                                    <h6 class="fw-bold text-dark">No Stage History Logs Found</h6>
-                                    <p class="small text-secondary mb-0">No operational logs recorded yet for item tag <strong>${qrCode}</strong> in this batch.</p>
-                                </div>
-                            `;
-                        }
-                    })
-                    .catch(err => {
-                        console.error(err);
-                        trackModalBody.innerHTML = `
-                            <div class="alert alert-danger text-center py-3 my-2">
-                                <i class="fa-solid fa-triangle-exclamation me-1"></i> Failed to communicate with production tracking server.
-                            </div>
-                        `;
-                    });
-            });
-        }
     });
 </script>
