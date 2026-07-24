@@ -160,7 +160,7 @@ class Auth {
             'dashboard' => ['url' => 'company/dashboard', 'permission' => 'company.dashboard'],
             'hr' => ['url' => 'company/hr/attendance', 'permission' => 'company.users.view'],
             'production' => ['url' => 'company/production/orders', 'permission' => 'company.production.view'],
-            'merchandising' => ['url' => 'company/merchandising/costsheets', 'permission' => 'company.styles.view'],
+            'merchandising' => ['url' => 'company/merchandising/buyerpos', 'permission' => 'company.styles.view'],
             'styles' => ['url' => 'company/styles', 'permission' => 'company.styles.view'],
             'buyers' => ['url' => 'company/buyers', 'permission' => 'company.styles.view'],
             'inventory' => ['url' => 'company/inventory/balances', 'permission' => 'company.inventory.view'],

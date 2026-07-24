@@ -930,8 +930,19 @@ class ProductionController extends Controller {
 
         $db->prepare("UPDATE production_orders SET status = 'completed', completed_at = NOW(), end_date = CURDATE(), updated_at = NOW() WHERE id = ?")->execute([$id]);
 
+        // Automatically update linked Buyer PO status to 'completed'
+        if (!empty($batch['po_id'])) {
+            try {
+                $db->prepare("UPDATE buyer_pos SET status = 'completed', updated_at = NOW() WHERE id = ?")->execute([$batch['po_id']]);
+            } catch (\Exception $ex) {
+                try {
+                    $db->prepare("UPDATE buyer_pos SET status = 'closed', updated_at = NOW() WHERE id = ?")->execute([$batch['po_id']]);
+                } catch (\Exception $e) {}
+            }
+        }
+
         AuditLog::log($companyId, Session::get('user_id'), 'complete_production', 'ProductionOrder', (int)$id, null, null, "Marked production batch as completed: {$batch['production_no']}");
-        Session::setFlash('success', "Production batch #{$batch['production_no']} marked as Completed! Archived to Completed Products.");
+        Session::setFlash('success', "Production batch #{$batch['production_no']} marked as Completed! Archived to Completed Products and linked Buyer PO updated to Completed.");
         $this->redirect('company/production/completed');
     }
 

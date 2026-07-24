@@ -23,7 +23,7 @@
                     <?php if (!empty($logs)): ?>
                         <?php foreach ($logs as $log): ?>
                             <tr>
-                                <td class="text-nowrap"><?= date('d-M-Y H:i:s', strtotime($log['created_at'])) ?></td>
+                                <td class="text-nowrap font-monospace"><i class="fa-regular fa-clock me-1 text-primary"></i> <?= htmlspecialchars($log['formatted_created_at'] ?? $log['created_at']) ?></td>
                                 <td>
                                     <strong class="text-dark"><?= htmlspecialchars($log['user_name'] ?? 'System Process') ?></strong>
                                     <div class="text-secondary" style="font-size: 11px;">User ID: <?= $log['user_id'] ?: 'System' ?></div>

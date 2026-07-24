@@ -58,7 +58,7 @@ $defaultMenu = [
     'dashboard' => ['name' => 'Dashboard', 'icon' => 'fa-solid fa-chart-line', 'url' => 'company/dashboard', 'permission' => 'company.dashboard', 'active_check' => '/company/dashboard', 'is_exact' => true],
     'hr' => ['name' => 'HR & Attendance', 'icon' => 'fa-solid fa-user-clock', 'url' => 'company/hr/attendance', 'permission' => 'company.users.view', 'active_check' => 'company/hr'],
     'production' => ['name' => 'Production & Quality', 'icon' => 'fa-solid fa-industry', 'url' => 'company/production/orders', 'permission' => 'company.production.view', 'active_check' => 'company/production'],
-    'merchandising' => ['name' => 'Merchandising', 'icon' => 'fa-solid fa-calculator', 'url' => 'company/merchandising/costsheets', 'permission' => 'company.styles.view', 'active_check' => 'company/merchandising'],
+    'merchandising' => ['name' => 'Merchandising', 'icon' => 'fa-solid fa-file-contract', 'url' => 'company/merchandising/buyerpos', 'permission' => 'company.styles.view', 'active_check' => 'company/merchandising'],
     'styles' => ['name' => 'Style Master', 'icon' => 'fa-solid fa-shirt', 'url' => 'company/styles', 'permission' => 'company.styles.view', 'active_check' => 'company/styles'],
     'buyers' => ['name' => 'Buyers / Clients', 'icon' => 'fa-solid fa-user-tie', 'url' => 'company/buyers', 'permission' => 'company.styles.view', 'active_check' => 'company/buyers'],
     'inventory' => ['name' => 'Inventory Ledger', 'icon' => 'fa-solid fa-boxes-stacked', 'url' => 'company/inventory/balances', 'permission' => 'company.inventory.view', 'active_check' => 'company/inventory'],

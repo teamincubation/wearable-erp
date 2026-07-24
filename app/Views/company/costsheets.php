@@ -3,22 +3,27 @@
         <h3 class="fw-bold">Cost Sheets Estimate</h3>
         <p class="text-secondary m-0">Merchandise cost projections and pricing calculator</p>
     </div>
-    <?php if (\App\Core\Auth::hasPermission('company.styles.manage')): ?>
-        <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#addCostSheetModal">
-            <i class="fa-solid fa-calculator me-1"></i> New Cost Sheet
-        </button>
-    <?php endif; ?>
+    <div class="d-flex align-items-center">
+        <a href="<?= base_url('company/merchandising/buyerpos') ?>" class="btn btn-outline-primary rounded-pill px-4 me-2">
+            <i class="fa-solid fa-file-contract me-1"></i> Buyer POs (Contracts)
+        </a>
+        <?php if (\App\Core\Auth::hasPermission('company.styles.manage')): ?>
+            <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#addCostSheetModal">
+                <i class="fa-solid fa-calculator me-1"></i> New Cost Sheet
+            </button>
+        <?php endif; ?>
+    </div>
 </div>
 
 <ul class="nav nav-tabs mb-4 border-bottom-0">
     <li class="nav-item">
-        <a class="nav-link active fw-semibold text-primary" href="<?= base_url('company/merchandising/costsheets') ?>">
-            <i class="fa-solid fa-calculator me-1"></i> Cost Sheet Estimates
+        <a class="nav-link text-secondary fw-semibold" href="<?= base_url('company/merchandising/buyerpos') ?>">
+            <i class="fa-solid fa-file-contract me-1"></i> Buyer POs (Contracts)
         </a>
     </li>
     <li class="nav-item">
-        <a class="nav-link text-secondary" href="<?= base_url('company/merchandising/buyerpos') ?>">
-            <i class="fa-solid fa-file-contract me-1"></i> Buyer POs (Contracts)
+        <a class="nav-link active fw-bold text-primary" href="<?= base_url('company/merchandising/costsheets') ?>">
+            <i class="fa-solid fa-calculator me-1"></i> Cost Sheet Estimates
         </a>
     </li>
 </ul>

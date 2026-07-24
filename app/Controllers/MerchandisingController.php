@@ -141,14 +141,25 @@ class MerchandisingController extends Controller {
         $companyId = Session::get('company_id');
 
         // Fetch POs with style and buyer names
-        $stmt = $db->prepare("SELECT po.*, s.style_no, s.name as style_name, c.name as buyer_name 
+        $stmt = $db->prepare("SELECT po.*, s.style_no, s.name as style_name, c.name as buyer_name, c.code as buyer_code 
                              FROM buyer_pos po
                              JOIN styles s ON po.style_id = s.id
                              JOIN contacts c ON po.buyer_id = c.id
                              WHERE po.company_id = ? AND po.deleted_at IS NULL
                              ORDER BY po.id DESC");
         $stmt->execute([$companyId]);
-        $orders = $stmt->fetchAll() ?: [];
+        $allOrders = $stmt->fetchAll() ?: [];
+
+        $activeOrders = [];
+        $completedOrders = [];
+
+        foreach ($allOrders as $po) {
+            if (in_array($po['status'], ['completed', 'closed'])) {
+                $completedOrders[] = $po;
+            } else {
+                $activeOrders[] = $po;
+            }
+        }
 
         // Fetch buyers (contacts of type 'buyer')
         $contactModel = new Contact();
@@ -179,7 +190,8 @@ class MerchandisingController extends Controller {
 
         $this->renderView('company/buyerpos', [
             'title' => 'Buyer Purchase Orders | Merchandising',
-            'orders' => $orders,
+            'orders' => $activeOrders,
+            'completed_orders' => $completedOrders,
             'buyers' => $buyers,
             'styles' => $styles
         ]);

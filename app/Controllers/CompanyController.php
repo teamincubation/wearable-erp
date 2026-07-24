@@ -421,24 +421,43 @@ class CompanyController extends Controller {
      * View Company-level Audit Trails
      */
     public function logs(Request $request, Response $response): void {
-        $auditModel = new AuditLog();
-        // The query is automatically tenant-scoped to the active company ID
-        $logs = $auditModel->all('id DESC LIMIT 100');
-
-        // Since we need the user names as well, query with join securely:
         $db = Database::getInstance();
+        $companyId = Session::get('company_id');
+
+        // Fetch company assigned timezone
+        $stmtComp = $db->prepare("SELECT timezone FROM companies WHERE id = ? LIMIT 1");
+        $stmtComp->execute([$companyId]);
+        $companyTimezone = $stmtComp->fetchColumn() ?: 'Asia/Kolkata';
+
+        // Query audit logs with user names
         $stmt = $db->prepare(
             "SELECT a.*, u.name as user_name FROM audit_logs a 
              LEFT JOIN users u ON a.user_id = u.id 
              WHERE a.company_id = ?
              ORDER BY a.id DESC LIMIT 100"
         );
-        $stmt->execute([Session::get('company_id')]);
-        $logs = $stmt->fetchAll();
+        $stmt->execute([$companyId]);
+        $logs = $stmt->fetchAll() ?: [];
+
+        foreach ($logs as &$l) {
+            if (!empty($l['created_at'])) {
+                try {
+                    $dt = new \DateTime($l['created_at'], new \DateTimeZone('UTC'));
+                    $dt->setTimezone(new \DateTimeZone($companyTimezone));
+                    $l['formatted_created_at'] = $dt->format('d-M-Y H:i:s');
+                } catch (\Exception $ex) {
+                    $l['formatted_created_at'] = date('d-M-Y H:i:s', strtotime($l['created_at']));
+                }
+            } else {
+                $l['formatted_created_at'] = 'N/A';
+            }
+        }
+        unset($l);
 
         $this->renderView('company/logs', [
             'title' => 'Audit Trails | ERP',
-            'logs' => $logs
+            'logs' => $logs,
+            'timezone' => $companyTimezone
         ]);
     }
 
