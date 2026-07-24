@@ -77,11 +77,6 @@
 
             <h5 class="m-0 fw-bold"><i class="fa-solid fa-qrcode text-primary me-2"></i> QR Code Scanner Hub</h5>
             <small class="text-secondary" style="font-size: 11px;">Garment Floor Scan Unit</small>
-            
-            <!-- Logout Button (visible in setup view) -->
-            <a href="<?= base_url('logout') ?>" id="header-logout-btn" class="btn btn-sm btn-outline-danger text-white border-white-50 rounded-pill px-2.5 position-absolute end-0 top-50 translate-middle-y me-3" style="font-size: 11px;">
-                <i class="fa-solid fa-right-from-bracket me-1"></i> Logout
-            </a>
 
             <!-- Complete button (visible only in scanner view) -->
             <button type="button" id="complete-btn" class="btn btn-sm btn-outline-danger rounded-pill px-3 position-absolute end-0 top-50 translate-middle-y me-3" style="display: none; font-size: 11px;">

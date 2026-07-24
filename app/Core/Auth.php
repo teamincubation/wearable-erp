@@ -162,6 +162,11 @@ class Auth {
      * Determine first accessible ERP URL for tenant user
      */
     public static function getFirstAccessibleCompanyUrl(): string {
+        // If user has permission to company dashboard, ALWAYS redirect to company/dashboard first upon login
+        if (self::hasPermission('company.dashboard')) {
+            return 'company/dashboard';
+        }
+
         $defaultMenu = [
             'dashboard' => ['url' => 'company/dashboard', 'permission' => 'company.dashboard'],
             'hr' => ['url' => 'company/hr/attendance', 'permission' => 'company.users.view'],
