@@ -137,6 +137,11 @@ class ProductionController extends Controller {
         $userModel = new User();
         $employees = $userModel->getActiveCompanyEmployees();
 
+        // Fetch tenant timezone
+        $stmtComp = $db->prepare("SELECT timezone FROM companies WHERE id = ?");
+        $stmtComp->execute([$companyId]);
+        $tenantTimezone = $stmtComp->fetchColumn() ?: 'Asia/Kolkata';
+
         // Fetch batch stage sequence based on style techpack specifications
         $batchStagesObj = self::getBatchStagesList((int)$id);
         $stagesList = array_column($batchStagesObj, 'key');
@@ -153,6 +158,7 @@ class ProductionController extends Controller {
             'employees' => $employees,
             'stagesList' => $stagesList,
             'batchStagesObj' => $batchStagesObj,
+            'tenantTimezone' => $tenantTimezone,
             'currentPage' => $page,
             'totalPages' => $totalPages
         ]);
@@ -1178,5 +1184,80 @@ class ProductionController extends Controller {
             'title' => 'Completed Products Archive | ERP',
             'completed_batches' => $completedBatches
         ]);
+    }
+
+    /**
+     * AJAX endpoint: Track Unit Lifecycle by QR Code or Serial No
+     */
+    public function trackQrUnit(Request $request, Response $response): void {
+        header('Content-Type: application/json');
+        $companyId = Session::get('company_id');
+        $qrCode = trim($request->get('qr_code'));
+        $batchId = (int)$request->get('batch_id');
+
+        if (empty($qrCode)) {
+            echo json_encode(['success' => false, 'message' => 'Please enter a valid QR Code or serial number.']);
+            exit;
+        }
+
+        $db = Database::getInstance();
+
+        // Get company timezone
+        $stmtComp = $db->prepare("SELECT timezone FROM companies WHERE id = ?");
+        $stmtComp->execute([$companyId]);
+        $tzStr = $stmtComp->fetchColumn() ?: 'Asia/Kolkata';
+
+        // Find stage logs matching QR code or batch/serial
+        $stmtLogs = $db->prepare("
+            SELECT psl.*, u.name as operator_name, r.name as operator_role
+            FROM production_stage_logs psl
+            LEFT JOIN users u ON psl.employee_id = u.id
+            LEFT JOIN roles r ON u.role_id = r.id
+            WHERE psl.company_id = ? AND (psl.qr_code = ? OR psl.qr_code LIKE ?)
+            ORDER BY psl.id ASC
+        ");
+        $stmtLogs->execute([$companyId, $qrCode, "%{$qrCode}%"]);
+        $logs = $stmtLogs->fetchAll() ?: [];
+
+        if (empty($logs) && $batchId > 0) {
+            $stmtLogs2 = $db->prepare("
+                SELECT psl.*, u.name as operator_name, r.name as operator_role
+                FROM production_stage_logs psl
+                LEFT JOIN users u ON psl.employee_id = u.id
+                LEFT JOIN roles r ON u.role_id = r.id
+                WHERE psl.company_id = ? AND psl.production_order_id = ? AND psl.qr_code LIKE ?
+                ORDER BY psl.id ASC
+            ");
+            $stmtLogs2->execute([$companyId, $batchId, "%{$qrCode}%"]);
+            $logs = $stmtLogs2->fetchAll() ?: [];
+        }
+
+        $formattedLogs = [];
+        foreach ($logs as $l) {
+            $dt = new \DateTime($l['created_at'] ?? $l['start_time'] ?? 'now', new \DateTimeZone('UTC'));
+            try {
+                $dt->setTimezone(new \DateTimeZone($tzStr));
+            } catch (\Exception $ex) {}
+
+            $formattedLogs[] = [
+                'stage' => str_replace('_', ' ', strtoupper($l['stage'])),
+                'status' => strtoupper($l['status'] ?? 'PASS'),
+                'operator_name' => $l['operator_name'] ?: 'System Operator',
+                'operator_role' => $l['operator_role'] ?: 'Production Staff',
+                'good_qty' => (int)($l['qty_out'] ?? $l['good_qty'] ?? 1),
+                'waste_qty' => (int)($l['waste_qty'] ?? $l['reject_qty'] ?? 0),
+                'updated_at' => $dt->format('d M Y, h:i A'),
+                'time_ago' => \App\Helpers\TimezoneHelper::timeAgo($l['created_at'] ?? 'now'),
+                'duration' => !empty($l['duration_seconds']) ? round($l['duration_seconds'] / 60, 1) . ' mins' : 'N/A'
+            ];
+        }
+
+        echo json_encode([
+            'success' => true,
+            'qr_code' => $qrCode,
+            'total_stages' => count($formattedLogs),
+            'logs' => $formattedLogs
+        ]);
+        exit;
     }
 }

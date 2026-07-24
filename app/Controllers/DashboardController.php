@@ -69,6 +69,21 @@ class DashboardController extends Controller {
             $rejectRate = ($inspectStats['total_failed'] / $inspectStats['total_inspected']) * 100;
         }
 
+        // Fetch active running production batches for live dashboard shortcuts
+        $stmtActive = $db->prepare("
+            SELECT pro.id, pro.production_no, pro.started_at, pro.status,
+                   s.style_no, s.name as style_name, po.po_no as buyer_po_no, po.quantity as target_qty,
+                   c.name as buyer_name
+            FROM production_orders pro
+            JOIN buyer_pos po ON pro.po_id = po.id
+            JOIN styles s ON po.style_id = s.id
+            JOIN contacts c ON po.buyer_id = c.id
+            WHERE pro.company_id = ? AND pro.status IN ('running', 'in_progress') AND pro.deleted_at IS NULL
+            ORDER BY pro.id DESC
+        ");
+        $stmtActive->execute([$companyId]);
+        $activeBatches = $stmtActive->fetchAll() ?: [];
+
         $this->renderView('company/dashboard', [
             'title' => 'Dashboard | ' . $company['name'],
             'company' => $company,
@@ -79,7 +94,8 @@ class DashboardController extends Controller {
             'production_count' => $productionCount,
             'contracts_value' => $contractsValue,
             'unique_stock_count' => $uniqueStockCount,
-            'reject_rate' => $rejectRate
+            'reject_rate' => $rejectRate,
+            'active_batches' => $activeBatches
         ]);
     }
 }

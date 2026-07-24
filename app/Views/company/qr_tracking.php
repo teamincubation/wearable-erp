@@ -70,6 +70,11 @@
         
         <!-- Header Brand -->
         <div class="mobile-app-header bg-dark text-white p-3 text-center position-relative">
+            <!-- Back to Setup Button (visible only in scanner view) -->
+            <button type="button" id="back-to-setup-btn" class="btn btn-sm btn-outline-light rounded-pill px-2.5 position-absolute start-0 top-50 translate-middle-y ms-3" style="display: none; font-size: 11px;">
+                <i class="fa-solid fa-arrow-left me-1"></i> Setup
+            </button>
+
             <h5 class="m-0 fw-bold"><i class="fa-solid fa-qrcode text-primary me-2"></i> QR Code Scanner Hub</h5>
             <small class="text-secondary" style="font-size: 11px;">Garment Floor Scan Unit</small>
             
@@ -158,22 +163,25 @@
                         </div>
                     </div>
 
-                    <!-- Verified Item Modal Popup (Opens OVER camera ONLY when valid QR is scanned) -->
-                    <div id="scan-result-card" class="position-absolute top-0 start-0 w-100 h-100 p-3 bg-white flex-column justify-content-between" style="display: none !important; z-index: 1050; border-radius: 16px; overflow-y: auto;">
+                    <!-- Verified Item Modal Popup (Opens OVER camera ONLY when valid QR is scanned - ZERO SCROLL) -->
+                    <div id="scan-result-card" class="position-absolute top-0 start-0 w-100 h-100 p-2.5 bg-white flex-column justify-content-between" style="display: none !important; z-index: 1050; border-radius: 16px; overflow-y: auto;">
                         <div class="text-center">
                             <span class="badge bg-success text-white text-uppercase mb-1 fw-bold" style="font-size: 10px; letter-spacing: 0.5px;">
                                 <i class="fa-solid fa-shield-check me-1"></i> Verified Active Item
                             </span>
-                            <h5 id="scanned-code-display" class="fw-bold font-monospace text-primary my-1"></h5>
+                            <div class="my-1">
+                                <span class="text-secondary small me-1">Batch Code:</span>
+                                <strong id="scanned-code-display" class="fw-bold font-monospace text-primary" style="font-size: 14px;"></strong>
+                            </div>
                             
-                            <div class="border rounded p-2 mb-2 bg-light text-start" style="font-size: 11px; line-height: 1.4; color: #334155;">
+                            <div class="border rounded p-2 mb-2 bg-light text-start" style="font-size: 12px; line-height: 1.35; color: #334155;">
                                 <div class="d-flex justify-content-between mb-1">
                                     <span class="text-secondary small">Style No:</span>
                                     <strong id="scanned-style-no-display" class="text-dark"></strong>
                                 </div>
                                 <div class="mb-1">
                                     <span class="text-secondary small">Style Name:</span>
-                                    <span id="scanned-style-name-display" class="text-dark fw-bold"></span>
+                                    <span id="scanned-style-name-display" class="text-dark fw-bold" style="font-size: 14px;"></span>
                                 </div>
                                 <div class="d-flex justify-content-between mb-1">
                                     <span class="text-secondary small">Category:</span>
@@ -185,39 +193,32 @@
                                 </div>
                             </div>
 
-                            <div class="row g-2 mb-2 bg-primary bg-opacity-10 p-2 rounded">
+                            <div class="row g-2 mb-1 bg-primary bg-opacity-10 p-2 rounded">
                                 <div class="col-6 text-start">
                                     <span class="text-secondary small d-block" style="font-size: 10px;">GARMENT SIZE</span>
-                                    <strong id="scanned-size-display" class="text-primary fs-4 font-monospace fw-bold"></strong>
+                                    <strong id="scanned-size-display" class="text-primary font-monospace fw-bold" style="font-size: 14px;"></strong>
                                 </div>
                                 <div class="col-6 text-end">
                                     <span class="text-secondary small d-block" style="font-size: 10px;">SERIAL NO</span>
-                                    <strong id="scanned-serial-display" class="text-primary fs-4 font-monospace fw-bold"></strong>
+                                    <strong id="scanned-serial-display" class="text-primary font-monospace fw-bold" style="font-size: 14px;"></strong>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Touch Buttons Pass/Fail -->
-                        <div class="row g-2 pt-1 border-top">
+                        <!-- Touch Buttons Pass/Fail (Positioned at bottom of popup card) -->
+                        <div class="row g-2 pt-1 border-top mt-1">
                             <div class="col-6">
-                                <button type="button" id="pass-btn" class="btn btn-success btn-lg w-100 py-3 rounded-pill fw-bold shadow">
+                                <button type="button" id="pass-btn" class="btn btn-success btn-lg w-100 py-2.5 rounded-pill fw-bold shadow" style="font-size: 14px;">
                                     <i class="fa-solid fa-circle-check me-1"></i> PASS
                                 </button>
                             </div>
                             <div class="col-6">
-                                <button type="button" id="fail-btn" class="btn btn-danger btn-lg w-100 py-3 rounded-pill fw-bold shadow">
+                                <button type="button" id="fail-btn" class="btn btn-danger btn-lg w-100 py-2.5 rounded-pill fw-bold shadow" style="font-size: 14px;">
                                     <i class="fa-solid fa-circle-xmark me-1"></i> FAIL
                                 </button>
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <!-- Flashlight Button (hidden by default) -->
-                <div class="mb-3" id="flashlight-container" style="display: none;">
-                    <button type="button" id="flashlight-toggle-btn" class="btn btn-warning w-100 py-2.5 rounded-pill fw-bold text-dark shadow-sm" style="font-size: 13px;">
-                        <i class="fa-solid fa-bolt me-1"></i> Toggle Flashlight / Torch
-                    </button>
                 </div>
 
                 <!-- Manual Barcode Input Fallback -->
@@ -262,6 +263,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const stageSelect = document.getElementById('stage-select');
     const startWorkBtn = document.getElementById('start-work-btn');
     const completeBtn = document.getElementById('complete-btn');
+    const backToSetupBtn = document.getElementById('back-to-setup-btn');
     const activeStageLabel = document.getElementById('active-stage-label');
 
     // Default dropdown reset to "Select Batch" on every page load
@@ -339,8 +341,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const cameraSelect = document.getElementById('camera-select');
     const cameraSelectContainer = document.getElementById('camera-select-container');
-    const flashlightContainer = document.getElementById('flashlight-container');
-    const flashlightToggleBtn = document.getElementById('flashlight-toggle-btn');
 
     const alertBanner = document.getElementById('scanner-alert-banner');
     const alertIcon = document.getElementById('scanner-alert-icon');
@@ -362,7 +362,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let isCameraMode = true;
     let cameraRetryCount = 0;
     const maxRetryAttempts = 3;
-    let torchState = false;
 
     // ===================== SCREEN 1: START WORK =====================
     startWorkBtn.addEventListener('click', function() {
@@ -377,6 +376,7 @@ document.addEventListener('DOMContentLoaded', function() {
         selectionView.style.display = 'none';
         scannerView.style.display = 'block';
         completeBtn.style.display = 'block';
+        if (backToSetupBtn) backToSetupBtn.style.display = 'block';
 
         sessionStartTime = new Date();
         pieceStartTime = new Date();
@@ -395,29 +395,38 @@ document.addEventListener('DOMContentLoaded', function() {
         initScanner();
     });
 
-    // ===================== COMPLETE SESSION =====================
+    // ===================== BACK TO SETUP / COMPLETE SESSION =====================
+    function returnToSetup() {
+        stopScanner(true);
+        clearInterval(timerInterval);
+        scannerView.style.display = 'none';
+        completeBtn.style.display = 'none';
+        if (backToSetupBtn) backToSetupBtn.style.display = 'none';
+        selectionView.style.display = 'block';
+        
+        hideScanPopup();
+        hideAlertBanner();
+
+        // Reset dropdowns to default
+        if (batchSelect) {
+            batchSelect.value = '';
+        }
+        if (stageSelect) {
+            stageSelect.innerHTML = '<option value="">-- Please Select Batch First --</option>';
+            stageSelect.disabled = true;
+        }
+        if (startWorkBtn) {
+            startWorkBtn.disabled = true;
+        }
+    }
+
+    if (backToSetupBtn) {
+        backToSetupBtn.addEventListener('click', returnToSetup);
+    }
+
     completeBtn.addEventListener('click', function() {
         if (confirm('Complete scanning session and return to stage selection?')) {
-            stopScanner(true);
-            clearInterval(timerInterval);
-            scannerView.style.display = 'none';
-            completeBtn.style.display = 'none';
-            selectionView.style.display = 'block';
-            
-            hideScanPopup();
-            hideAlertBanner();
-
-            // Reset dropdowns to default
-            if (batchSelect) {
-                batchSelect.value = '';
-            }
-            if (stageSelect) {
-                stageSelect.innerHTML = '<option value="">-- Please Select Batch First --</option>';
-                stageSelect.disabled = true;
-            }
-            if (startWorkBtn) {
-                startWorkBtn.disabled = true;
-            }
+            returnToSetup();
         }
     });
 
@@ -531,17 +540,6 @@ document.addEventListener('DOMContentLoaded', function() {
         ).then(() => {
             cameraRetryCount = 0;
             hideScanPopup();
-            // Check torch capability
-            try {
-                const capabilities = html5QrCode.getRunningTrackCapabilities();
-                if (capabilities && capabilities.torch) {
-                    flashlightContainer.style.display = 'block';
-                } else {
-                    flashlightContainer.style.display = 'none';
-                }
-            } catch(e) {
-                flashlightContainer.style.display = 'none';
-            }
         }).catch(err => {
             console.error("Camera start failure:", err);
             handleCameraError(err, cameraId);
@@ -600,7 +598,6 @@ document.addEventListener('DOMContentLoaded', function() {
         hideScanPopup();
         scannerContainer.style.display = 'none';
         cameraSelectContainer.style.display = 'none';
-        flashlightContainer.style.display = 'none';
         manualContainer.style.display = 'block';
         toggleModeBtn.innerHTML = '<i class="fa-solid fa-camera me-1"></i> Switch to Camera Mode';
 
@@ -616,24 +613,6 @@ document.addEventListener('DOMContentLoaded', function() {
             html5QrCode.stop().then(() => { html5QrCode = null; startCameraScanner(selectedId); }).catch(() => { html5QrCode = null; startCameraScanner(selectedId); });
         } else {
             startCameraScanner(selectedId);
-        }
-    });
-
-    // ===================== FLASHLIGHT =====================
-    flashlightToggleBtn.addEventListener('click', function() {
-        if (html5QrCode && html5QrCode.isScanning) {
-            try {
-                html5QrCode.toggleFlashlight().then(isTorchOn => {
-                    torchState = isTorchOn;
-                    if (torchState) {
-                        flashlightToggleBtn.innerHTML = '<i class="fa-solid fa-bolt me-1"></i> Flashlight ON';
-                        flashlightToggleBtn.className = 'btn btn-light w-100 py-2.5 rounded-pill fw-bold text-dark shadow-sm border border-warning';
-                    } else {
-                        flashlightToggleBtn.innerHTML = '<i class="fa-solid fa-bolt me-1"></i> Toggle Flashlight / Torch';
-                        flashlightToggleBtn.className = 'btn btn-warning w-100 py-2.5 rounded-pill fw-bold text-dark shadow-sm';
-                    }
-                }).catch(e => { console.error("Torch toggle failed:", e); });
-            } catch(e) { console.error("Torch call failed:", e); }
         }
     });
 

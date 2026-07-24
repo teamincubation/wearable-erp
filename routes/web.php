@@ -534,6 +534,11 @@ $router->get('/company/production/stage/{id}', [\App\Controllers\ProductionContr
        ->middleware(PermissionMiddleware::class)
        ->permission('company.production.view');
 
+$router->get('/company/production/track-qr-unit', [\App\Controllers\ProductionController::class, 'trackQrUnit'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.production.view');
+
 $router->post('/company/production/stage/{id}/log', [\App\Controllers\ProductionController::class, 'logStage'])
        ->middleware(AuthMiddleware::class)
        ->middleware(CsrfMiddleware::class)

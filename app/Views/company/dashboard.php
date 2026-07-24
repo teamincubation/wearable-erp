@@ -48,6 +48,60 @@
     </div>
 </div>
 
+<!-- Active Manufacturing Lines & Live WIP Operations Hub (Request 8) -->
+<?php if (!empty($active_batches)): ?>
+    <div class="pepp-card border-0 shadow-sm mb-5" style="border-radius: 16px; background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);">
+        <div class="pepp-card-header bg-transparent border-0 pt-4 px-4 pb-2 d-flex justify-content-between align-items-center">
+            <div>
+                <span class="badge bg-success bg-opacity-20 text-success border border-success px-3 py-1.5 rounded-pill font-monospace fw-bold mb-2">
+                    <span class="spinner-grow spinner-grow-sm me-1" role="status" aria-hidden="true"></span> LIVE WIP OPERATIONS ACTIVE
+                </span>
+                <h4 class="fw-bold text-white m-0"><i class="fa-solid fa-industry text-warning me-2"></i> Active Production Lines Tracking Hub</h4>
+                <p class="text-white-50 small m-0 mt-1">Direct access to Operations Stage Live Dashboards for all running garment batches.</p>
+            </div>
+            <a href="<?= base_url('company/production/orders') ?>" class="btn btn-outline-light btn-sm rounded-pill px-3">View All Batches</a>
+        </div>
+        <div class="pepp-card-body p-4">
+            <div class="row row-cols-1 row-cols-md-2 g-3">
+                <?php foreach ($active_batches as $ab): ?>
+                    <div class="col">
+                        <div class="card h-100 border-0 shadow-sm" style="border-radius: 14px; background: #ffffff;">
+                            <div class="card-body p-3.5 d-flex flex-column justify-content-between">
+                                <div>
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <span class="badge bg-primary-subtle text-primary font-monospace fw-bold px-2.5 py-1 mb-1" style="font-size: 13px;"><?= htmlspecialchars($ab['production_no']) ?></span>
+                                            <h6 class="fw-bold text-dark m-0"><?= htmlspecialchars($ab['style_no']) ?> - <?= htmlspecialchars($ab['style_name']) ?></h6>
+                                        </div>
+                                        <span class="badge bg-success text-white rounded-pill px-2.5 py-1" style="font-size: 11px;">
+                                            <i class="fa-solid fa-spinner fa-spin me-1"></i> Running
+                                        </span>
+                                    </div>
+                                    <div class="text-secondary small border-top pt-2 mt-2" style="font-size: 12px;">
+                                        <div class="d-flex justify-content-between mb-1">
+                                            <span>Buyer PO Contract:</span>
+                                            <strong class="text-dark font-monospace"><?= htmlspecialchars($ab['buyer_po_no']) ?> (<?= htmlspecialchars($ab['buyer_name']) ?>)</strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span>Target Contract Qty:</span>
+                                            <strong class="text-primary font-monospace"><?= number_format($ab['target_qty']) ?> pcs</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-3 text-end">
+                                    <a href="<?= base_url('company/production/stage/' . $ab['id']) ?>" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold shadow-sm" style="letter-spacing: 0.3px;">
+                                        Operations Stage Live Dashboard <i class="fa-solid fa-arrow-right-long ms-1.5"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </div>
+<?php endif; ?>
+
 <!-- Financial Value Banner -->
 <div class="pepp-card bg-light-subtle mb-5 border border-primary">
     <div class="pepp-card-body d-flex justify-content-between align-items-center">
