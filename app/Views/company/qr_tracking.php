@@ -61,7 +61,7 @@
     }
 </style>
 
-<!-- Hidden temporary canvas element for manual frame decoding if needed -->
+<!-- Hidden temporary canvas element for manual frame decoding -->
 <div id="reader-temp-canvas" style="display: none;"></div>
 
 <!-- Mobile Application Container Wrapper -->
@@ -147,7 +147,7 @@
                     <div id="reader"></div>
 
                     <!-- Fast Sequence Validation & Duplicate Alert Banner Overlay -->
-                    <div id="scanner-alert-banner" class="position-absolute top-50 start-50 translate-middle p-3 rounded-4 shadow-lg text-center" style="display: none; z-index: 1060; background: rgba(15, 23, 42, 0.96); backdrop-filter: blur(8px); border: 2px solid #ef4444; width: 92%;">
+                    <div id="scanner-alert-banner" class="position-absolute top-50 start-50 translate-middle p-3 rounded-4 shadow-lg text-center" style="display: none !important; z-index: 1060; background: rgba(15, 23, 42, 0.96); backdrop-filter: blur(8px); border: 2px solid #ef4444; width: 92%;">
                         <div class="text-white">
                             <i id="scanner-alert-icon" class="fa-solid fa-triangle-exclamation fs-1 mb-2 text-warning"></i>
                             <h6 id="scanner-alert-title" class="fw-bold mb-1 text-uppercase text-white" style="letter-spacing: 0.5px;">Sequence Order Error</h6>
@@ -158,8 +158,8 @@
                         </div>
                     </div>
 
-                    <!-- Verified Item Modal Popup (Opens over Camera when valid QR is scanned) -->
-                    <div id="scan-result-card" class="position-absolute top-0 start-0 w-100 h-100 p-3 bg-white d-flex flex-column justify-content-between" style="display: none; z-index: 1050; border-radius: 16px; overflow-y: auto;">
+                    <!-- Verified Item Modal Popup (Opens OVER camera ONLY when valid QR is scanned) -->
+                    <div id="scan-result-card" class="position-absolute top-0 start-0 w-100 h-100 p-3 bg-white flex-column justify-content-between" style="display: none !important; z-index: 1050; border-radius: 16px; overflow-y: auto;">
                         <div class="text-center">
                             <span class="badge bg-success text-white text-uppercase mb-1 fw-bold" style="font-size: 10px; letter-spacing: 0.5px;">
                                 <i class="fa-solid fa-shield-check me-1"></i> Verified Active Item
@@ -269,6 +269,18 @@ document.addEventListener('DOMContentLoaded', function() {
         batchSelect.value = '';
     }
 
+    // Helper functions for popup display with important overrides
+    function hideScanPopup() {
+        if (scanResultCard) {
+            scanResultCard.style.setProperty('display', 'none', 'important');
+        }
+    }
+    function showScanPopup() {
+        if (scanResultCard) {
+            scanResultCard.style.setProperty('display', 'flex', 'important');
+        }
+    }
+
     // Auto-load style WIP stages when active batch is selected
     if (batchSelect && stageSelect) {
         batchSelect.addEventListener('change', function() {
@@ -336,6 +348,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const alertMsg = document.getElementById('scanner-alert-msg');
     const alertDismissBtn = document.getElementById('scanner-alert-dismiss');
 
+    // Ensure popup card is hidden on initial load
+    hideScanPopup();
+
     // ===================== STATE =====================
     let html5QrCode = null;
     let scanCount = 0;
@@ -367,14 +382,16 @@ document.addEventListener('DOMContentLoaded', function() {
         pieceStartTime = new Date();
         scanCount = 0;
         piecesCountEl.innerText = '0';
-        scanResultCard.style.display = 'none';
+        
+        // Ensure camera is visible first and popup is hidden
+        hideScanPopup();
         hideAlertBanner();
 
         // Start timer
         clearInterval(timerInterval);
         timerInterval = setInterval(updateTimer, 1000);
 
-        // Launch camera scanner directly
+        // Launch live camera scanner directly
         initScanner();
     });
 
@@ -387,6 +404,9 @@ document.addEventListener('DOMContentLoaded', function() {
             completeBtn.style.display = 'none';
             selectionView.style.display = 'block';
             
+            hideScanPopup();
+            hideAlertBanner();
+
             // Reset dropdowns to default
             if (batchSelect) {
                 batchSelect.value = '';
@@ -413,6 +433,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function showAlertBanner(title, message, isWarning = true) {
         clearTimeout(alertTimeout);
+        hideScanPopup();
+
         if (alertBanner) {
             alertTitle.innerText = title;
             alertMsg.innerText = message;
@@ -425,7 +447,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 alertIcon.className = 'fa-solid fa-triangle-exclamation fs-1 mb-2 text-warning';
             }
 
-            alertBanner.style.display = 'block';
+            alertBanner.style.setProperty('display', 'block', 'important');
 
             alertTimeout = setTimeout(() => {
                 hideAlertBanner();
@@ -439,7 +461,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function hideAlertBanner() {
         clearTimeout(alertTimeout);
         if (alertBanner) {
-            alertBanner.style.display = 'none';
+            alertBanner.style.setProperty('display', 'none', 'important');
         }
     }
 
@@ -449,6 +471,8 @@ document.addEventListener('DOMContentLoaded', function() {
         scannerContainer.style.display = 'flex';
         manualContainer.style.display = 'none';
         toggleModeBtn.innerHTML = '<i class="fa-solid fa-keyboard me-1"></i> Switch to Manual Entry Mode';
+
+        hideScanPopup();
 
         Html5Qrcode.getCameras().then(devices => {
             if (devices && devices.length) {
@@ -506,6 +530,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         ).then(() => {
             cameraRetryCount = 0;
+            hideScanPopup();
             // Check torch capability
             try {
                 const capabilities = html5QrCode.getRunningTrackCapabilities();
@@ -572,6 +597,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function switchToManualMode(reason = null) {
         stopScanner(true);
+        hideScanPopup();
         scannerContainer.style.display = 'none';
         cameraSelectContainer.style.display = 'none';
         flashlightContainer.style.display = 'none';
@@ -624,14 +650,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // ===================== ON SCAN SUCCESS (VERIFICATION) =====================
     function onScanSuccess(decodedText) {
         hideAlertBanner();
+        hideScanPopup();
 
-        // Pause live camera scan while displaying verified item popup
+        // Pause live camera scan while verifying and displaying item popup
         if (html5QrCode && html5QrCode.isScanning) {
             html5QrCode.pause(true);
         }
 
-        scanResultCard.style.display = 'none';
-        
         const loader = document.createElement('div');
         loader.className = 'alert alert-info text-center py-2.5 mb-2 fw-semibold animate-pulse';
         loader.id = 'qr-verifying-loader';
@@ -662,8 +687,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 serialDisplay.innerText = '#' + String(data.product.serial).padStart(4, '0') + ' / ' + String(data.product.target_qty).padStart(4, '0');
 
                 // Open verified active item popup modal over camera viewport
-                scanResultCard.style.display = 'flex';
+                showScanPopup();
             } else {
+                hideScanPopup();
                 if (data.already_validated) {
                     showAlertBanner("ALREADY VALIDATED IN THIS STAGE", data.message, true);
                 } else {
@@ -673,6 +699,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(err => {
             loader.remove();
+            hideScanPopup();
             console.error(err);
             showAlertBanner("CONNECTION ERROR", "Unable to connect to verification server. Please check internet connection.", false);
         });
@@ -708,10 +735,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 scanCount++;
                 piecesCountEl.innerText = scanCount;
                 
+                // Hide popup modal immediately
+                hideScanPopup();
+
                 showTemporaryToast(data.message, status === 'pass' ? "success" : "danger", 2500);
                 
-                // Hide popup modal and reset state
-                scanResultCard.style.display = 'none';
                 currentScannedCode = null;
                 manualCodeInput.value = '';
                 pieceStartTime = new Date();
@@ -723,13 +751,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     html5QrCode.resume();
                 }
             } else {
-                scanResultCard.style.display = 'none';
+                hideScanPopup();
                 showAlertBanner("LOGGING FAILED", data.message, false);
             }
         })
         .catch(err => {
             console.error(err);
-            scanResultCard.style.display = 'none';
+            hideScanPopup();
             showAlertBanner("CONNECTION FAILURE", "Failed to communicate with production server.", false);
         })
         .finally(() => {
