@@ -204,11 +204,24 @@ class StyleMasterController extends Controller {
         $bomList = json_decode($techpack['bom_json'] ?? '[]', true) ?: [];
         $sizeGuide = json_decode($techpack['sizing_json'] ?? '[]', true) ?: [];
 
+        $db = Database::getInstance();
+        $companyId = Session::get('company_id');
+
+        // Fetch master BOM categories from Master Data Hub
+        $stmtCat = $db->prepare("SELECT name FROM bom_categories WHERE company_id = ? AND deleted_at IS NULL ORDER BY name ASC");
+        $stmtCat->execute([$companyId]);
+        $bomCategories = $stmtCat->fetchAll(\PDO::FETCH_COLUMN) ?: [];
+
+        // Fetch distinct item_type categories from inventory_transactions
+        $stmtInvCat = $db->prepare("SELECT DISTINCT item_type FROM inventory_transactions WHERE company_id = ? AND item_type IS NOT NULL AND item_type != '' ORDER BY item_type ASC");
+        $stmtInvCat->execute([$companyId]);
+        $invItemTypes = $stmtInvCat->fetchAll(\PDO::FETCH_COLUMN) ?: [];
+
         // Fetch current stock inventory items for cascading dropdown selection in BOM editor
         $inventoryService = new \App\Services\InventoryService();
-        $stockSummary = $inventoryService->getInventorySummary(Session::get('company_id'));
+        $stockSummary = $inventoryService->getInventorySummary($companyId);
 
-        $companyWipStages = CompanyController::getCompanyWipStages(Session::get('company_id'));
+        $companyWipStages = CompanyController::getCompanyWipStages($companyId);
         $styleStages = json_decode($techpack['stages_json'] ?? '[]', true) ?: [];
 
         $this->renderView('company/techpack', [
@@ -218,6 +231,8 @@ class StyleMasterController extends Controller {
             'bom_list' => $bomList,
             'size_guide' => $sizeGuide,
             'stock_summary' => $stockSummary,
+            'bom_categories' => $bomCategories,
+            'inv_item_types' => $invItemTypes,
             'company_wip_stages' => $companyWipStages,
             'style_stages' => $styleStages
         ]);

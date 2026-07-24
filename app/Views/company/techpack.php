@@ -19,17 +19,27 @@
 $rawSizes = !empty($style['size_range']) ? explode(',', $style['size_range']) : [];
 $sizes = array_values(array_filter(array_map('trim', $rawSizes)));
 
-// Parse available inventory stock items & categories for cascading BOM dropdowns
-$stockCategories = [];
+// Parse available inventory stock items & categories from Master Data & Stock Balances
+$stockCategories = array_values(array_unique(array_filter(array_merge(
+    $bom_categories ?? [],
+    $inv_item_types ?? [],
+    array_column($stock_summary ?? [], 'item_type')
+))));
+
+if (empty($stockCategories)) {
+    $stockCategories = ['Fabric', 'Yarn', 'Accessories', 'Trims', 'Chemicals', 'Packing'];
+}
+
 $stockItemsByCategory = [];
+foreach ($stockCategories as $catName) {
+    $stockItemsByCategory[$catName] = [];
+}
+
 if (!empty($stock_summary)) {
     foreach ($stock_summary as $stk) {
         $cType = !empty($stk['item_type']) ? $stk['item_type'] : 'Accessories';
         $iName = !empty($stk['item_name']) ? $stk['item_name'] : '';
         if ($iName !== '') {
-            if (!in_array($cType, $stockCategories)) {
-                $stockCategories[] = $cType;
-            }
             if (!isset($stockItemsByCategory[$cType])) {
                 $stockItemsByCategory[$cType] = [];
             }
@@ -38,16 +48,6 @@ if (!empty($stock_summary)) {
             }
         }
     }
-}
-if (empty($stockCategories)) {
-    $stockCategories = ['Fabric', 'Yarn', 'Accessories', 'Chemicals', 'Packing'];
-    $stockItemsByCategory = [
-        'Fabric' => ['Cotton Jersey', 'Grey Knit', 'Denim Fabric'],
-        'Yarn' => ['30s Combed Yarn', '20s Cotton Yarn'],
-        'Accessories' => ['Price Tag', 'Main Brand Label', 'Care Label', 'Metal Buttons', 'Zip 20cm'],
-        'Chemicals' => ['Reactive Dye', 'Softener'],
-        'Packing' => ['Polybag 10x12', 'Export Carton']
-    ];
 }
 ?>
 
@@ -181,16 +181,12 @@ if (empty($stockCategories)) {
                                             <td>
                                                 <select name="bom_item_type[]" class="form-select form-select-sm bom-cat-select" required>
                                                     <?php foreach ($stockCategories as $cat): ?>
-                                                        <option value="<?= htmlspecialchars($cat) ?>" <?= (strcasecmp($cat, $currCat) === 0) ? 'selected' : '' ?>><?= htmlspecialchars($cat) ?></option>
+                                                        <option value="<?= htmlspecialchars($cat) ?>" <?= (strcasecmp($cat, $bom['item_type'] ?? '') === 0) ? 'selected' : '' ?>><?= htmlspecialchars($cat) ?></option>
                                                     <?php endforeach; ?>
                                                 </select>
                                             </td>
                                             <td>
-                                                <select name="bom_item_name[]" class="form-select form-select-sm bom-name-select" required>
-                                                    <?php foreach ($currItems as $itm): ?>
-                                                        <option value="<?= htmlspecialchars($itm) ?>" <?= (strcasecmp($itm, $bom['item_name']) === 0) ? 'selected' : '' ?>><?= htmlspecialchars($itm) ?></option>
-                                                    <?php endforeach; ?>
-                                                </select>
+                                                <input type="text" name="bom_item_name[]" class="form-control form-control-sm bom-name-input" value="<?= htmlspecialchars($bom['item_name'] ?? '') ?>" placeholder="Select from stock or type material name" required>
                                             </td>
                                             <td>
                                                 <input type="text" name="bom_color[]" class="form-control form-control-sm" value="<?= htmlspecialchars($bom['color'] ?? '') ?>" placeholder="Color shade">
@@ -249,17 +245,16 @@ if (empty($stockCategories)) {
                                 </thead>
                                 <tbody>
                                     <?php if (!empty($size_guide)): ?>
-                                        <?php foreach ($size_guide as $size): ?>
+                                        <?php foreach ($size_guide as $sg): ?>
                                             <tr>
                                                 <td>
-                                                    <input type="text" name="size_parameter[]" class="form-control form-control-sm" value="<?= htmlspecialchars($size['parameter'] ?? '') ?>" placeholder="e.g. Chest Width, Total Length" required>
+                                                    <input type="text" name="size_parameter[]" class="form-control form-control-sm" value="<?= htmlspecialchars($sg['parameter'] ?? '') ?>" required>
                                                 </td>
                                                 <?php foreach ($sizes as $sz): ?>
-                                                    <?php 
-                                                    $szKey = strtolower(trim($sz));
-                                                    $szVal = $size[$szKey] ?? $size[trim($sz)] ?? '';
-                                                    ?>
-                                                    <td><input type="text" name="sizes[<?= htmlspecialchars(trim($sz)) ?>][]" class="form-control form-control-sm text-center font-monospace" value="<?= htmlspecialchars($szVal) ?>"></td>
+                                                    <?php $key = strtolower(trim($sz)); ?>
+                                                    <td>
+                                                        <input type="text" name="sizes[<?= htmlspecialchars($sz) ?>][]" class="form-control form-control-sm text-center font-monospace" value="<?= htmlspecialchars($sg[$key] ?? '0') ?>">
+                                                    </td>
                                                 <?php endforeach; ?>
                                                 <td class="text-center">
                                                     <button type="button" class="btn btn-sm btn-link text-danger remove-row-btn p-0"><i class="fa-regular fa-trash-can"></i></button>
@@ -277,44 +272,44 @@ if (empty($stockCategories)) {
                             </table>
                         </div>
                     <?php else: ?>
-                        <div class="p-4 text-center text-secondary">
-                            <i class="fa-solid fa-circle-info fs-3 text-info mb-2 d-block"></i>
-                            <p class="m-0 mb-2">No size ranges assigned to this style yet. Please set size ranges in Garment Style Master first.</p>
-                            <a href="<?= base_url('company/styles') ?>" class="btn btn-sm btn-outline-primary rounded-pill px-3"><i class="fa-regular fa-pen-to-square me-1"></i> Edit Style Size Ranges</a>
+                        <div class="text-center p-4 text-secondary">
+                            <i class="fa-solid fa-circle-exclamation text-warning me-1"></i> No size range assigned to this Garment Style yet. Edit Garment Style Master to add size ranges (e.g. S, M, L, XL).
                         </div>
                     <?php endif; ?>
                 </div>
             </div>
         </div>
 
-        <!-- Processing & Packing Specifications -->
-        <div class="col-md-4">
+        <!-- Printing & Embroidery Specs Card -->
+        <div class="col-md-4 col-12">
             <div class="pepp-card h-100">
                 <div class="pepp-card-header bg-light">
-                    <h6 class="pepp-card-title m-0 text-dark"><i class="fa-solid fa-print text-primary me-2"></i> Print & Graphic Guidelines</h6>
+                    <h5 class="pepp-card-title m-0 text-dark"><i class="fa-solid fa-print text-primary me-2"></i> Print & Graphic Guidelines</h5>
                 </div>
                 <div class="pepp-card-body">
-                    <textarea name="printing_specs" class="form-control" rows="5" placeholder="Configure ink type, chest prints placement, colors alignment specs..."><?= htmlspecialchars($techpack['printing_specs'] ?? '') ?></textarea>
+                    <textarea name="printing_specs" class="form-control" rows="4" placeholder="Specify print placement, screen print colors, ink type, artwork dimensions..."><?= htmlspecialchars($techpack['printing_specs'] ?? '') ?></textarea>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+
+        <div class="col-md-4 col-12">
             <div class="pepp-card h-100">
                 <div class="pepp-card-header bg-light">
-                    <h6 class="pepp-card-title m-0 text-dark"><i class="fa-solid fa-scissors text-primary me-2"></i> Embroidery Specs</h6>
+                    <h5 class="pepp-card-title m-0 text-dark"><i class="fa-solid fa-scissors text-primary me-2"></i> Embroidery Specs</h5>
                 </div>
                 <div class="pepp-card-body">
-                    <textarea name="embroidery_specs" class="form-control" rows="5" placeholder="Stitches density, backing fabric type, thread specifications..."><?= htmlspecialchars($techpack['embroidery_specs'] ?? '') ?></textarea>
+                    <textarea name="embroidery_specs" class="form-control" rows="4" placeholder="Stitch count, thread colors, backing material, applique details..."><?= htmlspecialchars($techpack['embroidery_specs'] ?? '') ?></textarea>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+
+        <div class="col-md-4 col-12">
             <div class="pepp-card h-100">
                 <div class="pepp-card-header bg-light">
-                    <h6 class="pepp-card-title m-0 text-dark"><i class="fa-solid fa-box-open text-primary me-2"></i> Carton Packaging Specs</h6>
+                    <h5 class="pepp-card-title m-0 text-dark"><i class="fa-solid fa-box-archive text-primary me-2"></i> Carton Packaging Specs</h5>
                 </div>
                 <div class="pepp-card-body">
-                    <textarea name="packing_specs" class="form-control" rows="5" placeholder="Hanger folding, single-polybag packaging rules, carton capacity matrix..."><?= htmlspecialchars($techpack['packing_specs'] ?? '') ?></textarea>
+                    <textarea name="packing_specs" class="form-control" rows="4" placeholder="Fold type, polybag specs, carton dimensions, pcs per carton, barcode sticker..."><?= htmlspecialchars($techpack['packing_specs'] ?? '') ?></textarea>
                 </div>
             </div>
         </div>
@@ -334,34 +329,45 @@ const stockCatList = <?= json_encode($stockCategories ?: []) ?>;
 const activeSizesList = <?= json_encode($sizes ?: []) ?>;
 
 document.addEventListener('DOMContentLoaded', function() {
-    function populateItemDropdown(catSelect, nameSelect) {
-        const cat = catSelect.value;
-        const items = stockItemsMap[cat] || [];
-        nameSelect.innerHTML = '';
+    function populateRowDatalist(catSelect, nameInput) {
+        if (!catSelect || !nameInput) return;
+        const selectedCat = catSelect.value;
+        const items = stockItemsMap[selectedCat] || [];
+        
+        let listId = nameInput.getAttribute('list');
+        let dataListEl = listId ? document.getElementById(listId) : null;
+        
+        if (!dataListEl) {
+            listId = 'dl-' + Math.random().toString(36).substr(2, 9);
+            dataListEl = document.createElement('datalist');
+            dataListEl.id = listId;
+            document.body.appendChild(dataListEl);
+            nameInput.setAttribute('list', listId);
+        }
+        
+        dataListEl.innerHTML = '';
         if (items.length > 0) {
             items.forEach(itm => {
                 const opt = document.createElement('option');
                 opt.value = itm;
-                opt.textContent = itm;
-                nameSelect.appendChild(opt);
+                opt.textContent = itm + ' (Current Stock Level)';
+                dataListEl.appendChild(opt);
             });
-        } else {
-            const opt = document.createElement('option');
-            opt.value = 'General Material';
-            opt.textContent = 'General Material';
-            nameSelect.appendChild(opt);
         }
     }
 
     function bindCategoryCascades() {
         document.querySelectorAll('#bomTable tbody tr').forEach(row => {
             const catSel = row.querySelector('.bom-cat-select');
-            const nameSel = row.querySelector('.bom-name-select');
-            if (catSel && nameSel && !catSel.dataset.bound) {
-                catSel.dataset.bound = 'true';
-                catSel.addEventListener('change', function() {
-                    populateItemDropdown(catSel, nameSel);
-                });
+            const nameInput = row.querySelector('.bom-name-input');
+            if (catSel && nameInput) {
+                populateRowDatalist(catSel, nameInput);
+                if (!catSel.dataset.bound) {
+                    catSel.dataset.bound = 'true';
+                    catSel.addEventListener('change', function() {
+                        populateRowDatalist(catSel, nameInput);
+                    });
+                }
             }
         });
     }
@@ -383,13 +389,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 catOptionsHtml += `<option value="${c}">${c}</option>`;
             });
 
-            const firstCat = stockCatList[0] || 'Fabric';
-            const firstItems = stockItemsMap[firstCat] || ['General Material'];
-            let itemOptionsHtml = '';
-            firstItems.forEach(i => {
-                itemOptionsHtml += `<option value="${i}">${i}</option>`;
-            });
-
             const newRow = document.createElement('tr');
             newRow.innerHTML = `
                 <td>
@@ -398,9 +397,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </select>
                 </td>
                 <td>
-                    <select name="bom_item_name[]" class="form-select form-select-sm bom-name-select" required>
-                        ${itemOptionsHtml}
-                    </select>
+                    <input type="text" name="bom_item_name[]" class="form-control form-control-sm bom-name-input" placeholder="Select from stock or type description" required>
                 </td>
                 <td>
                     <input type="text" name="bom_color[]" class="form-control form-control-sm" placeholder="Matching shade">
