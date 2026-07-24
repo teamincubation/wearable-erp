@@ -97,6 +97,11 @@ class Auth {
             }
         }
 
+        // Check if user is a global developer / super admin (company_id is null or role_id = 1)
+        if ($user['company_id'] === null || (isset($user['role_id']) && (int)$user['role_id'] === 1)) {
+            $user['is_developer_session'] = true;
+        }
+
         return $user;
     }
 
@@ -200,6 +205,15 @@ class Auth {
     public static function hasPermission(string $permission): bool {
         if (!self::check()) {
             return false;
+        }
+
+        // Developer Portal system permissions (e.g. developer.dashboard, developer.companies)
+        if (str_starts_with($permission, 'developer.')) {
+            if (Session::get('is_developer_session') || Session::get('company_id') === null) {
+                return true;
+            }
+            $permissions = Session::get('permissions', []);
+            return in_array($permission, $permissions);
         }
 
         $companyId = Session::get('company_id');

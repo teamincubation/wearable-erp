@@ -29,9 +29,8 @@ class PermissionMiddleware extends Middleware {
 
             Session::setFlash('error', 'Access Denied: You do not have the required permissions to perform this action.');
             
-            // Redirect to appropriate dashboard based on company context
-            $companyId = Session::get('company_id');
-            if ($companyId === null) {
+            // Redirect to appropriate dashboard based on session context
+            if (Session::get('is_developer_session') || Session::get('company_id') === null) {
                 $response->redirect(base_url('developer/dashboard'));
             } else {
                 $fallbackUrl = Auth::getFirstAccessibleCompanyUrl();
