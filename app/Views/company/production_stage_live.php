@@ -428,7 +428,7 @@
                                         <small class="text-dash-muted font-monospace" style="font-size: 10.5px;"><?= $formattedLogTime ?></small>
                                     </div>
                                     <p class="mb-0 small text-dash-main" style="font-size: 12.5px;">
-                                        Stage <strong class="text-capitalize text-primary"><?= str_replace('_', ' ', $log['stage']) ?></strong>
+                                        Stage <strong class="text-capitalize text-primary"><?= !empty($log['stage']) ? str_replace('_', ' ', $log['stage']) : 'Unassigned Stage' ?></strong>
                                     </p>
                                     <small class="text-dash-sub d-block font-monospace mt-0.5" style="font-size: 10.5px;">
                                         Tag: <span class="text-dash-main"><?= htmlspecialchars($tagLabel) ?></span> | 
