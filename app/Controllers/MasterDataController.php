@@ -712,7 +712,7 @@ class MasterDataController extends Controller {
         try {
             // Check uniqueness
             $stmtCheck = $db->prepare("SELECT id FROM designations WHERE company_id = ? AND title = ? AND deleted_at IS NULL LIMIT 1");
-            $stmtCheck->execute([companyId, $title]);
+            $stmtCheck->execute([$companyId, $title]);
             if ($stmtCheck->fetch()) {
                 Session::setFlash('error', 'This Designation already exists.');
                 $this->redirect('company/masterdata?tab=designations');
