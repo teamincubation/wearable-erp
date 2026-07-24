@@ -29,6 +29,9 @@
         padding-bottom: 12px;
         margin-bottom: 20px;
     }
+    .print-op-breakdown {
+        display: table-row-group !important;
+    }
     @page {
         size: A4 portrait;
         margin: 12mm;
@@ -310,48 +313,72 @@ $avgMarginVal = ($totalRevenueVal > 0) ? round(($totalProfitVal / $totalRevenueV
                                     <tr class="bg-light">
                                         <th>Operator / Employee Name</th>
                                         <th>Role / Workstation</th>
-                                        <th>Operational Stages Handled</th>
-                                        <th>Logged Timestamps & Work Duration</th>
-                                        <th class="text-end">Total Output & Rejections</th>
+                                        <th>Operations Logged</th>
+                                        <th class="text-end">Total Output & Rejections (Click for Stage Breakdown & QR)</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <?php if (!empty($b['operator_summary'])): ?>
-                                        <?php foreach ($b['operator_summary'] as $op): ?>
+                                        <?php foreach ($b['operator_summary'] as $opIdx => $op): ?>
                                             <tr>
                                                 <td>
-                                                    <strong class="text-dark d-block"><?= htmlspecialchars($op['name']) ?></strong>
+                                                    <strong class="text-dark d-block fs-6"><?= htmlspecialchars($op['name']) ?></strong>
                                                 </td>
                                                 <td>
-                                                    <span class="badge bg-light text-secondary border font-monospace text-capitalize"><?= htmlspecialchars($op['role']) ?></span>
+                                                    <span class="badge bg-light text-secondary border font-monospace text-capitalize py-1.5 px-2.5"><?= htmlspecialchars($op['role']) ?></span>
                                                 </td>
                                                 <td>
-                                                    <?php foreach ($op['stages'] as $idx => $stg): ?>
-                                                        <span class="badge bg-primary text-white text-capitalize me-1">
-                                                            <?= htmlspecialchars(str_replace('_', ' ', $stg['stage'])) ?>
-                                                        </span>
-                                                        <small class="font-monospace text-dark">
-                                                            (Good: <strong><?= number_format($stg['good_qty']) ?></strong>, Rej: <strong class="text-danger"><?= number_format($stg['waste_qty']) ?></strong>)
-                                                        </small>
-                                                        <?php if ($idx < count($op['stages']) - 1): ?><span class="text-muted me-1">,</span><?php endif; ?>
-                                                    <?php endforeach; ?>
-                                                </td>
-                                                <td>
-                                                    <?php foreach ($op['stages'] as $stg): ?>
-                                                        <div class="small text-secondary font-monospace mb-1">
-                                                            <i class="fa-regular fa-clock me-1 text-primary"></i> <strong><?= htmlspecialchars(str_replace('_', ' ', $stg['stage'])) ?>:</strong> <?= $stg['logged_at'] ?> (<?= $stg['duration'] ?>)
-                                                        </div>
-                                                    <?php endforeach; ?>
+                                                    <span class="badge bg-primary-subtle text-primary border font-monospace py-1.5 px-2.5">
+                                                        <i class="fa-solid fa-list-check me-1"></i> <?= count($op['stages']) ?> Operation(s) Logged
+                                                    </span>
                                                 </td>
                                                 <td class="text-end">
-                                                    <div class="font-monospace fw-bold text-success">Good: <?= number_format($op['total_good_qty']) ?> pcs</div>
-                                                    <div class="font-monospace fw-bold text-danger small">Rej: <?= number_format($op['total_waste_qty']) ?> pcs</div>
+                                                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-sm font-monospace d-print-none" data-bs-toggle="modal" data-bs-target="#opStageModal-<?= $b['id'] ?>-<?= $opIdx ?>">
+                                                        <i class="fa-solid fa-layer-group me-1 text-primary"></i> 
+                                                        Good: <strong class="text-success"><?= number_format($op['total_good_qty']) ?> pcs</strong> | 
+                                                        Rej: <strong class="text-danger"><?= number_format($op['total_waste_qty']) ?> pcs</strong>
+                                                        <i class="fa-solid fa-arrow-up-right-from-square ms-1 text-secondary" style="font-size: 11px;"></i>
+                                                    </button>
+                                                    <div class="d-none d-print-block font-monospace">
+                                                        <span class="text-success fw-bold">Good: <?= number_format($op['total_good_qty']) ?> pcs</span> | 
+                                                        <span class="text-danger fw-bold">Rej: <?= number_format($op['total_waste_qty']) ?> pcs</span>
+                                                    </div>
+                                                </td>
+                                            </tr>
+
+                                            <!-- Print Mode Expanded Stage Breakdown -->
+                                            <tr class="d-none d-print-table-row bg-light">
+                                                <td colspan="4" class="p-3">
+                                                    <div class="table-responsive">
+                                                        <table class="table table-sm table-bordered mb-0">
+                                                            <thead>
+                                                                <tr class="bg-white">
+                                                                    <th>Operational Stage</th>
+                                                                    <th class="text-end">Good Output</th>
+                                                                    <th class="text-end">Reject / Wastage</th>
+                                                                    <th>Logged Timestamp & Duration</th>
+                                                                    <th>Stage QR Code</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <?php foreach ($op['stages'] as $stg): ?>
+                                                                    <tr>
+                                                                        <td class="text-capitalize fw-bold"><?= htmlspecialchars(str_replace('_', ' ', $stg['stage'])) ?></td>
+                                                                        <td class="text-end font-monospace text-success"><?= number_format($stg['good_qty']) ?> pcs</td>
+                                                                        <td class="text-end font-monospace text-danger"><?= number_format($stg['waste_qty']) ?> pcs</td>
+                                                                        <td class="font-monospace small"><?= $stg['logged_at'] ?> (<?= $stg['duration'] ?>)</td>
+                                                                        <td class="font-monospace small"><?= htmlspecialchars($stg['qr_code']) ?></td>
+                                                                    </tr>
+                                                                <?php endforeach; ?>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         <?php endforeach; ?>
                                     <?php else: ?>
                                         <tr>
-                                            <td colspan="5" class="text-center py-4 text-secondary small">
+                                            <td colspan="4" class="text-center py-4 text-secondary small">
                                                 No operator tracking logs recorded for this batch.
                                             </td>
                                         </tr>
@@ -382,5 +409,85 @@ $avgMarginVal = ($totalRevenueVal > 0) ? round(($totalProfitVal / $totalRevenueV
                 </div>
             </div>
         </div>
+    <?php endforeach; ?>
+<?php endif; ?>
+
+<!-- Operator Operations Breakdown Popup Modals -->
+<?php if (!empty($completed_batches)): ?>
+    <?php foreach ($completed_batches as $b): ?>
+        <?php if (!empty($b['operator_summary'])): ?>
+            <?php foreach ($b['operator_summary'] as $opIdx => $op): ?>
+                <div class="modal fade" id="opStageModal-<?= $b['id'] ?>-<?= $opIdx ?>" tabindex="-1" aria-hidden="true" style="z-index: 1060;">
+                    <div class="modal-dialog modal-lg modal-dialog-centered">
+                        <div class="modal-content text-start" style="border-radius: 12px;">
+                            <div class="modal-header bg-light">
+                                <div>
+                                    <h5 class="modal-title fw-bold text-dark m-0"><i class="fa-solid fa-users-gear text-primary me-2"></i> Operator Operations Breakdown: <?= htmlspecialchars($op['name']) ?></h5>
+                                    <small class="text-secondary">Role: <strong><?= htmlspecialchars($op['role']) ?></strong> | Batch: <strong class="font-monospace"><?= htmlspecialchars($b['production_no']) ?></strong></small>
+                                </div>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body p-4 text-dark">
+                                <div class="p-3 bg-light rounded-3 border mb-3 d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <small class="text-secondary d-block">Operator / Employee</small>
+                                        <strong class="text-dark fs-6"><?= htmlspecialchars($op['name']) ?></strong> (<span class="text-secondary"><?= htmlspecialchars($op['role']) ?></span>)
+                                    </div>
+                                    <div class="text-end font-monospace">
+                                        <span class="badge bg-success-subtle text-success border fs-6 me-1">Good Output: <?= number_format($op['total_good_qty']) ?> pcs</span>
+                                        <span class="badge bg-danger-subtle text-danger border fs-6">Rejections: <?= number_format($op['total_waste_qty']) ?> pcs</span>
+                                    </div>
+                                </div>
+
+                                <div class="table-responsive border rounded-3">
+                                    <table class="table pepp-table mb-0 align-middle">
+                                        <thead>
+                                            <tr class="bg-light">
+                                                <th>Operational Stage</th>
+                                                <th class="text-end">Good Output</th>
+                                                <th class="text-end">Reject / Wastage</th>
+                                                <th>Logged Timestamp & Duration</th>
+                                                <th>Stage QR Code</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($op['stages'] as $stg): ?>
+                                                <tr>
+                                                    <td>
+                                                        <span class="badge bg-primary text-white text-capitalize py-1.5 px-2.5">
+                                                            <?= htmlspecialchars(str_replace('_', ' ', $stg['stage'])) ?>
+                                                        </span>
+                                                    </td>
+                                                    <td class="text-end font-monospace fw-bold text-success">
+                                                        <?= number_format($stg['good_qty']) ?> pcs
+                                                    </td>
+                                                    <td class="text-end font-monospace fw-bold text-danger">
+                                                        <?= number_format($stg['waste_qty']) ?> pcs
+                                                    </td>
+                                                    <td>
+                                                        <div class="small font-monospace text-dark">
+                                                            <i class="fa-regular fa-clock me-1 text-primary"></i> <?= $stg['logged_at'] ?>
+                                                        </div>
+                                                        <small class="text-secondary font-monospace">(Duration: <?= $stg['duration'] ?>)</small>
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge bg-light text-dark border font-monospace py-1.5 px-2">
+                                                            <i class="fa-solid fa-qrcode me-1 text-primary"></i> <?= htmlspecialchars($stg['qr_code']) ?>
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="modal-footer bg-light">
+                                <button type="button" class="btn btn-secondary border px-4" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
     <?php endforeach; ?>
 <?php endif; ?>

@@ -1033,12 +1033,15 @@ class ProductionController extends Controller {
                     $durationStr = ($hrs > 0 ? "{$hrs}h " : "") . "{$mins}m";
                 }
 
+                $qrCodeVal = !empty($log['qr_code']) ? $log['qr_code'] : ($batch['production_no'] . '-' . strtoupper(substr($log['stage'], 0, 3)) . '-' . sprintf('%03d', $log['id'] ?? rand(1, 999)));
+
                 $operatorGrouped[$opKey]['stages'][] = [
                     'stage' => $log['stage'],
                     'good_qty' => $goodQty,
                     'waste_qty' => $wasteQty,
                     'logged_at' => date('d M Y, h:i A', strtotime($log['created_at'] ?? $log['start_time'] ?? 'now')),
-                    'duration' => $durationStr
+                    'duration' => $durationStr,
+                    'qr_code' => $qrCodeVal
                 ];
             }
 
