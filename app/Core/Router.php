@@ -45,6 +45,16 @@ class Router {
         $method = $this->request->getMethod();
         $path = $this->request->getPath();
 
+        // Handle CORS Preflight OPTIONS requests globally for API
+        if ($method === 'OPTIONS') {
+            header('Access-Control-Allow-Origin: *');
+            header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+            header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept');
+            header('Access-Control-Max-Age: 86400');
+            http_response_code(200);
+            exit;
+        }
+
         foreach ($this->routes[$method] ?? [] as $route) {
             $params = [];
             if ($route->match($path, $params)) {
