@@ -9,6 +9,7 @@ use App\Controllers\AuthController;
 use App\Controllers\DashboardController;
 use App\Controllers\DeveloperController;
 use App\Controllers\CompanyController;
+use App\Controllers\ApiController;
 
 use App\Middleware\AuthMiddleware;
 use App\Middleware\PermissionMiddleware;
@@ -20,6 +21,12 @@ use App\Middleware\CsrfMiddleware;
 // 1. PUBLIC & AUTHENTICATION ROUTES
 // ==========================================================
 $router->get('/', [DashboardController::class, 'landing']);
+
+// Flutter Mobile REST API Routes
+$router->post('/api/v1/employee/login', [ApiController::class, 'login']);
+$router->post('/api/v1/login', [ApiController::class, 'login']);
+$router->get('/api/v1/me', [ApiController::class, 'me']);
+$router->post('/api/v1/verify-token', [ApiController::class, 'me']);
 
 // Single Universal SaaS Portal Login Routes
 $router->get('/login', [AuthController::class, 'showLogin']);
