@@ -59,14 +59,6 @@
     #reader__dashboard {
         display: none !important;
     }
-    .animate-pulse {
-        animation: pulse-animation 2s infinite;
-    }
-    @keyframes pulse-animation {
-        0% { opacity: 1; }
-        50% { opacity: 0.6; }
-        100% { opacity: 1; }
-    }
 </style>
 
 <!-- Hidden temporary canvas element for manual frame decoding -->
@@ -105,12 +97,10 @@
                         <i class="fa-solid fa-industry me-1"></i> 1. SELECT STARTED PRODUCTION BATCH <span class="text-danger">*</span>
                     </label>
                     <select id="batch-select" class="form-select form-select-lg text-dark fw-bold border-2 font-monospace" style="border-radius: 12px; font-size: 14px;">
-                        <option value="">-- Step 1: Select Active Production Batch --</option>
+                        <option value="">Select Batch</option>
                         <?php if (!empty($batches)): ?>
                             <?php foreach ($batches as $b): ?>
-                                <option value="<?= $b['id'] ?>">
-                                    <?= htmlspecialchars($b['production_no']) ?> (<?= htmlspecialchars($b['style_no']) ?> - <?= htmlspecialchars($b['buyer_name']) ?>)
-                                </option>
+                                <option value="<?= $b['id'] ?>"><?= htmlspecialchars($b['production_no']) ?></option>
                             <?php endforeach; ?>
                         <?php endif; ?>
                     </select>
@@ -152,9 +142,75 @@
                     </select>
                 </div>
 
-                <!-- Video Scanner Viewport -->
+                <!-- Video Scanner Viewport & Camera Overlays -->
                 <div class="scanner-container mb-3 position-relative" id="scanner-container">
                     <div id="reader"></div>
+
+                    <!-- Fast Sequence Validation & Duplicate Alert Banner Overlay -->
+                    <div id="scanner-alert-banner" class="position-absolute top-50 start-50 translate-middle p-3 rounded-4 shadow-lg text-center" style="display: none; z-index: 1060; background: rgba(15, 23, 42, 0.96); backdrop-filter: blur(8px); border: 2px solid #ef4444; width: 92%;">
+                        <div class="text-white">
+                            <i id="scanner-alert-icon" class="fa-solid fa-triangle-exclamation fs-1 mb-2 text-warning"></i>
+                            <h6 id="scanner-alert-title" class="fw-bold mb-1 text-uppercase text-white" style="letter-spacing: 0.5px;">Sequence Order Error</h6>
+                            <p id="scanner-alert-msg" class="small mb-3 text-white-50 font-monospace" style="font-size: 12px; line-height: 1.4;"></p>
+                            <button type="button" id="scanner-alert-dismiss" class="btn btn-warning btn-sm fw-bold rounded-pill px-4 shadow">
+                                <i class="fa-solid fa-arrow-right-to-bracket me-1"></i> Tap to Continue
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Scanned Result Card Overlay (Directly Over Camera Viewport - Zero Scroll) -->
+                    <div id="scan-result-card" class="position-absolute top-0 start-0 w-100 h-100 p-3 bg-white d-flex flex-column justify-content-between" style="display: none; z-index: 1050; border-radius: 16px; overflow-y: auto;">
+                        <div class="text-center">
+                            <span class="badge bg-success text-white text-uppercase mb-1 fw-bold" style="font-size: 10px; letter-spacing: 0.5px;">
+                                <i class="fa-solid fa-shield-check me-1"></i> Verified Active Item
+                            </span>
+                            <h5 id="scanned-code-display" class="fw-bold font-monospace text-primary my-1"></h5>
+                            
+                            <div class="border rounded p-2 mb-2 bg-light text-start" style="font-size: 11px; line-height: 1.4; color: #334155;">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="text-secondary small">Style No:</span>
+                                    <strong id="scanned-style-no-display" class="text-dark"></strong>
+                                </div>
+                                <div class="mb-1">
+                                    <span class="text-secondary small">Style Name:</span>
+                                    <span id="scanned-style-name-display" class="text-dark fw-bold"></span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="text-secondary small">Category:</span>
+                                    <span id="scanned-category-display" class="text-dark text-capitalize fw-semibold"></span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-secondary small">Fabric:</span>
+                                    <span id="scanned-fabric-display" class="text-dark"></span>
+                                </div>
+                            </div>
+
+                            <div class="row g-2 mb-2 bg-primary bg-opacity-10 p-2 rounded">
+                                <div class="col-6 text-start">
+                                    <span class="text-secondary small d-block" style="font-size: 10px;">GARMENT SIZE</span>
+                                    <strong id="scanned-size-display" class="text-primary fs-4 font-monospace fw-bold"></strong>
+                                </div>
+                                <div class="col-6 text-end">
+                                    <span class="text-secondary small d-block" style="font-size: 10px;">SERIAL NO</span>
+                                    <strong id="scanned-serial-display" class="text-primary fs-4 font-monospace fw-bold"></strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Touch Buttons Pass/Fail -->
+                        <div class="row g-2 pt-1 border-top">
+                            <div class="col-6">
+                                <button type="button" id="pass-btn" class="btn btn-success btn-lg w-100 py-3 rounded-pill fw-bold shadow">
+                                    <i class="fa-solid fa-circle-check me-1"></i> PASS
+                                </button>
+                            </div>
+                            <div class="col-6">
+                                <button type="button" id="fail-btn" class="btn btn-danger btn-lg w-100 py-3 rounded-pill fw-bold shadow">
+                                    <i class="fa-solid fa-circle-xmark me-1"></i> FAIL
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Action Button: SCAN / CAPTURE QR CODE -->
@@ -189,62 +245,6 @@
                     </button>
                 </div>
 
-                <!-- Scanned Result Card -->
-                <div id="scan-result-card" class="card border-2 border-primary mb-3 bg-light" style="display: none; border-radius: 16px;">
-                    <div class="card-body p-3 text-center">
-                        <div class="badge bg-success text-white text-uppercase mb-2" style="font-size: 10px; letter-spacing: 0.5px;"><i class="fa-solid fa-shield-check me-1"></i> Verified Active Item</div>
-                        <h5 id="scanned-code-display" class="fw-bold font-monospace text-primary my-1"></h5>
-                        
-                        <div class="border rounded p-2 mb-3 bg-white text-start" style="font-size: 11.5px; line-height: 1.5; color: #334155;">
-                            <div class="d-flex justify-content-between mb-1">
-                                <span class="text-secondary small">Style No:</span>
-                                <strong id="scanned-style-no-display" class="text-dark"></strong>
-                            </div>
-                            <div class="mb-1">
-                                <span class="text-secondary small">Style Name:</span>
-                                <span id="scanned-style-name-display" class="text-dark fw-bold"></span>
-                            </div>
-                            <div class="d-flex justify-content-between mb-1">
-                                <span class="text-secondary small">Category:</span>
-                                <span id="scanned-category-display" class="text-dark text-capitalize fw-semibold"></span>
-                            </div>
-                            <div class="d-flex justify-content-between mb-1">
-                                <span class="text-secondary small">Fabric Composition:</span>
-                                <span id="scanned-fabric-display" class="text-dark"></span>
-                            </div>
-                            <div class="d-flex justify-content-between">
-                                <span class="text-secondary small">Buyer PO Ref:</span>
-                                <span id="scanned-po-display" class="badge bg-dark font-monospace text-uppercase" style="padding: 3px 6px;"></span>
-                            </div>
-                        </div>
-
-                        <div class="row g-2 mb-3">
-                            <div class="col-6 text-start">
-                                <span class="text-secondary small d-block">SIZE</span>
-                                <strong id="scanned-size-display" class="text-primary fs-4 font-monospace fw-bold"></strong>
-                            </div>
-                            <div class="col-6 text-end">
-                                <span class="text-secondary small d-block">SERIAL NO</span>
-                                <strong id="scanned-serial-display" class="text-primary fs-4 font-monospace fw-bold"></strong>
-                            </div>
-                        </div>
-
-                        <!-- Touch Buttons Pass/Fail -->
-                        <div class="row g-2 pt-2 border-top">
-                            <div class="col-6">
-                                <button type="button" id="pass-btn" class="btn btn-success btn-lg w-100 py-3 rounded-pill fw-bold shadow-sm">
-                                    <i class="fa-solid fa-circle-check me-1"></i> PASS
-                                </button>
-                            </div>
-                            <div class="col-6">
-                                <button type="button" id="fail-btn" class="btn btn-danger btn-lg w-100 py-3 rounded-pill fw-bold shadow-sm">
-                                    <i class="fa-solid fa-circle-xmark me-1"></i> FAIL
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Live stats -->
                 <div class="d-flex justify-content-between text-secondary small px-2 mt-2">
                     <span>Scanned pieces: <strong id="pieces-count" class="text-dark">0</strong></span>
@@ -270,6 +270,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const startWorkBtn = document.getElementById('start-work-btn');
     const completeBtn = document.getElementById('complete-btn');
     const activeStageLabel = document.getElementById('active-stage-label');
+
+    // Default dropdown reset to "Select Batch" on every page load
+    if (batchSelect) {
+        batchSelect.value = '';
+    }
 
     // Auto-load style WIP stages when active batch is selected
     if (batchSelect && stageSelect) {
@@ -335,6 +340,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const flashlightContainer = document.getElementById('flashlight-container');
     const flashlightToggleBtn = document.getElementById('flashlight-toggle-btn');
 
+    const alertBanner = document.getElementById('scanner-alert-banner');
+    const alertIcon = document.getElementById('scanner-alert-icon');
+    const alertTitle = document.getElementById('scanner-alert-title');
+    const alertMsg = document.getElementById('scanner-alert-msg');
+    const alertDismissBtn = document.getElementById('scanner-alert-dismiss');
+
     // ===================== STATE =====================
     let html5QrCode = null;
     let tempFileDecoder = null;
@@ -342,6 +353,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let sessionStartTime = null;
     let pieceStartTime = null;
     let timerInterval = null;
+    let alertTimeout = null;
     let currentScannedCode = null;
     let isCameraMode = true;
     let cameraRetryCount = 0;
@@ -357,7 +369,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Transition to scanner screen
-        activeStageLabel.innerText = stage.replace('_', ' ');
+        activeStageLabel.innerText = stage.replace(/_/g, ' ');
         selectionView.style.display = 'none';
         scannerView.style.display = 'block';
         completeBtn.style.display = 'block';
@@ -367,6 +379,7 @@ document.addEventListener('DOMContentLoaded', function() {
         scanCount = 0;
         piecesCountEl.innerText = '0';
         scanResultCard.style.display = 'none';
+        hideAlertBanner();
 
         // Start timer
         clearInterval(timerInterval);
@@ -378,125 +391,155 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ===================== COMPLETE SESSION =====================
     completeBtn.addEventListener('click', function() {
-        stopScanner(true);
-        clearInterval(timerInterval);
-
-        alert(`Session Completed! Total logged pieces: ${scanCount}. Returning to stage selection.`);
-
-        scannerView.style.display = 'none';
-        completeBtn.style.display = 'none';
-        cameraSelectContainer.style.display = 'none';
-        flashlightContainer.style.display = 'none';
-        selectionView.style.display = 'block';
+        if (confirm('Complete scanning session and return to stage selection?')) {
+            stopScanner(true);
+            clearInterval(timerInterval);
+            scannerView.style.display = 'none';
+            completeBtn.style.display = 'none';
+            selectionView.style.display = 'block';
+            
+            // Reset dropdowns to default
+            if (batchSelect) {
+                batchSelect.value = '';
+            }
+            if (stageSelect) {
+                stageSelect.innerHTML = '<option value="">-- Please Select Batch First --</option>';
+                stageSelect.disabled = true;
+            }
+            if (startWorkBtn) {
+                startWorkBtn.disabled = true;
+            }
+        }
     });
 
-    // ===================== CAMERA INIT =====================
-    function initScanner() {
-        manualContainer.style.display = 'none';
-        scannerContainer.style.display = 'block';
-        scanTriggerContainer.style.display = 'block';
-        toggleModeBtn.innerHTML = '<i class="fa-solid fa-keyboard me-1"></i> Switch to Manual Entry Mode';
-        isCameraMode = true;
-
-        startCameraScanner();
+    // Alert Banner Dismiss Action
+    if (alertDismissBtn) {
+        alertDismissBtn.addEventListener('click', function() {
+            hideAlertBanner();
+            if (isCameraMode && html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.resume();
+            }
+        });
     }
 
-    function startCameraScanner(preferredCameraId = null) {
-        Html5Qrcode.getCameras().then(devices => {
-            if (devices && devices.length > 0) {
-                // Populate camera select dropdown
-                cameraSelect.innerHTML = '';
-                devices.forEach((device, index) => {
-                    const opt = document.createElement('option');
-                    opt.value = device.id;
-                    opt.text = device.label || `Camera ${index + 1}`;
-                    cameraSelect.appendChild(opt);
-                });
+    function showAlertBanner(title, message, isWarning = true) {
+        clearTimeout(alertTimeout);
+        if (alertBanner) {
+            alertTitle.innerText = title;
+            alertMsg.innerText = message;
 
+            if (isWarning) {
+                alertBanner.style.borderColor = '#3b82f6';
+                alertIcon.className = 'fa-solid fa-circle-info fs-1 mb-2 text-info';
+            } else {
+                alertBanner.style.borderColor = '#ef4444';
+                alertIcon.className = 'fa-solid fa-triangle-exclamation fs-1 mb-2 text-warning';
+            }
+
+            alertBanner.style.display = 'block';
+
+            alertTimeout = setTimeout(() => {
+                hideAlertBanner();
+                if (isCameraMode && html5QrCode && html5QrCode.isScanning) {
+                    html5QrCode.resume();
+                }
+            }, 4500);
+        }
+    }
+
+    function hideAlertBanner() {
+        clearTimeout(alertTimeout);
+        if (alertBanner) {
+            alertBanner.style.display = 'none';
+        }
+    }
+
+    // ===================== CAMERA INITIALIZATION =====================
+    function initScanner() {
+        isCameraMode = true;
+        scannerContainer.style.display = 'flex';
+        scanTriggerContainer.style.display = 'block';
+        manualContainer.style.display = 'none';
+        toggleModeBtn.innerHTML = '<i class="fa-solid fa-keyboard me-1"></i> Switch to Manual Entry Mode';
+
+        Html5Qrcode.getCameras().then(devices => {
+            if (devices && devices.length) {
+                let backCameraId = devices[0].id;
+                
                 if (devices.length > 1) {
                     cameraSelectContainer.style.display = 'block';
+                    cameraSelect.innerHTML = '';
+                    
+                    devices.forEach((device, idx) => {
+                        const opt = document.createElement('option');
+                        opt.value = device.id;
+                        const label = device.label || `Camera ${idx + 1}`;
+                        opt.innerText = label;
+                        if (label.toLowerCase().includes('back') || label.toLowerCase().includes('rear') || label.toLowerCase().includes('environment')) {
+                            backCameraId = device.id;
+                            opt.selected = true;
+                        }
+                        cameraSelect.appendChild(opt);
+                    });
                 } else {
                     cameraSelectContainer.style.display = 'none';
                 }
 
-                let selectedCameraId = preferredCameraId;
-                if (!selectedCameraId) {
-                    for (let i = 0; i < devices.length; i++) {
-                        const label = devices[i].label.toLowerCase();
-                        if (label.indexOf('back') !== -1 || 
-                            label.indexOf('rear') !== -1 || 
-                            label.indexOf('environment') !== -1) {
-                            selectedCameraId = devices[i].id;
-                            break;
-                        }
-                    }
-                    if (!selectedCameraId) {
-                        selectedCameraId = devices[0].id;
-                    }
-                }
-
-                cameraSelect.value = selectedCameraId;
-
-                if (html5QrCode && html5QrCode.isScanning) {
-                    return;
-                }
-
-                html5QrCode = new Html5Qrcode("reader");
-
-                // Config optimized for full-frame scanning without restrictive cropping
-                const config = { 
-                    fps: 25, 
-                    qrbox: function(viewfinderWidth, viewfinderHeight) {
-                        // Wide scanning box covering 85% of viewport for instant multi-angle detection
-                        return { 
-                            width: Math.floor(viewfinderWidth * 0.85), 
-                            height: Math.floor(viewfinderHeight * 0.85) 
-                        };
-                    },
-                    aspectRatio: 1.333333
-                };
-
-                html5QrCode.start(
-                    selectedCameraId,
-                    config,
-                    onScanSuccess
-                ).then(() => {
-                    cameraRetryCount = 0;
-                    torchState = false;
-                    flashlightToggleBtn.innerHTML = '<i class="fa-solid fa-bolt me-1"></i> Toggle Flashlight / Torch';
-                    flashlightToggleBtn.className = 'btn btn-warning w-100 py-2.5 rounded-pill fw-bold text-dark shadow-sm';
-
-                    try {
-                        if (html5QrCode.hasFlashlight && typeof html5QrCode.hasFlashlight === 'function') {
-                            html5QrCode.hasFlashlight().then(hasFlash => {
-                                flashlightContainer.style.display = hasFlash ? 'block' : 'none';
-                            }).catch(() => {
-                                flashlightContainer.style.display = 'none';
-                            });
-                        } else {
-                            flashlightContainer.style.display = 'none';
-                        }
-                    } catch(e) {
-                        flashlightContainer.style.display = 'none';
-                    }
-                }).catch(err => {
-                    console.error("Camera startup failure: ", err);
-                    handleCameraError(err, selectedCameraId);
-                });
+                startCameraScanner(backCameraId);
             } else {
-                switchToManualMode("No camera devices detected on this hardware.");
+                switchToManualMode("No camera detected. Switched to manual mode.");
             }
         }).catch(err => {
-            console.error("Failed to query camera hardware list: ", err);
-            switchToManualMode("Camera Permission Request Denied or Blocked by Browser. Switching to Manual Input Mode.");
+            console.warn("Camera enum error:", err);
+            switchToManualMode("Unable to access camera permissions.");
+        });
+    }
+
+    function startCameraScanner(cameraId) {
+        if (html5QrCode) {
+            stopScanner(false);
+        }
+
+        html5QrCode = new Html5Qrcode("reader");
+        const config = {
+            fps: 15,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.333333
+        };
+
+        html5QrCode.start(
+            cameraId,
+            config,
+            (decodedText, decodedResult) => {
+                onScanSuccess(decodedText);
+            },
+            (errorMessage) => {
+                // Background scan frame decode failure - silent ignore
+            }
+        ).then(() => {
+            cameraRetryCount = 0;
+            // Check torch capability
+            try {
+                const capabilities = html5QrCode.getRunningTrackCapabilities();
+                if (capabilities && capabilities.torch) {
+                    flashlightContainer.style.display = 'block';
+                } else {
+                    flashlightContainer.style.display = 'none';
+                }
+            } catch(e) {
+                flashlightContainer.style.display = 'none';
+            }
+        }).catch(err => {
+            console.error("Camera start failure:", err);
+            handleCameraError(err, cameraId);
         });
     }
 
     function handleCameraError(err, cameraId) {
-        const errorStr = (err && err.message) ? err.message : String(err);
+        let errorStr = err ? err.toString() : '';
         let friendlyMessage = "Camera initialization failed.";
 
-        if (errorStr.indexOf("Permission") !== -1 || errorStr.indexOf("NotAllowedError") !== -1) {
+        if (errorStr.indexOf("NotAllowedError") !== -1 || errorStr.indexOf("Permission") !== -1) {
             friendlyMessage = "Camera permission was denied. Please enable camera access in browser settings.";
             switchToManualMode(friendlyMessage);
             return;
@@ -550,7 +593,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const vw = video.videoWidth || 640;
         const vh = video.videoHeight || 480;
 
-        // Try decoding at 0deg (native) and 90deg (rotated sensor fallback for mobile)
         const angles = [0, 90];
         let angleIdx = 0;
 
@@ -667,6 +709,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ===================== ON SCAN SUCCESS (VERIFICATION) =====================
     function onScanSuccess(decodedText) {
+        hideAlertBanner();
+
         // Pause camera during verification
         if (html5QrCode && html5QrCode.isScanning) {
             html5QrCode.pause(true);
@@ -678,7 +722,7 @@ document.addEventListener('DOMContentLoaded', function() {
         loader.className = 'alert alert-info text-center py-2.5 mb-2 fw-semibold animate-pulse';
         loader.id = 'qr-verifying-loader';
         loader.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span> Verifying Tag Authenticity...';
-        scanResultCard.parentNode.insertBefore(loader, scanResultCard);
+        scannerView.insertBefore(loader, scannerView.firstChild);
 
         const formData = new FormData();
         formData.append('qr_code', decodedText);
@@ -700,29 +744,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('scanned-style-name-display').innerText = data.product.style_name;
                 document.getElementById('scanned-category-display').innerText = data.product.category + ' | ' + data.product.brand;
                 document.getElementById('scanned-fabric-display').innerText = data.product.composition;
-                document.getElementById('scanned-po-display').innerText = data.product.buyer_po;
                 sizeDisplay.innerText = data.product.size;
                 serialDisplay.innerText = '#' + String(data.product.serial).padStart(4, '0') + ' / ' + String(data.product.target_qty).padStart(4, '0');
 
-                scanResultCard.style.display = 'block';
+                // Display verification card overlay directly over camera (0 scrolling)
+                scanResultCard.style.display = 'flex';
             } else {
                 if (data.already_validated) {
-                    showTemporaryToast('ℹ️ ALREADY VALIDATED: ' + data.message, "warning", 6000);
+                    showAlertBanner("ALREADY VALIDATED IN THIS STAGE", data.message, true);
                 } else {
-                    showTemporaryToast('⚠️ QR Code Not Verified: ' + data.message, "danger", 5000);
-                }
-                if (isCameraMode && html5QrCode && html5QrCode.isScanning) {
-                    setTimeout(() => html5QrCode.resume(), 3000);
+                    showAlertBanner("SEQUENCE ORDER MISMATCH", data.message, false);
                 }
             }
         })
         .catch(err => {
             loader.remove();
             console.error(err);
-            alert('Verification connection failure.');
-            if (isCameraMode && html5QrCode && html5QrCode.isScanning) {
-                html5QrCode.resume();
-            }
+            showAlertBanner("CONNECTION ERROR", "Unable to connect to verification server. Please check internet connection.", false);
         });
     }
 
@@ -769,18 +807,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     html5QrCode.resume();
                 }
             } else {
-                alert('Logging Error: ' + data.message);
-                if (html5QrCode && html5QrCode.isScanning && manualContainer.style.display === 'none') {
-                    html5QrCode.resume();
-                }
+                scanResultCard.style.display = 'none';
+                showAlertBanner("LOGGING FAILED", data.message, false);
             }
         })
         .catch(err => {
             console.error(err);
-            alert('Connection failure.');
-            if (html5QrCode && html5QrCode.isScanning && manualContainer.style.display === 'none') {
-                html5QrCode.resume();
-            }
+            scanResultCard.style.display = 'none';
+            showAlertBanner("CONNECTION FAILURE", "Failed to communicate with production server.", false);
         })
         .finally(() => {
             passBtn.disabled = false;

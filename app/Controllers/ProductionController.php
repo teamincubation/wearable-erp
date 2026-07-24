@@ -979,6 +979,11 @@ class ProductionController extends Controller {
             } catch (\Exception $ex) {}
         }
 
+        // Auto-heal started_at column in production_orders
+        try {
+            $db->exec("ALTER TABLE `production_orders` ADD COLUMN `started_at` TIMESTAMP NULL DEFAULT NULL AFTER `end_date`");
+        } catch (\Exception $e) {}
+
         $stmt = $db->prepare("SELECT * FROM production_orders WHERE id = ? AND company_id = ? AND deleted_at IS NULL");
         $stmt->execute([$id, $companyId]);
         $batch = $stmt->fetch();
@@ -992,7 +997,7 @@ class ProductionController extends Controller {
         $db->prepare("UPDATE production_orders SET status = 'running', started_at = NOW(), updated_at = NOW() WHERE id = ?")->execute([$id]);
 
         AuditLog::log($companyId, Session::get('user_id'), 'start_production', 'ProductionOrder', (int)$id, null, null, "Started manufacturing batch: {$batch['production_no']}");
-        Session::setFlash('success', "Production batch #{$batch['production_no']} started successfully. WIP operations tracking is now active.");
+        Session::setFlash('success', "Production batch #{$batch['production_no']} started successfully. Work time duration counter is active from 0.");
         $this->redirect('company/production/orders');
     }
 

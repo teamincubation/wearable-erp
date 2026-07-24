@@ -54,14 +54,16 @@
                             $isStarted = ($o['status'] === 'running' || $o['status'] === 'in_progress' || !empty($o['started_at']));
                             
                             // Work duration counter
-                            $durationText = 'Not Started';
-                            if ($isStarted) {
-                                $startTs = strtotime($o['started_at'] ?: $o['created_at']);
+                            $durationText = 'Not Started Yet';
+                            if ($isStarted && !empty($o['started_at'])) {
+                                $startTs = strtotime($o['started_at']);
                                 $diffSecs = max(0, time() - $startTs);
                                 $days = floor($diffSecs / 86400);
                                 $hrs = floor(($diffSecs % 86400) / 3600);
                                 $mins = floor(($diffSecs % 3600) / 60);
                                 $durationText = ($days > 0 ? "{$days}d " : "") . "{$hrs}h {$mins}m";
+                            } elseif ($isStarted) {
+                                $durationText = "0h 0m";
                             }
                             ?>
                             <tr class="production-table-row" 
