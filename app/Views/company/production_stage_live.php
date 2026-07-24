@@ -1,81 +1,90 @@
-<div id="live-dashboard-container" class="container-fluid py-4 min-vh-100 px-3 px-md-4" data-theme="dark" style="font-family: 'Outfit', sans-serif; transition: background 0.4s ease, color 0.4s ease;">
+<div id="live-dashboard-container" class="container-fluid py-4 min-vh-100 px-3 px-md-4" data-theme="dark" style="font-family: 'Outfit', sans-serif; transition: background 0.3s ease, color 0.3s ease;">
     
     <!-- Theme Switcher & Dashboard CSS Custom Properties -->
     <style>
         :root, [data-theme="dark"] {
-            --bg-main: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
-            --body-bg: #0f172a;
-            --card-bg: #1e293b;
+            --bg-main: #0b0f19;
+            --card-bg: #151c2c;
             --card-border: rgba(255, 255, 255, 0.08);
+            --card-hover-border: rgba(99, 102, 241, 0.4);
             --text-main: #f8fafc;
             --text-sub: #94a3b8;
             --text-muted: #64748b;
             --input-bg: #0f172a;
             --input-border: #334155;
-            --input-text: #f8fafc;
-            --toolbar-bg: #090d16;
-            --toolbar-border: #1e293b;
+            --input-text: #ffffff;
+            --input-placeholder: #64748b;
+            --toolbar-bg: #111827;
+            --toolbar-border: #1f2937;
             --table-header-bg: #0f172a;
-            --table-row-border: rgba(255, 255, 255, 0.05);
-            --neon-green: #4ade80;
-            --neon-cyan: #22d3ee;
-            --neon-amber: #fbbf24;
+            --table-row-border: rgba(255, 255, 255, 0.06);
+            --color-primary: #3b82f6;
+            --color-success: #10b981;
+            --color-warning: #f59e0b;
+            --color-danger: #ef4444;
+            --color-info: #06b6d4;
         }
 
         [data-theme="sepia"] {
-            --bg-main: linear-gradient(135deg, #2d241e 0%, #43352b 100%);
-            --body-bg: #2d241e;
-            --card-bg: #3c3027;
+            --bg-main: #231c17;
+            --card-bg: #322923;
             --card-border: rgba(255, 248, 230, 0.12);
-            --text-main: #f5ebe0;
+            --card-hover-border: rgba(224, 159, 103, 0.5);
+            --text-main: #fceade;
             --text-sub: #d5c5b5;
-            --text-muted: #aa9785;
-            --input-bg: #2b221b;
-            --input-border: #574639;
-            --input-text: #f5ebe0;
-            --toolbar-bg: #1e1713;
-            --toolbar-border: #43352b;
-            --table-header-bg: #2b221b;
+            --text-muted: #a39281;
+            --input-bg: #211914;
+            --input-border: #4d3f35;
+            --input-text: #ffffff;
+            --input-placeholder: #a39281;
+            --toolbar-bg: #1c1612;
+            --toolbar-border: #3d3129;
+            --table-header-bg: #271f1a;
             --table-row-border: rgba(255, 248, 230, 0.08);
-            --neon-green: #86efac;
-            --neon-cyan: #67e8f9;
-            --neon-amber: #fde047;
+            --color-primary: #e09f67;
+            --color-success: #84cc16;
+            --color-warning: #eab308;
+            --color-danger: #f87171;
+            --color-info: #38bdf8;
         }
 
         [data-theme="bright"] {
-            --bg-main: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-            --body-bg: #f8fafc;
+            --bg-main: #f1f5f9;
             --card-bg: #ffffff;
             --card-border: #e2e8f0;
+            --card-hover-border: #3b82f6;
             --text-main: #0f172a;
             --text-sub: #475569;
             --text-muted: #64748b;
-            --input-bg: #f1f5f9;
+            --input-bg: #f8fafc;
             --input-border: #cbd5e1;
             --input-text: #0f172a;
+            --input-placeholder: #94a3b8;
             --toolbar-bg: #ffffff;
             --toolbar-border: #cbd5e1;
-            --table-header-bg: #f1f5f9;
+            --table-header-bg: #f8fafc;
             --table-row-border: #e2e8f0;
-            --neon-green: #16a34a;
-            --neon-cyan: #0284c7;
-            --neon-amber: #d97706;
+            --color-primary: #2563eb;
+            --color-success: #059669;
+            --color-warning: #d97706;
+            --color-danger: #dc2626;
+            --color-info: #0284c7;
         }
 
         #live-dashboard-container {
-            background: var(--bg-main) !important;
+            background-color: var(--bg-main) !important;
             color: var(--text-main) !important;
         }
 
         .live-card {
-            background: var(--card-bg) !important;
+            background-color: var(--card-bg) !important;
             border: 1px solid var(--card-border) !important;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-            transition: all 0.3s ease;
+            border-radius: 14px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+            transition: border-color 0.25s ease, transform 0.25s ease;
         }
         .live-card:hover {
-            border-color: rgba(99, 102, 241, 0.4) !important;
+            border-color: var(--card-hover-border) !important;
             transform: translateY(-2px);
         }
 
@@ -83,22 +92,30 @@
         .text-dash-sub { color: var(--text-sub) !important; }
         .text-dash-muted { color: var(--text-muted) !important; }
 
-        .stat-icon {
-            width: 48px;
-            height: 48px;
+        /* Icon Badge Styles */
+        .icon-badge {
+            width: 44px;
+            height: 44px;
+            min-width: 44px;
             border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.35rem;
+            font-size: 1.25rem;
+            line-height: 1;
+            background: transparent;
         }
+        .icon-badge-primary { background: rgba(59, 130, 246, 0.15) !important; color: var(--color-primary) !important; }
+        .icon-badge-success { background: rgba(16, 185, 129, 0.15) !important; color: var(--color-success) !important; }
+        .icon-badge-warning { background: rgba(245, 158, 11, 0.15) !important; color: var(--color-warning) !important; }
+        .icon-badge-danger { background: rgba(239, 68, 68, 0.15) !important; color: var(--color-danger) !important; }
 
         .animate-pulse-slow {
-            animation: pulse-slow 3s infinite;
+            animation: pulse-slow 2.5s infinite;
         }
         @keyframes pulse-slow {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+            50% { opacity: 0.4; }
         }
 
         .font-outfit { font-family: 'Outfit', sans-serif; }
@@ -107,31 +124,46 @@
         .theme-btn-group .btn {
             font-size: 11px;
             font-weight: 600;
-            padding: 4px 10px;
+            padding: 4px 11px;
             border-radius: 20px;
             transition: all 0.2s ease;
         }
         .theme-btn-group .btn.active {
-            box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
         }
 
         /* Minimal QR Bar */
         .qr-lookup-bar {
-            background: var(--card-bg);
-            border: 1.5px solid var(--card-border);
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
         }
         .qr-lookup-input {
-            background: var(--input-bg) !important;
+            background-color: var(--input-bg) !important;
             border: 1px solid var(--input-border) !important;
             color: var(--input-text) !important;
-            border-radius: 10px;
+            border-radius: 8px;
             font-size: 13.5px;
         }
+        .qr-lookup-input::placeholder {
+            color: var(--input-placeholder) !important;
+            opacity: 0.8;
+        }
         .qr-lookup-input:focus {
-            box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
-            border-color: #3b82f6 !important;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3) !important;
+            border-color: var(--color-primary) !important;
+        }
+
+        /* Custom Scrollbar for Real-Time Activity Feed */
+        .custom-scroll::-webkit-scrollbar {
+            width: 5px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: var(--input-border);
+            border-radius: 10px;
         }
     </style>
 
@@ -139,8 +171,8 @@
     <div class="row align-items-center mb-4 g-3">
         <div class="col-lg-6 col-12">
             <div class="d-flex align-items-center gap-2.5">
-                <div class="bg-primary text-white rounded-pill px-3 py-1 fw-bold text-uppercase d-inline-flex align-items-center gap-1.5 animate-pulse-slow" style="font-size: 0.7rem; letter-spacing: 0.05em;">
-                    <span class="d-inline-block rounded-circle bg-white" style="width: 7px; height: 7px;"></span> Live Monitoring
+                <div class="bg-primary text-white rounded-pill px-3 py-1 fw-bold text-uppercase d-inline-flex align-items-center gap-1.5 animate-pulse-slow" style="font-size: 0.68rem; letter-spacing: 0.05em;">
+                    <span class="d-inline-block rounded-circle bg-white" style="width: 6px; height: 6px;"></span> Live Monitoring
                 </div>
                 <h3 class="m-0 fw-bold font-outfit text-dash-main" style="letter-spacing: -0.02em;">Operations Stage Live Dashboard</h3>
             </div>
@@ -171,7 +203,7 @@
                 <!-- Clock & Refresh Timer -->
                 <div class="d-inline-flex align-items-center gap-2 px-2" style="font-size: 12px;">
                     <span class="fw-semibold text-dash-sub font-monospace" id="refresh-countdown">30s</span>
-                    <button onclick="window.location.reload();" class="btn btn-sm btn-outline-secondary rounded-circle p-1 text-dash-sub border-0" title="Refresh Now">
+                    <button onclick="window.location.reload();" class="btn btn-sm btn-link p-0 text-dash-sub text-decoration-none" title="Refresh Now">
                         <i class="fa-solid fa-arrows-rotate"></i>
                     </button>
                     <span class="fw-bold text-dash-main font-monospace ms-1" id="live-clock">00:00:00 AM</span>
@@ -180,25 +212,21 @@
         </div>
     </div>
 
-    <!-- MAIN METRICS PANEL (4 CLEAN EQUAL CARDS) -->
+    <!-- MAIN METRICS PANEL (4 CLEAN EQUAL CARDS WITH Crisp ICONS) -->
     <?php
-        // Calculate key metrics
         $targetQty = (int)$order['target_qty'];
         
-        // Cumulative output of last active stage
         $lastStage = end($stagesList);
         reset($stagesList);
         $finishedQty = isset($wip_summary[$lastStage]) ? (int)$wip_summary[$lastStage]['out'] : 0;
         $completionPct = $targetQty > 0 ? round(($finishedQty / $targetQty) * 100, 1) : 0;
 
-        // Sum of all waste counts
         $totalWaste = 0;
         foreach ($stagesList as $stg) {
             $totalWaste += (isset($wip_summary[$stg]) ? (int)$wip_summary[$stg]['waste'] : 0);
         }
         $wastePct = $targetQty > 0 ? round(($totalWaste / $targetQty) * 100, 1) : 0;
 
-        // Latest Live WIP Activity
         $latestLog = $recentLogs[0] ?? null;
         $tzStr = $tenantTimezone ?? 'Asia/Kolkata';
     ?>
@@ -210,7 +238,7 @@
                     <span class="text-dash-sub small fw-bold text-uppercase d-block mb-1" style="font-size: 0.68rem; letter-spacing: 0.05em;">Production Target</span>
                     <h3 class="m-0 fw-bold font-outfit text-dash-main"><?= number_format($targetQty) ?> <span class="fs-6 fw-normal text-dash-sub">pcs</span></h3>
                 </div>
-                <div class="stat-icon bg-primary bg-opacity-15 text-primary">
+                <div class="icon-badge icon-badge-primary">
                     <i class="fa-solid fa-bullseye"></i>
                 </div>
             </div>
@@ -218,12 +246,12 @@
 
         <!-- 2. Packaged / Completed Card -->
         <div class="col-xl-3 col-sm-6">
-            <div class="live-card p-3.5 h-100 d-flex align-items-center justify-content-between" style="border-left: 4px solid #10b981 !important;">
+            <div class="live-card p-3.5 h-100 d-flex align-items-center justify-content-between" style="border-left: 4px solid var(--color-success) !important;">
                 <div>
                     <span class="text-dash-sub small fw-bold text-uppercase d-block mb-1" style="font-size: 0.68rem; letter-spacing: 0.05em;">Packaged / Completed</span>
-                    <h3 class="m-0 fw-bold font-outfit text-success"><?= number_format($finishedQty) ?> <span class="fs-6 fw-normal text-dash-sub">(<?= $completionPct ?>%)</span></h3>
+                    <h3 class="m-0 fw-bold font-outfit" style="color: var(--color-success) !important;"><?= number_format($finishedQty) ?> <span class="fs-6 fw-normal text-dash-sub">(<?= $completionPct ?>%)</span></h3>
                 </div>
-                <div class="stat-icon bg-success bg-opacity-15 text-success">
+                <div class="icon-badge icon-badge-success">
                     <i class="fa-solid fa-circle-check"></i>
                 </div>
             </div>
@@ -231,7 +259,7 @@
 
         <!-- 3. LATEST LIVE WIP UPDATE CARD (REPLACES ACTIVE WIP STOCK CARD) -->
         <div class="col-xl-3 col-sm-6">
-            <div class="live-card p-3.5 h-100 d-flex flex-column justify-content-between" style="border-left: 4px solid #3b82f6 !important;">
+            <div class="live-card p-3.5 h-100 d-flex flex-column justify-content-between" style="border-left: 4px solid var(--color-primary) !important;">
                 <div>
                     <div class="d-flex justify-content-between align-items-center mb-1">
                         <span class="text-dash-sub small fw-bold text-uppercase d-block" style="font-size: 0.68rem; letter-spacing: 0.05em;">Latest Live WIP Update</span>
@@ -242,11 +270,11 @@
                     </div>
                     <?php if ($latestLog): ?>
                         <h6 class="m-0 fw-bold font-outfit text-dash-main text-truncate" style="font-size: 14px;">
-                            Stage: <span class="text-primary text-uppercase font-monospace"><?= str_replace('_', ' ', $latestLog['stage']) ?></span>
+                            Stage: <span class="text-uppercase font-monospace" style="color: var(--color-primary) !important;"><?= str_replace('_', ' ', $latestLog['stage']) ?></span>
                         </h6>
                         <div class="text-dash-sub small mt-1" style="font-size: 11.5px; line-height: 1.35;">
                             By: <strong class="text-dash-main"><?= htmlspecialchars($latestLog['employee_name'] ?: 'Operator') ?></strong> | 
-                            Out: <strong class="text-success font-monospace"><?= (int)($latestLog['qty_out'] ?: 1) ?> pcs (<?= strtoupper($latestLog['status'] ?? 'PASS') ?>)</strong>
+                            Out: <strong class="font-monospace" style="color: var(--color-success);"><?= (int)($latestLog['qty_out'] ?: 1) ?> pcs (<?= strtoupper($latestLog['status'] ?? 'PASS') ?>)</strong>
                         </div>
                     <?php else: ?>
                         <h6 class="m-0 fw-bold text-dash-sub font-outfit fs-6 py-1">Awaiting First Scan</h6>
@@ -266,12 +294,12 @@
 
         <!-- 4. Cumulative Waste Card -->
         <div class="col-xl-3 col-sm-6">
-            <div class="live-card p-3.5 h-100 d-flex align-items-center justify-content-between" style="border-left: 4px solid #ef4444 !important;">
+            <div class="live-card p-3.5 h-100 d-flex align-items-center justify-content-between" style="border-left: 4px solid var(--color-danger) !important;">
                 <div>
                     <span class="text-dash-sub small fw-bold text-uppercase d-block mb-1" style="font-size: 0.68rem; letter-spacing: 0.05em;">Cumulative Waste</span>
-                    <h3 class="m-0 fw-bold font-outfit text-danger"><?= number_format($totalWaste) ?> <span class="fs-6 fw-normal text-dash-sub">(<?= $wastePct ?>%)</span></h3>
+                    <h3 class="m-0 fw-bold font-outfit" style="color: var(--color-danger) !important;"><?= number_format($totalWaste) ?> <span class="fs-6 fw-normal text-dash-sub">(<?= $wastePct ?>%)</span></h3>
                 </div>
-                <div class="stat-icon bg-danger bg-opacity-15 text-danger">
+                <div class="icon-badge icon-badge-danger">
                     <i class="fa-solid fa-dumpster-fire"></i>
                 </div>
             </div>
@@ -282,8 +310,8 @@
     <div class="qr-lookup-bar p-3 mb-4">
         <form id="track-qr-unit-form" class="row align-items-center g-2">
             <div class="col-md-4 col-12">
-                <div class="d-flex align-items-center gap-2">
-                    <div class="stat-icon bg-primary text-white" style="width: 38px; height: 38px; font-size: 1.1rem; border-radius: 10px;">
+                <div class="d-flex align-items-center gap-2.5">
+                    <div class="icon-badge icon-badge-primary" style="width: 36px; height: 36px; min-width: 36px; font-size: 1rem; border-radius: 10px;">
                         <i class="fa-solid fa-qrcode"></i>
                     </div>
                     <div>
@@ -294,10 +322,10 @@
             </div>
             <div class="col-md-6 col-8">
                 <div class="input-group input-group-sm">
-                    <span class="input-group-text border-end-0 bg-transparent text-primary" style="border-color: var(--input-border); border-top-left-radius: 10px; border-bottom-left-radius: 10px;">
+                    <span class="input-group-text border-end-0 bg-transparent text-primary" style="border-color: var(--input-border); border-top-left-radius: 8px; border-bottom-left-radius: 8px;">
                         <i class="fa-solid fa-barcode"></i>
                     </span>
-                    <input type="text" id="track-qr-unit-input" class="form-control qr-lookup-input font-monospace fw-bold ps-1" placeholder="Type or scan QR Code / Serial No e.g. BATCH-03-S-0001" required style="border-top-left-radius: 0; border-bottom-left-radius: 0;">
+                    <input type="text" id="track-qr-unit-input" class="form-control qr-lookup-input font-monospace fw-bold ps-1" placeholder="Scan or type QR Code e.g. BATCH-03-S-0001" required style="border-top-left-radius: 0; border-bottom-left-radius: 0;">
                 </div>
             </div>
             <div class="col-md-2 col-4 text-end">
@@ -327,7 +355,7 @@
         <div class="col-lg-4 col-12">
             <div class="live-card p-4 h-100 d-flex flex-column">
                 <h6 class="mb-3 fw-bold font-outfit text-dash-main"><i class="fa-solid fa-clock-rotate-left text-info me-2"></i> Real-Time Activity Feed</h6>
-                <div class="flex-grow-1 overflow-y-auto pe-1" style="max-height: 300px;">
+                <div class="flex-grow-1 overflow-y-auto pe-1 custom-scroll" style="max-height: 300px;">
                     <?php if (!empty($recentLogs)): ?>
                         <div class="list-group list-group-flush bg-transparent">
                             <?php foreach ($recentLogs as $log): ?>
@@ -370,7 +398,7 @@
             <div class="live-card p-4">
                 <div class="d-flex align-items-center justify-content-between mb-3">
                     <h6 class="m-0 fw-bold font-outfit text-dash-main"><i class="fa-solid fa-list-check text-primary me-2"></i> Stage-Wise Pipeline Inventory Summary</h6>
-                    <span class="badge bg-light text-dark font-monospace small px-3 py-1 rounded-pill">Total Active Stages: <?= count($stagesList) ?></span>
+                    <span class="badge bg-secondary-subtle text-secondary font-monospace small px-3 py-1 rounded-pill">Total Active Stages: <?= count($stagesList) ?></span>
                 </div>
                 <div class="table-responsive border-0">
                     <table class="table table-hover mb-0 align-middle" style="color: var(--text-main); --bs-table-bg: transparent; --bs-table-border-color: var(--table-row-border);">
@@ -480,7 +508,7 @@
         const activeBtn = document.getElementById(`theme-${themeName}-btn`);
         if (activeBtn) activeBtn.classList.add('active');
 
-        // Update ChartColors
+        // Update Chart Colors
         if (window.liveChartInstance) {
             const isDark = (themeName === 'dark' || themeName === 'sepia');
             const textColor = isDark ? '#cbd5e1' : '#475569';
