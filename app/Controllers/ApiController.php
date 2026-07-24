@@ -221,6 +221,226 @@ class ApiController extends Controller {
     }
 
     /**
+     * Get Active Production Batches for Mobile Scanner Selection
+     * GET /api/v1/qr/batches
+     */
+    public function getQrBatches(Request $request, Response $response): void {
+        $this->setCorsHeaders();
+
+        $token = $this->extractToken($request);
+        $userData = $token ? $this->verifyApiToken($token) : null;
+
+        if (!$userData || empty($userData['company_id'])) {
+            $response->json([
+                'status' => 'error',
+                'message' => 'Unauthorized or missing company context.'
+            ], 401);
+            return;
+        }
+
+        $db = Database::getInstance();
+        $stmtBatches = $db->prepare("
+            SELECT pro.id, pro.production_no, s.style_no, s.name as style_name, c.name as buyer_name, pro.status
+            FROM production_orders pro
+            JOIN buyer_pos po ON pro.po_id = po.id
+            JOIN styles s ON po.style_id = s.id
+            JOIN contacts c ON po.buyer_id = c.id
+            WHERE pro.company_id = ? AND pro.status IN ('running', 'in_progress', 'pending') AND pro.deleted_at IS NULL
+            ORDER BY pro.id DESC
+        ");
+        $stmtBatches->execute([$userData['company_id']]);
+        $batches = $stmtBatches->fetchAll() ?: [];
+
+        $response->json([
+            'status' => 'success',
+            'data' => array_map(function($b) {
+                return [
+                    'id' => (int)$b['id'],
+                    'production_no' => $b['production_no'],
+                    'style_no' => $b['style_no'],
+                    'style_name' => $b['style_name'],
+                    'buyer_name' => $b['buyer_name'],
+                    'status' => $b['status']
+                ];
+            }, $batches)
+        ], 200);
+    }
+
+    /**
+     * Get Company WIP Stages for Mobile Scanner
+     * GET /api/v1/qr/stages
+     */
+    public function getQrStages(Request $request, Response $response): void {
+        $this->setCorsHeaders();
+
+        $token = $this->extractToken($request);
+        $userData = $token ? $this->verifyApiToken($token) : null;
+
+        if (!$userData || empty($userData['company_id'])) {
+            $response->json([
+                'status' => 'error',
+                'message' => 'Unauthorized or missing company context.'
+            ], 401);
+            return;
+        }
+
+        $stages = \App\Controllers\CompanyController::getCompanyWipStages((int)$userData['company_id']);
+
+        $response->json([
+            'status' => 'success',
+            'data' => $stages
+        ], 200);
+    }
+
+    /**
+     * Submit Scanned QR Code Entry from Mobile App
+     * POST /api/v1/qr/scan
+     */
+    public function logQrScan(Request $request, Response $response): void {
+        $this->setCorsHeaders();
+
+        $token = $this->extractToken($request);
+        $userData = $token ? $this->verifyApiToken($token) : null;
+
+        if (!$userData || empty($userData['company_id'])) {
+            $response->json([
+                'status' => 'error',
+                'message' => 'Unauthorized or missing company context.'
+            ], 401);
+            return;
+        }
+
+        $companyId = (int)$userData['company_id'];
+        $userId = (int)$userData['user_id'];
+
+        $db = Database::getInstance();
+
+        // Enforce company timezone
+        $stmtTz = $db->prepare("SELECT timezone FROM companies WHERE id = ?");
+        $stmtTz->execute([$companyId]);
+        $companyTz = $stmtTz->fetchColumn() ?: 'Asia/Kolkata';
+        date_default_timezone_set($companyTz);
+
+        $qrCode = trim((string)$request->get('qr_code', ''));
+        $stage = trim((string)$request->get('stage', ''));
+        $status = strtolower(trim((string)$request->get('status', 'pass')));
+        if ($status !== 'pass' && $status !== 'fail') {
+            $status = 'pass';
+        }
+        $durationSeconds = max(1, (int)$request->get('duration_seconds', 10));
+
+        if (empty($qrCode) || empty($stage)) {
+            $response->json([
+                'status' => 'error',
+                'message' => 'Scanned QR code and WIP stage are required.'
+            ], 400);
+            return;
+        }
+
+        // 1. Duplicate check: Prevent logging the same QR code twice under the same WIP stage
+        $stmtCheckAlready = $db->prepare("
+            SELECT id FROM production_stage_logs 
+            WHERE company_id = ? AND qr_code = ? AND stage = ? 
+            LIMIT 1
+        ");
+        $stmtCheckAlready->execute([$companyId, $qrCode, $stage]);
+        if ($stmtCheckAlready->fetchColumn()) {
+            $formattedStage = strtoupper(str_replace('_', ' ', $stage));
+            $response->json([
+                'status' => 'already_validated',
+                'message' => "This QR Code ({$qrCode}) has ALREADY been validated in stage '{$formattedStage}'."
+            ], 409);
+            return;
+        }
+
+        // 2. Parse QR Code tag (Format: [BATCH_NO]-[SIZE]-[SERIAL] or raw QR string)
+        $parts = explode('-', $qrCode);
+        $serial = 0;
+        $size = 'FREE';
+        $batchNo = $qrCode;
+
+        if (count($parts) >= 3) {
+            $serial = (int)array_pop($parts);
+            $size = array_pop($parts);
+            $batchNo = implode('-', $parts);
+        }
+
+        // Fetch production order details
+        $stmtBatch = $db->prepare("SELECT * FROM production_orders WHERE production_no = ? AND company_id = ? AND deleted_at IS NULL LIMIT 1");
+        $stmtBatch->execute([$batchNo, $companyId]);
+        $batch = $stmtBatch->fetch();
+
+        if (!$batch) {
+            // Fallback lookup: Search any active order if raw batch search failed
+            $stmtBatchFallback = $db->prepare("SELECT * FROM production_orders WHERE company_id = ? AND status IN ('running', 'in_progress', 'pending') AND deleted_at IS NULL ORDER BY id DESC LIMIT 1");
+            $stmtBatchFallback->execute([$companyId]);
+            $batch = $stmtBatchFallback->fetch();
+        }
+
+        if (!$batch) {
+            $response->json([
+                'status' => 'error',
+                'message' => "Production batch for QR code '{$qrCode}' was not found."
+            ], 404);
+            return;
+        }
+
+        // Map Pass/Fail logic
+        $qtyIn = 1;
+        $qtyOut = ($status === 'pass') ? 1 : 0;
+        $wasteQty = ($status === 'pass') ? 0 : 1;
+
+        $nowTs = time();
+        $endTime = date('Y-m-d H:i:s', $nowTs);
+        $startTime = date('Y-m-d H:i:s', $nowTs - $durationSeconds);
+        $durationMinutes = (int)max(1, ceil($durationSeconds / 60));
+
+        try {
+            $stmtLog = $db->prepare("
+                INSERT INTO production_stage_logs 
+                (company_id, production_order_id, stage, employee_id, qty_in, qty_out, waste_qty, start_time, end_time, duration_minutes, created_by, qr_code)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ");
+            $stmtLog->execute([
+                $companyId,
+                $batch['id'],
+                $stage,
+                $userId,
+                $qtyIn,
+                $qtyOut,
+                $wasteQty,
+                $startTime,
+                $endTime,
+                $durationMinutes,
+                $userId,
+                $qrCode
+            ]);
+
+            // Update batch status to running if pending
+            if (($batch['status'] ?? '') === 'pending') {
+                $db->prepare("UPDATE production_orders SET status = 'running' WHERE id = ?")->execute([$batch['id']]);
+            }
+
+            $response->json([
+                'status' => 'success',
+                'message' => "QR Code ({$qrCode}) logged successfully under stage '" . ucfirst(str_replace('_', ' ', $stage)) . "'.",
+                'data' => [
+                    'qr_code' => $qrCode,
+                    'stage' => $stage,
+                    'status' => $status,
+                    'batch_no' => $batch['production_no'] ?? $batchNo,
+                    'logged_at' => $endTime
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            $response->json([
+                'status' => 'error',
+                'message' => 'Failed to record QR scan: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Helper: Generate a signed token string
      */
     private function generateApiToken(array $user): string {
