@@ -78,6 +78,11 @@
             <h5 class="m-0 fw-bold"><i class="fa-solid fa-qrcode text-primary me-2"></i> QR Code Scanner Hub</h5>
             <small class="text-secondary" style="font-size: 11px;">Garment Floor Scan Unit</small>
             
+            <!-- Logout Button (visible in setup view) -->
+            <a href="<?= base_url('logout') ?>" id="header-logout-btn" class="btn btn-sm btn-outline-danger text-white border-white-50 rounded-pill px-2.5 position-absolute end-0 top-50 translate-middle-y me-3" style="font-size: 11px;">
+                <i class="fa-solid fa-right-from-bracket me-1"></i> Logout
+            </a>
+
             <!-- Complete button (visible only in scanner view) -->
             <button type="button" id="complete-btn" class="btn btn-sm btn-outline-danger rounded-pill px-3 position-absolute end-0 top-50 translate-middle-y me-3" style="display: none; font-size: 11px;">
                 <i class="fa-solid fa-circle-check me-1"></i> Complete
@@ -125,10 +130,13 @@
                     <i class="fa-solid fa-play me-2"></i> Start Work / Scan
                 </button>
                 
-                <div class="mt-4 text-center">
-                    <span class="badge bg-light text-secondary rounded-pill px-3 py-2">
+                <div class="mt-4 text-center d-flex align-items-center justify-content-center gap-2">
+                    <span class="badge bg-light text-secondary rounded-pill px-3 py-2 border">
                         Logged User: <strong><?= htmlspecialchars(\App\Core\Session::get('user_name')) ?></strong>
                     </span>
+                    <a href="<?= base_url('logout') ?>" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1.5 fw-bold shadow-sm" style="font-size: 12px;">
+                        <i class="fa-solid fa-right-from-bracket me-1"></i> Logout
+                    </a>
                 </div>
             </div>
 
@@ -775,6 +783,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
+    // Strict Back-Navigation Lockout for QR Scan Unit Operators
+    history.pushState(null, null, location.href);
+    window.onpopstate = function () {
+        history.pushState(null, null, location.href);
+    };
+
     window.addEventListener('pagehide', function() { stopScanner(true); });
     window.addEventListener('beforeunload', function() { stopScanner(true); });
 });
