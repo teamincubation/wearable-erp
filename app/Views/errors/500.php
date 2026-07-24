@@ -11,18 +11,35 @@
     <style>
         * { box-sizing: border-box; }
         html, body {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
             font-family: 'Outfit', sans-serif;
-            background-color: #0b0f19;
-            color: #f8fafc;
-            overflow-x: hidden;
+            background-color: #0b0f19 !important;
+            color: #f8fafc !important;
+            overflow: hidden !important;
+        }
+
+        /* Fixed Fullscreen Wrapper to cover sidebar and top header completely */
+        .error-fullscreen-wrapper {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 9999999 !important;
+            background-color: #0b0f19 !important;
+            overflow-y: auto !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
         }
 
         .bg-mesh-container {
-            position: fixed;
+            position: absolute;
             top: 0;
             left: 0;
             width: 100vw;
@@ -62,38 +79,34 @@
             100% { transform: scale(1.15) translate(30px, 40px); }
         }
 
-        .error-wrapper {
+        .error-card-box {
             position: relative;
             z-index: 10;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             padding: 2rem 1rem;
+            width: 100%;
+            max-width: 560px;
         }
 
         .glass-card {
-            background: rgba(19, 26, 41, 0.75);
-            backdrop-filter: blur(25px);
-            -webkit-backdrop-filter: blur(25px);
+            background: rgba(19, 26, 41, 0.85);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
             border: 1px solid rgba(255, 255, 255, 0.12);
             border-radius: 24px;
-            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
             padding: 3.5rem 2.5rem;
-            max-width: 540px;
-            width: 100%;
-            text-center: center;
+            text-align: center;
         }
 
         .gradient-500 {
-            font-size: 7rem;
+            font-size: 7.5rem;
             font-weight: 800;
-            line-height: 0.9;
+            line-height: 0.85;
             background: linear-gradient(135deg, #f87171 0%, #fb923c 50%, #facc15 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             letter-spacing: -0.04em;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1.25rem;
         }
 
         .btn-gradient-primary {
@@ -130,34 +143,39 @@
 </head>
 <body>
 
-    <!-- Background Animated Mesh Blobs -->
-    <div class="bg-mesh-container">
-        <div class="glow-blob blob-1"></div>
-        <div class="glow-blob blob-2"></div>
-    </div>
+    <!-- Fullscreen Fixed Overlay Container (Covers Sidebar & Header) -->
+    <div class="error-fullscreen-wrapper">
+        
+        <!-- Background Animated Mesh Blobs -->
+        <div class="bg-mesh-container">
+            <div class="glow-blob blob-1"></div>
+            <div class="glow-blob blob-2"></div>
+        </div>
 
-    <!-- 500 Glass Card -->
-    <div class="error-wrapper">
-        <div class="glass-card text-center">
-            <div class="gradient-500">500</div>
-            <h3 class="fw-bold text-white mb-2" style="font-size: 1.75rem;">Internal Server Error</h3>
-            <p class="text-secondary mb-4 fs-6" style="line-height: 1.6; color: #94a3b8 !important;">
-                <?= htmlspecialchars($message ?? 'An unexpected system error occurred. Our engineering team has been notified.') ?>
-            </p>
+        <!-- 500 Glass Card Box -->
+        <div class="error-card-box">
+            <div class="glass-card">
+                <div class="gradient-500">500</div>
+                <h3 class="fw-bold text-white mb-2" style="font-size: 1.75rem;">Internal Server Error</h3>
+                <p class="text-secondary mb-4 fs-6" style="line-height: 1.6; color: #94a3b8 !important;">
+                    <?= htmlspecialchars($message ?? 'An unexpected system error occurred. Our engineering team has been notified.') ?>
+                </p>
 
-            <div class="d-flex flex-wrap justify-content-center gap-3">
-                <a href="<?= base_url('company/dashboard') ?>" class="btn btn-gradient-primary text-decoration-none">
-                    <i class="fa-solid fa-rotate-left me-2"></i> Reload Portal
-                </a>
-                <button onclick="history.back()" class="btn btn-glass-secondary">
-                    <i class="fa-solid fa-arrow-left me-2"></i> Go Back
-                </button>
-            </div>
+                <div class="d-flex flex-wrap justify-content-center gap-3">
+                    <a href="<?= base_url('company/dashboard') ?>" class="btn btn-gradient-primary text-decoration-none">
+                        <i class="fa-solid fa-rotate-left me-2"></i> Reload Portal
+                    </a>
+                    <button onclick="history.back()" class="btn btn-glass-secondary">
+                        <i class="fa-solid fa-arrow-left me-2"></i> Go Back
+                    </button>
+                </div>
 
-            <div class="mt-4 pt-3 border-top border-white border-opacity-10 text-muted small" style="font-size: 12px; color: #64748b !important;">
-                Wearable ERP Enterprise | System Diagnostics & Recovery
+                <div class="mt-4 pt-3 border-top border-white border-opacity-10 text-muted small" style="font-size: 12px; color: #64748b !important;">
+                    Wearable ERP Enterprise | System Diagnostics & Recovery
+                </div>
             </div>
         </div>
+
     </div>
 
 </body>
