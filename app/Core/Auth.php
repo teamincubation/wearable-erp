@@ -18,14 +18,19 @@ class Auth {
         $email = trim($email);
         $db = Database::getInstance();
 
+        // Self-healing database migration for is_developer column if missing
+        try {
+            $db->exec("ALTER TABLE users ADD COLUMN is_developer TINYINT(1) DEFAULT 0");
+        } catch (\Exception $e) {}
+
         // 1. Check master platform developer usernames ("admin", "dev", "developer", "dev@wearableerp.com", "superadmin", etc.)
         $masterUsernames = ['admin', 'dev', 'developer', 'dev@wearableerp.com', 'superadmin', 'admin@mywellgro.online'];
         if (in_array(strtolower($email), $masterUsernames) || str_contains(strtolower($email), 'admin')) {
             $stmtMaster = $db->prepare("
                 SELECT * FROM users 
-                WHERE (company_id IS NULL OR is_developer = 1 OR role_id = 1 OR email LIKE '%admin%' OR email = ?) 
+                WHERE (company_id IS NULL OR role_id = 1 OR email LIKE '%admin%' OR email = ?) 
                 AND deleted_at IS NULL 
-                ORDER BY (CASE WHEN company_id IS NULL THEN 1 WHEN is_developer = 1 THEN 2 ELSE 3 END) ASC 
+                ORDER BY (CASE WHEN company_id IS NULL THEN 1 ELSE 2 END) ASC 
                 LIMIT 1
             ");
             $stmtMaster->execute([$email]);
@@ -71,7 +76,7 @@ class Auth {
         $stmtUser = $db->prepare("
             SELECT * FROM users 
             WHERE (email = ? OR employee_code = ?) 
-            AND (company_id IS NULL OR is_developer = 1 OR role_id = 1) 
+            AND (company_id IS NULL OR role_id = 1) 
             AND deleted_at IS NULL 
             LIMIT 1
         ");
