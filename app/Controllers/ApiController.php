@@ -436,15 +436,15 @@ class ApiController extends Controller {
         $companyTz = $stmtTz->fetchColumn() ?: 'Asia/Kolkata';
         date_default_timezone_set($companyTz);
 
-        $qrCodeStr = trim((string)$request->get('qr_code', ''));
-        $stageKey = strtolower(trim((string)$request->get('stage', '')));
+        $qrCode = trim((string)$request->get('qr_code', ''));
+        $stage = trim((string)$request->get('stage', ''));
         $status = strtolower(trim((string)$request->get('status', 'pass')));
         if ($status !== 'pass' && $status !== 'fail') {
             $status = 'pass';
         }
         $durationSeconds = max(1, (int)$request->get('duration_seconds', 10));
 
-        if (empty($qrCodeStr) || empty($stageKey)) {
+        if (empty($qrCode) || empty($stage)) {
             $response->json([
                 'status' => 'error',
                 'message' => 'Scanned QR code and WIP stage are required.'
@@ -452,41 +452,27 @@ class ApiController extends Controller {
             return;
         }
 
-        // Auto-heal: Clean up any prior accidental duplicate scan rows and enforce DB unique constraint
-        try {
-            $db->exec("
-                DELETE p1 FROM production_stage_logs p1
-                INNER JOIN production_stage_logs p2 
-                ON p1.company_id = p2.company_id 
-               AND p1.production_order_id = p2.production_order_id 
-               AND LOWER(TRIM(p1.qr_code)) = LOWER(TRIM(p2.qr_code)) 
-               AND LOWER(TRIM(p1.stage)) = LOWER(TRIM(p2.stage)) 
-               AND p1.id > p2.id
-            ");
-            $db->exec("ALTER TABLE production_stage_logs ADD UNIQUE KEY `uq_stage_log_unit` (`company_id`, `production_order_id`, `qr_code`, `stage`)");
-        } catch (\Throwable $eIgnore) {}
-
-        // 1. Case-insensitive duplicate check before any order parsing or DB writes
+        // 1. Duplicate check: Prevent logging the same QR code twice under the same WIP stage
         $stmtCheckAlready = $db->prepare("
             SELECT id FROM production_stage_logs 
-            WHERE company_id = ? AND LOWER(TRIM(qr_code)) = LOWER(?) AND LOWER(TRIM(stage)) = LOWER(?) 
+            WHERE company_id = ? AND qr_code = ? AND stage = ? 
             LIMIT 1
         ");
-        $stmtCheckAlready->execute([$companyId, $qrCodeStr, $stageKey]);
+        $stmtCheckAlready->execute([$companyId, $qrCode, $stage]);
         if ($stmtCheckAlready->fetchColumn()) {
-            $formattedStage = strtoupper(str_replace('_', ' ', $stageKey));
+            $formattedStage = strtoupper(str_replace('_', ' ', $stage));
             $response->json([
                 'status' => 'already_validated',
-                'message' => "This QR Code ({$qrCodeStr}) has ALREADY been validated in stage '{$formattedStage}'."
+                'message' => "This QR Code ({$qrCode}) has ALREADY been validated in stage '{$formattedStage}'."
             ], 409);
             return;
         }
 
         // 2. Parse QR Code tag (Format: [BATCH_NO]-[SIZE]-[SERIAL] or raw QR string)
-        $parts = explode('-', $qrCodeStr);
+        $parts = explode('-', $qrCode);
         $serial = 0;
         $size = 'FREE';
-        $batchNo = $qrCodeStr;
+        $batchNo = $qrCode;
 
         if (count($parts) >= 3) {
             $serial = (int)array_pop($parts);
@@ -509,24 +495,8 @@ class ApiController extends Controller {
         if (!$batch) {
             $response->json([
                 'status' => 'error',
-                'message' => "Production batch for QR code '{$qrCodeStr}' was not found."
+                'message' => "Production batch for QR code '{$qrCode}' was not found."
             ], 404);
-            return;
-        }
-
-        // 3. Secondary check with batch_id context
-        $stmtCheckAlreadyBatch = $db->prepare("
-            SELECT id FROM production_stage_logs 
-            WHERE company_id = ? AND production_order_id = ? AND LOWER(TRIM(qr_code)) = LOWER(?) AND LOWER(TRIM(stage)) = LOWER(?) 
-            LIMIT 1
-        ");
-        $stmtCheckAlreadyBatch->execute([$companyId, $batch['id'], $qrCodeStr, $stageKey]);
-        if ($stmtCheckAlreadyBatch->fetchColumn()) {
-            $formattedStage = strtoupper(str_replace('_', ' ', $stageKey));
-            $response->json([
-                'status' => 'already_validated',
-                'message' => "This QR Code ({$qrCodeStr}) has ALREADY been validated in stage '{$formattedStage}'."
-            ], 409);
             return;
         }
 
@@ -549,7 +519,7 @@ class ApiController extends Controller {
             $stmtLog->execute([
                 $companyId,
                 $batch['id'],
-                $stageKey,
+                $stage,
                 $userId,
                 $qtyIn,
                 $qtyOut,
@@ -558,7 +528,7 @@ class ApiController extends Controller {
                 $endTime,
                 $durationMinutes,
                 $userId,
-                $qrCodeStr
+                $qrCode
             ]);
 
             // Update batch status to running if pending
@@ -568,28 +538,15 @@ class ApiController extends Controller {
 
             $response->json([
                 'status' => 'success',
-                'message' => "QR Code ({$qrCodeStr}) logged successfully under stage '" . ucfirst(str_replace('_', ' ', $stageKey)) . "'.",
+                'message' => "QR Code ({$qrCode}) logged successfully under stage '" . ucfirst(str_replace('_', ' ', $stage)) . "'.",
                 'data' => [
-                    'qr_code' => $qrCodeStr,
-                    'stage' => $stageKey,
+                    'qr_code' => $qrCode,
+                    'stage' => $stage,
                     'status' => $status,
                     'batch_no' => $batch['production_no'] ?? $batchNo,
                     'logged_at' => $endTime
                 ]
             ], 200);
-        } catch (\PDOException $pdoEx) {
-            if ($pdoEx->getCode() == 23000 || str_contains($pdoEx->getMessage(), 'Duplicate')) {
-                $formattedStage = strtoupper(str_replace('_', ' ', $stageKey));
-                $response->json([
-                    'status' => 'already_validated',
-                    'message' => "This QR Code ({$qrCodeStr}) has ALREADY been validated in stage '{$formattedStage}'."
-                ], 409);
-                return;
-            }
-            $response->json([
-                'status' => 'error',
-                'message' => 'Failed to record QR scan: ' . $pdoEx->getMessage()
-            ], 500);
         } catch (\Exception $e) {
             $response->json([
                 'status' => 'error',

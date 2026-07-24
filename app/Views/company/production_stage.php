@@ -1,3 +1,6 @@
+<?php
+    $tzStr = $tenantTimezone ?? 'Asia/Kolkata';
+?>
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <a href="<?= base_url('company/production/orders') ?>" class="btn btn-sm btn-light border mb-2"><i class="fa-solid fa-arrow-left me-1"></i> Back to Batches</a>
