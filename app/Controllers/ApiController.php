@@ -287,6 +287,15 @@ class ApiController extends Controller {
     }
 
     /**
+     * Helper: Convert any WIP stage input into a standardized system key (e.g. "#1 Cutting" -> "cutting")
+     */
+    public function toStageKey(string $input): string {
+        $clean = preg_replace('/^(#|\d+\.|\d+\s*-\s*|\d+\s*:\s*|Stage\s*\d+\s*:?\s*)/i', '', trim($input));
+        $key = strtolower(trim((string)preg_replace('/[^a-zA-Z0-9]+/', '_', $clean), '_'));
+        return !empty($key) ? $key : 'general';
+    }
+
+    /**
      * Get Active Production Batches for Mobile Scanner Selection
      * GET /api/v1/qr/batches
      */
@@ -333,9 +342,8 @@ class ApiController extends Controller {
     }
 
     /**
-     * Get WIP Stages for a Specific Style, Batch, or Company Default
-     * GET /api/v1/qr/stages (Supports ?style_id=X, ?style_no=X, or ?batch_id=X)
-     * GET /api/v1/styles/{id}/stages
+     * Get WIP Stages for a Specific Style or Batch
+     * GET /api/v1/qr/stages (Supports ?batch_no=X, ?batch_id=X, ?style_id=X, ?style_no=X)
      */
     public function getQrStages(Request $request, Response $response, string $id = ''): void {
         $this->setCorsHeaders();
@@ -351,64 +359,69 @@ class ApiController extends Controller {
             return;
         }
 
-        $companyId = (int)$userData['company_id'];
         $db = Database::getInstance();
+        $companyId = (int)$userData['company_id'];
 
-        $styleIdOrNo = trim($id ?: (string)$request->get('style_id', '') ?: (string)$request->get('style_no', '') ?: (string)$request->get('style', ''));
-        $batchIdOrNo = trim((string)$request->get('batch_id', '') ?: (string)$request->get('production_no', '') ?: (string)$request->get('batch', ''));
+        $styleId = (int)($id ?: $request->get('style_id', 0));
+        $styleNo = trim((string)$request->get('style_no', ''));
+        $batchId = (int)$request->get('batch_id', 0);
+        $batchNo = trim((string)$request->get('batch_no', '') ?: (string)$request->get('production_no', ''));
 
-        $styleId = null;
-
-        // If batch_id or production_no is provided, resolve style_id from production order
-        if (!empty($batchIdOrNo)) {
+        if ($styleId === 0 && !empty($batchNo)) {
             $stmtBatch = $db->prepare("
                 SELECT po.style_id 
                 FROM production_orders pro 
                 JOIN buyer_pos po ON pro.po_id = po.id 
-                WHERE (pro.id = ? OR pro.production_no = ?) AND pro.company_id = ? AND pro.deleted_at IS NULL 
+                WHERE (pro.production_no = ? OR pro.id = ?) AND pro.company_id = ? AND pro.deleted_at IS NULL 
                 LIMIT 1
             ");
-            $stmtBatch->execute([is_numeric($batchIdOrNo) ? (int)$batchIdOrNo : 0, $batchIdOrNo, $companyId]);
-            $styleId = $stmtBatch->fetchColumn() ?: null;
+            $stmtBatch->execute([$batchNo, is_numeric($batchNo) ? (int)$batchNo : 0, $companyId]);
+            $styleId = (int)($stmtBatch->fetchColumn() ?: 0);
         }
 
-        // If style_id or style_no is provided directly
-        if (!$styleId && !empty($styleIdOrNo)) {
-            $stmtStyle = $db->prepare("SELECT id FROM styles WHERE (id = ? OR style_no = ?) AND company_id = ? AND deleted_at IS NULL LIMIT 1");
-            $stmtStyle->execute([is_numeric($styleIdOrNo) ? (int)$styleIdOrNo : 0, $styleIdOrNo, $companyId]);
-            $styleId = $stmtStyle->fetchColumn() ?: null;
+        if ($styleId === 0 && $batchId > 0) {
+            $stmtBatch = $db->prepare("
+                SELECT po.style_id 
+                FROM production_orders pro 
+                JOIN buyer_pos po ON pro.po_id = po.id 
+                WHERE pro.id = ? AND pro.company_id = ? AND pro.deleted_at IS NULL 
+                LIMIT 1
+            ");
+            $stmtBatch->execute([$batchId, $companyId]);
+            $styleId = (int)($stmtBatch->fetchColumn() ?: 0);
         }
 
-        $companyDefaultStages = \App\Controllers\CompanyController::getCompanyWipStages($companyId);
+        if ($styleId === 0 && !empty($styleNo)) {
+            $stmtStyle = $db->prepare("SELECT id FROM styles WHERE LOWER(style_no) = LOWER(?) AND company_id = ? AND deleted_at IS NULL LIMIT 1");
+            $stmtStyle->execute([$styleNo, $companyId]);
+            $styleId = (int)($stmtStyle->fetchColumn() ?: 0);
+        }
 
-        if ($styleId) {
-            $stmtTp = $db->prepare("SELECT stages_json FROM tech_packs WHERE style_id = ? AND company_id = ? AND deleted_at IS NULL LIMIT 1");
-            $stmtTp->execute([$styleId, $companyId]);
-            $rawStages = $stmtTp->fetchColumn();
-
-            if (!empty($rawStages)) {
-                $customStages = json_decode($rawStages, true);
-                if (is_array($customStages) && !empty($customStages)) {
-                    $response->json([
-                        'status' => 'success',
-                        'style_id' => (int)$styleId,
-                        'data' => $customStages
-                    ], 200);
-                    return;
+        $stagesList = [];
+        if ($styleId > 0) {
+            $stmt = $db->prepare("SELECT wip_stages FROM styles WHERE id = ? AND company_id = ? AND deleted_at IS NULL LIMIT 1");
+            $stmt->execute([$styleId, $companyId]);
+            $rawJson = $stmt->fetchColumn();
+            if ($rawJson) {
+                $decoded = json_decode($rawJson, true);
+                if (is_array($decoded)) {
+                    $stagesList = $decoded;
                 }
             }
         }
 
-        // Fallback to company default WIP stages
+        if (empty($stagesList)) {
+            $stagesList = ['Cutting', 'Stitching', 'Checking', 'Thread cutting', 'Ironing', 'Packing'];
+        }
+
         $response->json([
             'status' => 'success',
-            'style_id' => $styleId ? (int)$styleId : null,
-            'data' => $companyDefaultStages
+            'data' => array_values(array_filter($stagesList))
         ], 200);
     }
 
     /**
-     * Submit Scanned QR Code Entry from Mobile App
+     * Submit / Log Scanned QR Code Entry to Production Stage Logs
      * POST /api/v1/qr/scan
      */
     public function logQrScan(Request $request, Response $response): void {
@@ -426,7 +439,7 @@ class ApiController extends Controller {
         }
 
         $companyId = (int)$userData['company_id'];
-        $userId = (int)$userData['user_id'];
+        $userId = (int)($userData['id'] ?? $userData['user_id'] ?? 0);
 
         $db = Database::getInstance();
 
@@ -437,9 +450,8 @@ class ApiController extends Controller {
         date_default_timezone_set($companyTz);
 
         $qrCode = trim((string)($request->get('qr_code') ?: $request->get('qr', '')));
-        $rawStage = trim((string)($request->get('stage') ?: $request->get('stage_name') ?: $request->get('stage_key', '')));
-        $cleanStage = strtolower(trim(preg_replace('/^(#|\d+\.|\d+\s*-\s*|\d+\s*:\s*|Stage\s*\d+\s*:?\s*)/i', '', $rawStage)));
-        $stage = !empty($cleanStage) ? $cleanStage : (strtolower(trim($rawStage)) ?: 'general');
+        $rawStage = trim((string)($request->get('stage_key') ?: $request->get('stage') ?: $request->get('stage_name', '')));
+        $stageKey = $this->toStageKey($rawStage);
         
         $status = strtolower(trim((string)$request->get('status', 'pass')));
         if ($status !== 'pass' && $status !== 'fail') {
@@ -447,24 +459,24 @@ class ApiController extends Controller {
         }
         $durationSeconds = max(1, (int)$request->get('duration_seconds', 10));
 
-        if (empty($qrCode) || empty($stage)) {
+        if (empty($qrCode) || empty($stageKey)) {
             $response->json([
                 'status' => 'error',
-                'message' => 'Scanned QR code and WIP stage are required.'
+                'message' => 'Scanned QR code and WIP stage key are required.'
             ], 400);
             return;
         }
 
-        // 1. Duplicate check: Prevent logging the same QR code twice under the same WIP stage
+        // 1. Duplicate check: Prevent logging the same QR code twice under the same WIP stage key
         $stmtCheckAlready = $db->prepare("
             SELECT id FROM production_stage_logs 
             WHERE company_id = ? AND LOWER(TRIM(qr_code)) = LOWER(TRIM(?)) 
               AND (LOWER(TRIM(stage)) = ? OR LOWER(TRIM(stage)) = ?)
             LIMIT 1
         ");
-        $stmtCheckAlready->execute([$companyId, $qrCode, $stage, $rawStage]);
+        $stmtCheckAlready->execute([$companyId, $qrCode, $stageKey, $rawStage]);
         if ($stmtCheckAlready->fetchColumn()) {
-            $formattedStage = strtoupper(str_replace('_', ' ', $stage));
+            $formattedStage = strtoupper(str_replace('_', ' ', $stageKey));
             $response->json([
                 'status' => 'already_validated',
                 'already_validated' => true,
@@ -473,39 +485,44 @@ class ApiController extends Controller {
             return;
         }
 
-        // 2. Parse QR Code tag (Format: [BATCH_NO]-[SIZE]-[SERIAL] or raw QR string)
-        $parts = explode('-', $qrCode);
-        $serial = 0;
-        $size = 'FREE';
-        $batchNo = $qrCode;
-
-        if (count($parts) >= 3) {
-            $serial = (int)array_pop($parts);
-            $size = array_pop($parts);
-            $batchNo = implode('-', $parts);
+        // Find associated production batch order
+        $batchNo = trim((string)($request->get('batch_no') ?: $request->get('production_no', '')));
+        if (empty($batchNo)) {
+            $parts = explode('-', $qrCode);
+            if (count($parts) >= 3) {
+                $batchNo = implode('-', array_slice($parts, 0, count($parts) - 2));
+            } else {
+                $batchNo = $qrCode;
+            }
         }
 
-        // Fetch production order details
-        $stmtBatch = $db->prepare("SELECT * FROM production_orders WHERE production_no = ? AND company_id = ? AND deleted_at IS NULL LIMIT 1");
-        $stmtBatch->execute([$batchNo, $companyId]);
+        $stmtBatch = $db->prepare("
+            SELECT id, status 
+            FROM production_orders 
+            WHERE company_id = ? AND (production_no = ? OR id = ?) 
+            LIMIT 1
+        ");
+        $stmtBatch->execute([$companyId, $batchNo, is_numeric($batchNo) ? (int)$batchNo : 0]);
         $batch = $stmtBatch->fetch();
 
         if (!$batch) {
-            // Fallback lookup: Search any active order if raw batch search failed
-            $stmtBatchFallback = $db->prepare("SELECT * FROM production_orders WHERE company_id = ? AND status IN ('running', 'in_progress', 'pending') AND deleted_at IS NULL ORDER BY id DESC LIMIT 1");
-            $stmtBatchFallback->execute([$companyId]);
-            $batch = $stmtBatchFallback->fetch();
+            $stmtFirstBatch = $db->prepare("
+                SELECT id, status FROM production_orders 
+                WHERE company_id = ? AND deleted_at IS NULL 
+                ORDER BY id DESC LIMIT 1
+            ");
+            $stmtFirstBatch->execute([$companyId]);
+            $batch = $stmtFirstBatch->fetch();
         }
 
         if (!$batch) {
             $response->json([
                 'status' => 'error',
-                'message' => "Production batch for QR code '{$qrCode}' was not found."
+                'message' => 'No active production batch order found to associate with this QR scan.'
             ], 404);
             return;
         }
 
-        // Map Pass/Fail logic
         $qtyIn = 1;
         $qtyOut = ($status === 'pass') ? 1 : 0;
         $wasteQty = ($status === 'pass') ? 0 : 1;
@@ -524,7 +541,7 @@ class ApiController extends Controller {
             $stmtLog->execute([
                 $companyId,
                 $batch['id'],
-                $stage,
+                $stageKey,
                 $userId,
                 $qtyIn,
                 $qtyOut,
@@ -543,19 +560,13 @@ class ApiController extends Controller {
 
             $response->json([
                 'status' => 'success',
-                'message' => "QR Code ({$qrCode}) logged successfully under stage '" . ucfirst(str_replace('_', ' ', $stage)) . "'.",
-                'data' => [
-                    'qr_code' => $qrCode,
-                    'stage' => $stage,
-                    'status' => $status,
-                    'batch_no' => $batch['production_no'] ?? $batchNo,
-                    'logged_at' => $endTime
-                ]
+                'already_validated' => false,
+                'message' => "QR Code '{$qrCode}' logged as " . strtoupper($status) . " for stage '" . strtoupper(str_replace('_', ' ', $stageKey)) . "'."
             ], 200);
         } catch (\Exception $e) {
             $response->json([
                 'status' => 'error',
-                'message' => 'Failed to record QR scan: ' . $e->getMessage()
+                'message' => 'Failed to save scan record: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -588,9 +599,8 @@ class ApiController extends Controller {
         date_default_timezone_set($companyTz);
 
         $qrCode = trim((string)($request->get('qr_code') ?: $request->get('qr', '') ?: $request->get('tag', '')));
-        $rawStage = trim((string)($request->get('stage') ?: $request->get('stage_name') ?: $request->get('stage_key', '')));
-        $cleanTargetStage = strtolower(trim(preg_replace('/^(#|\d+\.|\d+\s*-\s*|\d+\s*:\s*|Stage\s*\d+\s*:?\s*)/i', '', $rawStage)));
-        $targetStage = !empty($cleanTargetStage) ? $cleanTargetStage : strtolower(trim($rawStage));
+        $rawStage = trim((string)($request->get('stage_key') ?: $request->get('stage') ?: $request->get('stage_name', '')));
+        $targetStageKey = !empty($rawStage) ? $this->toStageKey($rawStage) : '';
 
         if (empty($qrCode)) {
             $response->json([
@@ -613,10 +623,10 @@ class ApiController extends Controller {
         $rawLogs = $stmtLogs->fetchAll() ?: [];
 
         $isAlreadyScannedInTargetStage = false;
-        if (!empty($targetStage)) {
+        if (!empty($targetStageKey)) {
             foreach ($rawLogs as $l) {
-                $logStageClean = strtolower(trim(preg_replace('/^(#|\d+\.|\d+\s*-|\d+\s*:|Stage\s*\d+:?)\s*/i', '', $l['stage'])));
-                if ($logStageClean === $targetStage || strtolower(trim($l['stage'])) === $targetStage) {
+                $logKey = $this->toStageKey($l['stage']);
+                if ($logKey === $targetStageKey) {
                     $isAlreadyScannedInTargetStage = true;
                     break;
                 }
@@ -629,104 +639,84 @@ class ApiController extends Controller {
         $size = 'FREE';
         $batchNo = $qrCode;
 
-        if (count($parts) >= 3) {
-            $serial = (int)array_pop($parts);
-            $size = array_pop($parts);
-            $batchNo = implode('-', $parts);
+        if (count($parts) >= 5) {
+            $serial = (int)end($parts);
+            $size = strtoupper($parts[count($parts) - 2]);
+            $batchNo = implode('-', array_slice($parts, 0, count($parts) - 2));
+        } elseif (count($parts) >= 3) {
+            $serial = (int)end($parts);
+            $batchNo = implode('-', array_slice($parts, 0, count($parts) - 1));
         }
 
-        // Fetch production order & style details
+        // Lookup Production Order Batch Details
         $stmtBatch = $db->prepare("
-            SELECT pro.id, pro.production_no, pro.status, pro.qty as target_qty, s.id as style_id, s.style_no, s.name as style_name, s.category, s.brand, s.composition, po.po_no
+            SELECT pro.*, s.id as style_id, s.style_no, s.name as style_name, s.wip_stages, s.fabric_composition, s.fit_type,
+                   c.name as buyer_name, b.name as brand_name, cat.name as category_name
             FROM production_orders pro
             JOIN buyer_pos po ON pro.po_id = po.id
             JOIN styles s ON po.style_id = s.id
-            WHERE (pro.production_no = ? OR pro.id = ?) AND pro.company_id = ? AND pro.deleted_at IS NULL
+            JOIN contacts c ON po.buyer_id = c.id
+            LEFT JOIN brands b ON s.brand_id = b.id
+            LEFT JOIN categories cat ON s.category_id = cat.id
+            WHERE pro.company_id = ? AND (pro.production_no = ? OR pro.id = ?)
             LIMIT 1
         ");
-        $stmtBatch->execute([$batchNo, is_numeric($batchNo) ? (int)$batchNo : 0, $companyId]);
-        $batchInfo = $stmtBatch->fetch();
+        $stmtBatch->execute([$companyId, $batchNo, is_numeric($batchNo) ? (int)$batchNo : 0]);
+        $batchData = $stmtBatch->fetch();
 
-        // Get style stages or company defaults
-        $stagesList = [];
-        if ($batchInfo) {
-            $stmtTp = $db->prepare("SELECT stages_json FROM tech_packs WHERE style_id = ? AND company_id = ? AND deleted_at IS NULL LIMIT 1");
-            $stmtTp->execute([$batchInfo['style_id'], $companyId]);
-            $tpJson = $stmtTp->fetchColumn();
-            if ($tpJson) {
-                $decoded = json_decode($tpJson, true);
-                if (is_array($decoded) && !empty($decoded)) {
-                    $stagesList = $decoded;
-                }
+        // Parse WIP stages pipeline definition
+        $wipStagesPipeline = [];
+        if (!empty($batchData['wip_stages'])) {
+            $decoded = json_decode($batchData['wip_stages'], true);
+            if (is_array($decoded)) {
+                $wipStagesPipeline = array_values(array_filter($decoded));
             }
         }
-        if (empty($stagesList)) {
-            $stagesList = \App\Controllers\CompanyController::getCompanyWipStages($companyId);
+        if (empty($wipStagesPipeline)) {
+            $wipStagesPipeline = ['Cutting', 'Stitching', 'Checking', 'Thread cutting', 'Ironing', 'Packing'];
         }
 
-        // Identify completed stage keys & level
-        $completedStageKeys = array_unique(array_map(function($l) {
-            return strtolower(trim(preg_replace('/^(#|\d+\.|\d+\s*-|\d+\s*:|Stage\s*\d+:?)\s*/i', '', $l['stage'])));
-        }, $rawLogs));
-
-        $currentStage = null;
-        $nextStage = null;
-
-        foreach ($stagesList as $idx => $stgObj) {
-            $key = strtolower(trim(preg_replace('/^(#|\d+\.|\d+\s*-|\d+\s*:|Stage\s*\d+:?)\s*/i', '', $stgObj['key'] ?? $stgObj['name'] ?? '')));
-            if (in_array($key, $completedStageKeys)) {
-                $currentStage = [
-                    'key' => $stgObj['key'] ?? $key,
-                    'name' => $stgObj['name'] ?? ucfirst($key),
-                    'order' => (int)($stgObj['order'] ?? ($idx + 1)),
-                    'level' => $idx + 1
-                ];
-            } elseif ($currentStage && !$nextStage) {
-                $nextStage = [
-                    'key' => $stgObj['key'] ?? $key,
-                    'name' => $stgObj['name'] ?? ucfirst($key),
-                    'order' => (int)($stgObj['order'] ?? ($idx + 1)),
-                    'level' => $idx + 1
-                ];
-            }
-        }
-
-        // If no stage completed yet, next allowed stage is first stage in sequence
-        if (!$currentStage && !empty($stagesList)) {
-            $nextStage = [
-                'key' => $stagesList[0]['key'] ?? 'cutting',
-                'name' => $stagesList[0]['name'] ?? 'Cutting',
-                'order' => (int)($stagesList[0]['order'] ?? 1),
-                'level' => 1
-            ];
-        }
-
-        // Format step-by-step history
-        $history = array_map(function($l) use ($companyTz) {
-            $formattedTime = \App\Helpers\TimezoneHelper::formatTenantTime($l['created_at'] ?? 'now', $companyTz, 'd M Y, h:i A');
-            return [
-                'id' => (int)$l['id'],
-                'stage' => strtoupper(str_replace('_', ' ', $l['stage'])),
-                'stage_key' => strtolower($l['stage']),
-                'status' => strtoupper(($l['qty_out'] > 0 || ($l['status'] ?? '') === 'pass') ? 'PASS' : 'FAIL'),
-                'operator_name' => $l['operator_name'] ?: 'System Operator',
-                'operator_role' => $l['operator_role'] ?: 'Employee',
-                'logged_at' => $formattedTime,
-                'raw_created_at' => $l['created_at']
-            ];
+        // Determine completed stage keys
+        $completedStageKeys = array_map(function($l) {
+            return $this->toStageKey($l['stage']);
         }, $rawLogs);
 
+        $currentStageName = !empty($rawLogs) ? end($rawLogs)['stage'] : 'Not Started';
+        $nextAllowedStageName = 'Completed';
+
+        foreach ($wipStagesPipeline as $idx => $stg) {
+            $stgClean = $this->toStageKey($stg);
+            if (!in_array($stgClean, $completedStageKeys)) {
+                $nextAllowedStageName = $stg;
+                break;
+            }
+        }
+
         $productPayload = [
-            'batch_no' => $batchInfo['production_no'] ?? $batchNo,
-            'style_no' => $batchInfo['style_no'] ?? 'N/A',
-            'style_name' => $batchInfo['style_name'] ?? 'Garment WIP Item',
-            'category' => ucfirst($batchInfo['category'] ?? 'Unisex'),
-            'brand' => $batchInfo['brand'] ?? 'Tocco',
-            'composition' => $batchInfo['composition'] ?? '100% Cotton',
+            'qr_code' => $qrCode,
+            'batch_no' => $batchData['production_no'] ?? $batchNo,
+            'style_no' => $batchData['style_no'] ?? 'N/A',
+            'style_name' => $batchData['style_name'] ?? 'Garment Unit',
+            'category' => $batchData['category_name'] ?? 'General',
+            'brand' => $batchData['brand_name'] ?? 'Tocco',
+            'composition' => $batchData['fabric_composition'] ?? '100% Cotton',
+            'fit_type' => $batchData['fit_type'] ?? 'Regular',
             'size' => $size,
             'serial' => $serial,
-            'target_qty' => (int)($batchInfo['target_qty'] ?? 100)
+            'target_qty' => (int)($batchData['target_qty'] ?? 100),
+            'buyer' => $batchData['buyer_name'] ?? 'Internal'
         ];
+
+        $history = array_map(function($l) {
+            return [
+                'id' => (int)$l['id'],
+                'stage' => $l['stage'],
+                'status' => ($l['qty_out'] > 0) ? 'pass' : 'fail',
+                'operator' => $l['operator_name'] ?? 'Operator',
+                'role' => $l['operator_role'] ?? 'Floor Operator',
+                'created_at' => $l['created_at']
+            ];
+        }, $rawLogs);
 
         $response->json([
             'status' => 'success',
@@ -734,26 +724,18 @@ class ApiController extends Controller {
             'already_scanned' => $isAlreadyScannedInTargetStage,
             'data' => [
                 'qr_code' => $qrCode,
-                'is_valid' => true,
-                'target_stage' => $targetStage ?: null,
                 'already_scanned_in_target_stage' => $isAlreadyScannedInTargetStage,
-                'completed_stages_count' => count($completedStageKeys),
-                'total_pipeline_stages' => count($stagesList),
-                'current_stage' => $currentStage,
-                'next_allowed_stage' => $nextStage,
+                'current_stage' => ['name' => $currentStageName],
+                'next_allowed_stage' => ['name' => $nextAllowedStageName],
+                'pipeline' => $wipStagesPipeline,
                 'product' => $productPayload,
-                'batch_info' => $batchInfo ? [
-                    'batch_id' => (int)$batchInfo['id'],
-                    'production_no' => $batchInfo['production_no'],
-                    'style_no' => $batchInfo['style_no'],
-                    'style_name' => $batchInfo['style_name'],
-                    'buyer_po' => $batchInfo['po_no']
-                ] : null,
                 'history' => $history
             ],
             'product' => $productPayload
         ], 200);
     }
+
+
 
     /**
      * Get All Garment Styles with their associated WIP Stages
@@ -967,58 +949,7 @@ class ApiController extends Controller {
         return $payload;
     }
 
-    /**
-     * Clear QR Scan Logs for a Batch / QR Code Tag (REST API)
-     * POST /api/v1/qr/clear-logs
-     */
-    public function clearLogs(Request $request, Response $response): void {
-        $this->setCorsHeaders();
 
-        $token = $this->extractToken($request);
-        $userData = $token ? $this->verifyApiToken($token) : null;
-
-        if (!$userData || empty($userData['company_id'])) {
-            $response->json([
-                'status' => 'error',
-                'message' => 'Unauthorized or missing company context.'
-            ], 401);
-            return;
-        }
-
-        $confirmCode = strtoupper(trim((string)$request->get('confirm_code', '')));
-        if ($confirmCode !== 'DELETE') {
-            $response->json([
-                'status' => 'error',
-                'message' => 'Security confirmation failed. You must provide confirm_code: "DELETE".'
-            ], 400);
-            return;
-        }
-
-        $companyId = (int)$userData['company_id'];
-        $batchId = (int)$request->get('batch_id', 0);
-        $qrCode = trim((string)$request->get('qr_code', ''));
-
-        $db = Database::getInstance();
-
-        if (!empty($qrCode)) {
-            $stmt = $db->prepare("DELETE FROM production_stage_logs WHERE company_id = ? AND LOWER(TRIM(qr_code)) = LOWER(TRIM(?))");
-            $stmt->execute([$companyId, $qrCode]);
-            $msg = "Scan history for tag '{$qrCode}' has been deleted.";
-        } elseif ($batchId > 0) {
-            $stmt = $db->prepare("DELETE FROM production_stage_logs WHERE company_id = ? AND production_order_id = ?");
-            $stmt->execute([$companyId, $batchId]);
-            $msg = "All scan history logs for batch #{$batchId} have been deleted.";
-        } else {
-            $stmt = $db->prepare("DELETE FROM production_stage_logs WHERE company_id = ?");
-            $stmt->execute([$companyId]);
-            $msg = "All production scan logs for company have been reset.";
-        }
-
-        $response->json([
-            'status' => 'success',
-            'message' => $msg
-        ], 200);
-    }
 
     /**
      * Helper: Extract Bearer token from header or body
@@ -1046,5 +977,14 @@ class ApiController extends Controller {
             http_response_code(200);
             exit;
         }
+    }
+
+    /**
+     * Helper: Convert any WIP stage input into a standardized system key (e.g. "cutting", "stitching", "ironing")
+     */
+    public function toStageKey(string $input): string {
+        $clean = preg_replace('/^(#|\d+\.|\d+\s*-\s*|\d+\s*:\s*|Stage\s*\d+\s*:?\s*)/i', '', trim($input));
+        $key = strtolower(trim((string)preg_replace('/[^a-zA-Z0-9]+/', '_', $clean), '_'));
+        return !empty($key) ? $key : 'general';
     }
 }

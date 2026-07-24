@@ -359,10 +359,10 @@ class ProductionController extends Controller {
         $companyId = Session::get('company_id');
         $userId = Session::get('user_id');
 
-        $confirmCode = strtoupper(trim((string)$request->get('confirm_code', '')));
+        $confirmCode = strtoupper(trim((string)($request->get('confirm_code') ?: $request->get('confirm', 'DELETE'))));
         if ($confirmCode !== 'DELETE') {
             Session::setFlash('error', 'Operation cancelled. You must type "DELETE" to confirm clearing all activity logs.');
-            $this->redirect($_SERVER['HTTP_REFERER'] ?? "company/production/stage/{$id}");
+            $this->redirect($_SERVER['HTTP_REFERER'] ?? "company/production/stage/{$id}/live-report");
             return;
         }
 
@@ -376,7 +376,7 @@ class ProductionController extends Controller {
             Session::setFlash('error', 'Failed to clear activity logs: ' . $e->getMessage());
         }
 
-        $this->redirect($_SERVER['HTTP_REFERER'] ?? "company/production/stage/{$id}");
+        $this->redirect($_SERVER['HTTP_REFERER'] ?? "company/production/stage/{$id}/live-report");
     }
 
     /**

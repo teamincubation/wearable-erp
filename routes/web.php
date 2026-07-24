@@ -35,6 +35,7 @@ $router->get('/api/v1/qr/verify', [ApiController::class, 'verifyQrCode']);
 $router->post('/api/v1/qr/verify', [ApiController::class, 'verifyQrCode']);
 $router->get('/api/v1/qr/unit-status', [ApiController::class, 'verifyQrCode']);
 
+
 // Style Master & Associated WIP Stages API Routes
 $router->get('/api/v1/styles', [ApiController::class, 'getStyles']);
 $router->get('/api/v1/styles/{id}', [ApiController::class, 'getStyleDetails']);
@@ -599,6 +600,11 @@ $router->get('/company/production/stage/{id}/live-report', [\App\Controllers\Pro
        ->middleware(PermissionMiddleware::class)
        ->permission('company.production.view');
 
+$router->get('/company/production/stage/{id}/clear-logs', [\App\Controllers\ProductionController::class, 'clearStageLogs'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.production.manage');
+
 $router->post('/company/production/stage/{id}/clear-logs', [\App\Controllers\ProductionController::class, 'clearStageLogs'])
        ->middleware(AuthMiddleware::class)
        ->middleware(CsrfMiddleware::class)
@@ -611,7 +617,6 @@ $router->post('/company/production/quality/clear-all', [\App\Controllers\Product
        ->middleware(PermissionMiddleware::class)
        ->permission('company.production.manage');
 
-$router->post('/api/v1/qr/clear-logs', [\App\Controllers\ApiController::class, 'clearLogs']);
 
 $router->get('/company/production/barcode', [\App\Controllers\ProductionController::class, 'generateBatchBarcodes'])
        ->middleware(AuthMiddleware::class)
