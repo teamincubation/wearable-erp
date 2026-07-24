@@ -208,13 +208,18 @@ class StyleMasterController extends Controller {
         $inventoryService = new \App\Services\InventoryService();
         $stockSummary = $inventoryService->getInventorySummary(Session::get('company_id'));
 
+        $companyWipStages = CompanyController::getCompanyWipStages(Session::get('company_id'));
+        $styleStages = json_decode($techpack['stages_json'] ?? '[]', true) ?: [];
+
         $this->renderView('company/techpack', [
             'title' => "Tech Pack: {$style['style_no']} | ERP",
             'style' => $style,
             'techpack' => $techpack,
             'bom_list' => $bomList,
             'size_guide' => $sizeGuide,
-            'stock_summary' => $stockSummary
+            'stock_summary' => $stockSummary,
+            'company_wip_stages' => $companyWipStages,
+            'style_stages' => $styleStages
         ]);
     }
 
@@ -265,6 +270,31 @@ class StyleMasterController extends Controller {
             }
         }
 
+        // Process mandatory production workflow stage selections and execution order
+        $selectedStageKeys = $request->get('selected_stages') ?: [];
+        $stageOrdersInput = $request->get('stage_order') ?: [];
+
+        $companyStages = CompanyController::getCompanyWipStages(Session::get('company_id'));
+        $companyStageMap = [];
+        foreach ($companyStages as $cs) {
+            $companyStageMap[$cs['key']] = $cs['name'];
+        }
+
+        $styleStages = [];
+        foreach ($selectedStageKeys as $key) {
+            $orderVal = (int)($stageOrdersInput[$key] ?? count($styleStages) + 1);
+            $nameVal = $companyStageMap[$key] ?? ucwords(str_replace('_', ' ', $key));
+            $styleStages[] = [
+                'key' => $key,
+                'name' => $nameVal,
+                'order' => $orderVal > 0 ? $orderVal : count($styleStages) + 1
+            ];
+        }
+
+        usort($styleStages, function($a, $b) {
+            return $a['order'] <=> $b['order'];
+        });
+
         $printingSpecs = trim($request->get('printing_specs'));
         $embroiderySpecs = trim($request->get('embroidery_specs'));
         $packingSpecs = trim($request->get('packing_specs'));
@@ -272,6 +302,7 @@ class StyleMasterController extends Controller {
         $techPackModel->update($id, [
             'bom_json' => json_encode($bom),
             'sizing_json' => json_encode($sizing),
+            'stages_json' => json_encode($styleStages),
             'printing_specs' => $printingSpecs,
             'embroidery_specs' => $embroiderySpecs,
             'packing_specs' => $packingSpecs,

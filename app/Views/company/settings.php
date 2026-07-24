@@ -69,61 +69,129 @@
         <!-- WIP Operational Stages Configuration -->
 
         <div class="pepp-card mt-4">
-            <div class="pepp-card-header">
-                <h5 class="pepp-card-title"><i class="fa-solid fa-list-check text-primary me-2"></i> WIP Operational Stages Configuration</h5>
+            <div class="pepp-card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="pepp-card-title m-0"><i class="fa-solid fa-list-check text-primary me-2"></i> WIP Operational Stages Configuration</h5>
+                    <small class="text-secondary">Manage company manufacturing stages, execution sequence numbers, and custom processes</small>
+                </div>
+                <button type="button" class="btn btn-sm btn-pepp-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#addWipStageModal">
+                    <i class="fa-solid fa-plus-circle me-1"></i> Add New WIP Stage
+                </button>
             </div>
-            <div class="pepp-card-body">
-                <p class="text-secondary small mb-3">Select which manufacturing stages are active for your company process. Deactivated stages will not be shown in the production tracking page.</p>
-                
-                <form action="<?= base_url('company/settings/wip-stages') ?>" method="POST">
-                    <?= \App\Core\Session::csrfField() ?>
-                    <?php
-                    $allStages = [
-                        'knitting' => 'Knitting',
-                        'dyeing' => 'Dyeing',
-                        'compacting' => 'Compacting',
-                        'relaxing' => 'Relaxing',
-                        'spreading' => 'Spreading',
-                        'cutting' => 'Cutting',
-                        'bundling' => 'Bundling',
-                        'printing' => 'Printing',
-                        'embroidery' => 'Embroidery',
-                        'sewing' => 'Sewing',
-                        'checking' => 'Checking / Trim',
-                        'thread_cutting' => 'Thread Cutting',
-                        'washing' => 'Washing',
-                        'ironing' => 'Ironing / Pressing',
-                        'packing' => 'Packing',
-                        'carton_packing' => 'Carton Packing',
-                        'shipment' => 'Shipment'
-                    ];
-                    
-                    $activeStagesRaw = $settings['active_production_stages'] ?? null;
-                    $activeStages = $activeStagesRaw ? json_decode(html_entity_decode($activeStagesRaw), true) : array_keys($allStages);
-                    if (!is_array($activeStages)) {
-                        $activeStages = array_keys($allStages);
-                    }
-                    ?>
-                    <div class="row row-cols-2 row-cols-md-3 g-3">
-                        <?php foreach ($allStages as $key => $label): ?>
-                            <div class="col">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="active_stages[]" value="<?= htmlspecialchars($key) ?>" id="stage-<?= $key ?>" <?= in_array($key, $activeStages) ? 'checked' : '' ?>>
-                                    <label class="form-check-label text-dark small" for="stage-<?= $key ?>">
-                                        <?= htmlspecialchars($label) ?>
-                                    </label>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                    <div class="text-end mt-4">
-                        <button type="submit" class="btn btn-pepp-primary">
-                            <i class="fa-solid fa-circle-check me-1"></i> Save Active WIP Stages
-                        </button>
-                    </div>
-                </form>
+            <div class="pepp-card-body p-0">
+                <div class="table-responsive border-0">
+                    <table class="table pepp-table mb-0 align-middle">
+                        <thead>
+                            <tr class="bg-light">
+                                <th>Order #</th>
+                                <th>Stage Display Name</th>
+                                <th>System Key</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (!empty($companyWipStages)): ?>
+                                <?php foreach ($companyWipStages as $stg): ?>
+                                    <tr>
+                                        <td>
+                                            <span class="badge bg-primary text-white font-monospace fs-6 px-2.5 py-1">#<?= (int)$stg['order'] ?></span>
+                                        </td>
+                                        <td>
+                                            <strong class="text-dark fs-6"><?= htmlspecialchars($stg['name']) ?></strong>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-light text-secondary border font-monospace"><?= htmlspecialchars($stg['key']) ?></span>
+                                        </td>
+                                        <td class="text-end">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill me-1" data-bs-toggle="modal" data-bs-target="#editWipStageModal-<?= htmlspecialchars($stg['key']) ?>">
+                                                <i class="fa-solid fa-edit me-1"></i> Edit
+                                            </button>
+                                            <form action="<?= base_url('company/settings/wip-stages/delete/' . urlencode($stg['key'])) ?>" method="POST" class="d-inline" onsubmit="return confirm('Delete WIP stage \'<?= htmlspecialchars($stg['name']) ?>\'?');">
+                                                <?= \App\Core\Session::csrfField() ?>
+                                                <button type="submit" class="btn btn-sm btn-outline-danger border-0"><i class="fa-solid fa-trash-can"></i> Delete</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Edit WIP Stage Modal -->
+                                    <div class="modal fade" id="editWipStageModal-<?= htmlspecialchars($stg['key']) ?>" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <form action="<?= base_url('company/settings/wip-stages/edit') ?>" method="POST">
+                                                <?= \App\Core\Session::csrfField() ?>
+                                                <input type="hidden" name="original_key" value="<?= htmlspecialchars($stg['key']) ?>">
+                                                <div class="modal-content text-start" style="border-radius: 12px;">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title fw-bold"><i class="fa-solid fa-edit text-primary me-2"></i> Edit WIP Stage</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body text-start">
+                                                        <div class="mb-3">
+                                                            <label class="form-label small fw-bold">Stage Display Name <span class="text-danger">*</span></label>
+                                                            <input type="text" name="stage_name" class="form-control text-dark" value="<?= htmlspecialchars($stg['name']) ?>" required>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label small fw-bold">System Key</label>
+                                                            <input type="text" class="form-control font-monospace bg-light" value="<?= htmlspecialchars($stg['key']) ?>" disabled>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label small fw-bold">Execution Sequence Order # <span class="text-danger">*</span></label>
+                                                            <input type="number" name="stage_order" class="form-control text-dark font-monospace" value="<?= (int)$stg['order'] ?>" min="1" required>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
+                                                        <button type="submit" class="btn btn-primary px-4">Update Stage</button>
+                                                    </div>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="4" class="text-center py-4 text-secondary">No WIP operational stages configured.</td>
+                                </tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
+    </div>
+
+    <!-- Add WIP Stage Modal -->
+    <div class="modal fade" id="addWipStageModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <form action="<?= base_url('company/settings/wip-stages/add') ?>" method="POST">
+                <?= \App\Core\Session::csrfField() ?>
+                <div class="modal-content text-start" style="border-radius: 12px;">
+                    <div class="modal-header">
+                        <h5 class="modal-title fw-bold"><i class="fa-solid fa-plus-circle text-primary me-2"></i> Add New WIP Operational Stage</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-start">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Stage Display Name <span class="text-danger">*</span></label>
+                            <input type="text" name="stage_name" class="form-control text-dark" placeholder="e.g. Sublimation Printing" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">System Key (Optional - Auto-slugified)</label>
+                            <input type="text" name="stage_key" class="form-control font-monospace" placeholder="e.g. sublimation_printing">
+                            <div class="form-text">Unique system identifier key (lowercase, underscore).</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Execution Sequence Order # <span class="text-danger">*</span></label>
+                            <input type="number" name="stage_order" class="form-control text-dark font-monospace" value="<?= count($companyWipStages ?? []) + 1 ?>" min="1" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary px-4">Add WIP Stage</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
     </div>
 
     <!-- Sidebar context cards -->

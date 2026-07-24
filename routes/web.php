@@ -711,6 +711,27 @@ $router->post('/company/settings/wip-stages', [CompanyController::class, 'saveWi
        ->middleware(PermissionMiddleware::class)
        ->permission('company.settings');
 
+$router->post('/company/settings/wip-stages/add', [CompanyController::class, 'addWipStage'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.settings');
+
+$router->post('/company/settings/wip-stages/edit', [CompanyController::class, 'editWipStage'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.settings');
+
+$router->post('/company/settings/wip-stages/delete/{key}', [CompanyController::class, 'deleteWipStage'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.settings');
+
+$router->get('/company/production/batch-stages/{id}', [\App\Controllers\ProductionController::class, 'getBatchStages'])
+       ->middleware(AuthMiddleware::class);
+
 // Generic Item Deletion Endpoints for Super Admin & Authorized Roles
 $router->post('/company/masterdata/contacts/delete/{id}', [\App\Controllers\MasterDataController::class, 'deleteContact'])
        ->middleware(AuthMiddleware::class)->middleware(CsrfMiddleware::class);

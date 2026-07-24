@@ -209,6 +209,14 @@ class Migrator {
                 }
             } catch (\PDOException $e) {}
 
+            // Auto-heal tech_packs table columns for production stage sequences
+            try {
+                $checkStages = $db->query("SHOW COLUMNS FROM `tech_packs` LIKE 'stages_json'");
+                if (!$checkStages || $checkStages->rowCount() === 0) {
+                    $db->exec("ALTER TABLE `tech_packs` ADD COLUMN `stages_json` TEXT DEFAULT NULL");
+                }
+            } catch (\PDOException $e) {}
+
             // Auto-heal feature_flags table columns for feature labels
             try {
                 $checkLabel = $db->query("SHOW COLUMNS FROM `feature_flags` LIKE 'label'");

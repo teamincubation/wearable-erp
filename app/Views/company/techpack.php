@@ -92,6 +92,62 @@ if (empty($stockCategories)) {
             </div>
         </div>
 
+        <!-- Mandatory Production Workflow Stages Card -->
+        <div class="col-12">
+            <div class="pepp-card border-primary border-opacity-25">
+                <div class="pepp-card-header bg-light d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="pepp-card-title m-0 text-primary"><i class="fa-solid fa-route text-primary me-2"></i> Mandatory Production Workflow Stages & Order Sequence <span class="text-danger">*</span></h5>
+                        <small class="text-secondary">Select required operational stages for this style and assign their strict execution order numbers</small>
+                    </div>
+                    <span class="badge bg-primary text-white">Style Workflow Compliance</span>
+                </div>
+                <div class="pepp-card-body">
+                    <p class="text-secondary small mb-3">
+                        <i class="fa-solid fa-circle-info text-info me-1"></i>
+                        The selected stages and sequence numbers will be strictly enforced in Production Tracking & QR Code Scanners. Out-of-order scans will be blocked until preceding stages are completed.
+                    </p>
+                    
+                    <?php 
+                    $activeStyleStageKeys = !empty($style_stages) ? array_column($style_stages, 'key') : [];
+                    $styleStageOrderMap = [];
+                    if (!empty($style_stages)) {
+                        foreach ($style_stages as $stgItem) {
+                            $styleStageOrderMap[$stgItem['key']] = $stgItem['order'];
+                        }
+                    }
+                    ?>
+                    
+                    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
+                        <?php if (!empty($company_wip_stages)): ?>
+                            <?php foreach ($company_wip_stages as $cStg): ?>
+                                <?php 
+                                $isSel = in_array($cStg['key'], $activeStyleStageKeys) || empty($style_stages);
+                                $orderVal = $styleStageOrderMap[$cStg['key']] ?? $cStg['order'];
+                                ?>
+                                <div class="col">
+                                    <div class="p-3 border rounded h-100 <?= $isSel ? 'bg-light border-primary' : 'bg-white' ?>">
+                                        <div class="form-check d-flex align-items-center justify-content-between mb-2">
+                                            <div>
+                                                <input class="form-check-input stage-checkbox me-2" type="checkbox" name="selected_stages[]" value="<?= htmlspecialchars($cStg['key']) ?>" id="tech-stage-<?= htmlspecialchars($cStg['key']) ?>" <?= $isSel ? 'checked' : '' ?>>
+                                                <label class="form-check-label fw-bold text-dark" for="tech-stage-<?= htmlspecialchars($cStg['key']) ?>">
+                                                    <?= htmlspecialchars($cStg['name']) ?>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex align-items-center mt-2">
+                                            <span class="small text-secondary me-2">Order #:</span>
+                                            <input type="number" name="stage_order[<?= htmlspecialchars($cStg['key']) ?>]" class="form-control form-control-sm font-monospace text-center w-50" value="<?= (int)$orderVal ?>" min="1">
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- BOM (Bill of Materials) Card -->
         <div class="col-12">
             <div class="pepp-card">

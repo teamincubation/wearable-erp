@@ -485,11 +485,14 @@ class CompanyController extends Controller {
         $stmtPay->execute([$companyId]);
         $paymentAccounts = $stmtPay->fetchAll() ?: [];
 
+        $companyWipStages = self::getCompanyWipStages($companyId);
+
         $this->renderView('company/settings', [
             'title' => 'Company Settings | ERP',
             'company' => $company,
             'settings' => $settings,
-            'paymentAccounts' => $paymentAccounts
+            'paymentAccounts' => $paymentAccounts,
+            'companyWipStages' => $companyWipStages
         ]);
     }
 
@@ -696,5 +699,189 @@ class CompanyController extends Controller {
 
         Session::setFlash('success', 'Active WIP stages configuration saved successfully.');
         $this->redirect('company/settings');
+    }
+
+    /**
+     * Retrieve company WIP master stages sorted by execution order
+     */
+    public static function getCompanyWipStages(int $companyId): array {
+        $db = Database::getInstance();
+        $stmt = $db->prepare("SELECT setting_value FROM system_settings WHERE company_id = ? AND setting_key = 'active_production_stages' AND deleted_at IS NULL ORDER BY id DESC LIMIT 1");
+        $stmt->execute([$companyId]);
+        $raw = $stmt->fetchColumn();
+
+        $defaultStages = [
+            ['key' => 'knitting', 'name' => 'Knitting', 'order' => 1],
+            ['key' => 'dyeing', 'name' => 'Dyeing', 'order' => 2],
+            ['key' => 'compacting', 'name' => 'Compacting', 'order' => 3],
+            ['key' => 'relaxing', 'name' => 'Relaxing', 'order' => 4],
+            ['key' => 'spreading', 'name' => 'Spreading', 'order' => 5],
+            ['key' => 'cutting', 'name' => 'Cutting', 'order' => 6],
+            ['key' => 'bundling', 'name' => 'Bundling', 'order' => 7],
+            ['key' => 'printing', 'name' => 'Printing', 'order' => 8],
+            ['key' => 'embroidery', 'name' => 'Embroidery', 'order' => 9],
+            ['key' => 'sewing', 'name' => 'Sewing', 'order' => 10],
+            ['key' => 'checking', 'name' => 'Checking / Trim', 'order' => 11],
+            ['key' => 'thread_cutting', 'name' => 'Thread Cutting', 'order' => 12],
+            ['key' => 'washing', 'name' => 'Washing', 'order' => 13],
+            ['key' => 'ironing', 'name' => 'Ironing / Pressing', 'order' => 14],
+            ['key' => 'packing', 'name' => 'Packing', 'order' => 15],
+            ['key' => 'carton_packing', 'name' => 'Carton Packing', 'order' => 16],
+            ['key' => 'shipment', 'name' => 'Shipment', 'order' => 17]
+        ];
+
+        if (!$raw) {
+            return $defaultStages;
+        }
+
+        $decoded = json_decode(html_entity_decode($raw), true);
+        if (!is_array($decoded) || empty($decoded)) {
+            return $defaultStages;
+        }
+
+        $result = [];
+        $counter = 1;
+        foreach ($decoded as $item) {
+            if (is_string($item)) {
+                $result[] = [
+                    'key' => $item,
+                    'name' => ucwords(str_replace('_', ' ', $item)),
+                    'order' => $counter++
+                ];
+            } elseif (is_array($item) && isset($item['key'])) {
+                $result[] = [
+                    'key' => $item['key'],
+                    'name' => $item['name'] ?? ucwords(str_replace('_', ' ', $item['key'])),
+                    'order' => (int)($item['order'] ?? $counter++)
+                ];
+            }
+        }
+
+        usort($result, function($a, $b) {
+            return $a['order'] <=> $b['order'];
+        });
+
+        return $result;
+    }
+
+    /**
+     * Add new WIP operational stage
+     */
+    public function addWipStage(Request $request, Response $response): void {
+        $companyId = Session::get('company_id');
+        $name = trim($request->get('stage_name'));
+        $key = strtolower(preg_replace('/[^a-zA-Z0-9_]/', '', str_replace(' ', '_', trim($request->get('stage_key') ?: $name))));
+        $order = (int)$request->get('stage_order');
+
+        if (empty($name) || empty($key)) {
+            Session::setFlash('error', 'Stage Name and System Key are required.');
+            $this->redirect('company/settings');
+            return;
+        }
+
+        $stages = self::getCompanyWipStages($companyId);
+        foreach ($stages as $s) {
+            if ($s['key'] === $key) {
+                Session::setFlash('error', "WIP Stage key '{$key}' already exists.");
+                $this->redirect('company/settings');
+                return;
+            }
+        }
+
+        $stages[] = [
+            'key' => $key,
+            'name' => $name,
+            'order' => $order > 0 ? $order : count($stages) + 1
+        ];
+
+        usort($stages, function($a, $b) {
+            return $a['order'] <=> $b['order'];
+        });
+
+        $this->saveWipStagesSetting($companyId, $stages);
+        Session::setFlash('success', "New WIP stage '{$name}' added successfully.");
+        $this->redirect('company/settings');
+    }
+
+    /**
+     * Edit existing WIP operational stage
+     */
+    public function editWipStage(Request $request, Response $response): void {
+        $companyId = Session::get('company_id');
+        $targetKey = trim($request->get('original_key'));
+        $name = trim($request->get('stage_name'));
+        $order = (int)$request->get('stage_order');
+
+        if (empty($targetKey) || empty($name)) {
+            Session::setFlash('error', 'Stage Key and Name are required.');
+            $this->redirect('company/settings');
+            return;
+        }
+
+        $stages = self::getCompanyWipStages($companyId);
+        $found = false;
+        foreach ($stages as &$s) {
+            if ($s['key'] === $targetKey) {
+                $s['name'] = $name;
+                $s['order'] = $order;
+                $found = true;
+                break;
+            }
+        }
+        unset($s);
+
+        if (!$found) {
+            Session::setFlash('error', 'Specified WIP Stage not found.');
+            $this->redirect('company/settings');
+            return;
+        }
+
+        usort($stages, function($a, $b) {
+            return $a['order'] <=> $b['order'];
+        });
+
+        $this->saveWipStagesSetting($companyId, $stages);
+        Session::setFlash('success', "WIP stage '{$name}' updated successfully.");
+        $this->redirect('company/settings');
+    }
+
+    /**
+     * Delete WIP operational stage
+     */
+    public function deleteWipStage(Request $request, Response $response, string $key): void {
+        $companyId = Session::get('company_id');
+        $targetKey = trim($key);
+
+        $stages = self::getCompanyWipStages($companyId);
+        $filtered = [];
+        foreach ($stages as $s) {
+            if ($s['key'] !== $targetKey) {
+                $filtered[] = $s;
+            }
+        }
+
+        $this->saveWipStagesSetting($companyId, array_values($filtered));
+        Session::setFlash('success', 'WIP stage removed successfully.');
+        $this->redirect('company/settings');
+    }
+
+    /**
+     * Save WIP stages array into system_settings
+     */
+    private function saveWipStagesSetting(int $companyId, array $stages): void {
+        $stagesJson = json_encode($stages);
+        $db = Database::getInstance();
+        
+        $stmtCheck = $db->prepare("SELECT id FROM system_settings WHERE company_id = ? AND setting_key = 'active_production_stages' AND deleted_at IS NULL LIMIT 1");
+        $stmtCheck->execute([$companyId]);
+        $existingId = $stmtCheck->fetchColumn();
+
+        if ($existingId) {
+            $stmtUpdate = $db->prepare("UPDATE system_settings SET setting_value = ?, updated_by = ?, updated_at = NOW() WHERE id = ?");
+            $stmtUpdate->execute([$stagesJson, Session::get('user_id'), $existingId]);
+        } else {
+            $stmtInsert = $db->prepare("INSERT INTO system_settings (company_id, setting_key, setting_value, created_by) VALUES (?, 'active_production_stages', ?, ?)");
+            $stmtInsert->execute([$companyId, $stagesJson, Session::get('user_id')]);
+        }
     }
 }

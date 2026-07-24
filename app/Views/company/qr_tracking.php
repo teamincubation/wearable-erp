@@ -91,25 +91,42 @@
 
             <!-- ==================== SCREEN 1: Stage Selection ==================== -->
             <div id="selection-view">
-                <div class="text-center mb-4">
-                    <div class="app-icon-circle bg-light-primary mb-3">
-                        <i class="fa-solid fa-industry fs-1 text-primary"></i>
+                <div class="text-center mb-3">
+                    <div class="app-icon-circle bg-light-primary mb-2" style="width: 65px; height: 65px;">
+                        <i class="fa-solid fa-industry fs-2 text-primary"></i>
                     </div>
-                    <h4 class="fw-bold text-dark">Stage Setup</h4>
-                    <p class="text-secondary small">Select your operational line and click Start to launch the QR scanner.</p>
+                    <h5 class="fw-bold text-dark m-0">Stage & Batch Setup</h5>
+                    <p class="text-secondary small">Select your active production batch to auto-load style WIP stages.</p>
                 </div>
 
-                <div class="mb-4">
-                    <label class="form-label small fw-bold text-secondary">SELECT WIP STAGE</label>
-                    <select id="stage-select" class="form-select form-select-lg text-dark fw-bold border-2" style="border-radius: 12px;">
-                        <option value="">-- Choose Stage --</option>
-                        <?php foreach ($stages as $stg): ?>
-                            <option value="<?= $stg ?>"><?= str_replace('_', ' ', strtoupper($stg)) ?></option>
-                        <?php endforeach; ?>
+                <!-- Step 1: Active Production Started Batch Dropdown -->
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-primary mb-1">
+                        <i class="fa-solid fa-industry me-1"></i> 1. SELECT STARTED PRODUCTION BATCH <span class="text-danger">*</span>
+                    </label>
+                    <select id="batch-select" class="form-select form-select-lg text-dark fw-bold border-2 font-monospace" style="border-radius: 12px; font-size: 14px;">
+                        <option value="">-- Step 1: Select Active Production Batch --</option>
+                        <?php if (!empty($batches)): ?>
+                            <?php foreach ($batches as $b): ?>
+                                <option value="<?= $b['id'] ?>">
+                                    <?= htmlspecialchars($b['production_no']) ?> (<?= htmlspecialchars($b['style_no']) ?> - <?= htmlspecialchars($b['buyer_name']) ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
                     </select>
                 </div>
 
-                <button type="button" id="start-work-btn" class="btn btn-primary btn-lg w-100 py-3 rounded-pill fw-bold shadow">
+                <!-- Step 2: Auto-Loaded WIP Stages Dropdown -->
+                <div class="mb-4">
+                    <label class="form-label small fw-bold text-primary mb-1">
+                        <i class="fa-solid fa-route me-1"></i> 2. SELECT WIP STAGE <span class="text-danger">*</span>
+                    </label>
+                    <select id="stage-select" class="form-select form-select-lg text-dark fw-bold border-2" style="border-radius: 12px; font-size: 14px;" disabled>
+                        <option value="">-- Please Select Batch First --</option>
+                    </select>
+                </div>
+
+                <button type="button" id="start-work-btn" class="btn btn-primary btn-lg w-100 py-3 rounded-pill fw-bold shadow" disabled>
                     <i class="fa-solid fa-play me-2"></i> Start Work / Scan
                 </button>
                 
@@ -248,10 +265,52 @@ document.addEventListener('DOMContentLoaded', function() {
     // ===================== DOM REFERENCES =====================
     const selectionView = document.getElementById('selection-view');
     const scannerView = document.getElementById('scanner-view');
+    const batchSelect = document.getElementById('batch-select');
     const stageSelect = document.getElementById('stage-select');
     const startWorkBtn = document.getElementById('start-work-btn');
     const completeBtn = document.getElementById('complete-btn');
     const activeStageLabel = document.getElementById('active-stage-label');
+
+    // Auto-load style WIP stages when active batch is selected
+    if (batchSelect && stageSelect) {
+        batchSelect.addEventListener('change', function() {
+            const batchId = this.value;
+            if (!batchId) {
+                stageSelect.innerHTML = '<option value="">-- Please Select Batch First --</option>';
+                stageSelect.disabled = true;
+                if (startWorkBtn) startWorkBtn.disabled = true;
+                return;
+            }
+
+            stageSelect.innerHTML = '<option value="">Loading Style WIP Stages...</option>';
+            stageSelect.disabled = true;
+
+            fetch('<?= base_url("company/production/batch-stages/") ?>' + batchId)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.stages && data.stages.length > 0) {
+                        let html = '<option value="">-- Step 2: Select WIP Stage --</option>';
+                        data.stages.forEach(stg => {
+                            const stgKey = stg.key || stg;
+                            const stgName = stg.name || (stgKey.replace(/_/g, ' ').toUpperCase());
+                            const stgOrder = stg.order ? ('#' + stg.order + ' ') : '';
+                            html += `<option value="${stgKey}">${stgOrder}${stgName}</option>`;
+                        });
+                        stageSelect.innerHTML = html;
+                        stageSelect.disabled = false;
+                    } else {
+                        stageSelect.innerHTML = '<option value="">No stages configured for this style</option>';
+                    }
+                })
+                .catch(err => {
+                    stageSelect.innerHTML = '<option value="">Error loading stages</option>';
+                });
+        });
+
+        stageSelect.addEventListener('change', function() {
+            if (startWorkBtn) startWorkBtn.disabled = !this.value;
+        });
+    }
 
     const scanResultCard = document.getElementById('scan-result-card');
     const codeDisplay = document.getElementById('scanned-code-display');

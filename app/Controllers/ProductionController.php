@@ -137,15 +137,11 @@ class ProductionController extends Controller {
         $userModel = new User();
         $employees = $userModel->getActiveCompanyEmployees();
 
-        // Fetch active production stages settings
-        $stmtStageSettings = $db->prepare("SELECT setting_value FROM system_settings WHERE company_id = ? AND setting_key = 'active_production_stages' AND deleted_at IS NULL ORDER BY id DESC LIMIT 1");
-        $stmtStageSettings->execute([$companyId]);
-        $activeStagesRaw = $stmtStageSettings->fetchColumn();
-        
-        $allStagesDefault = ['knitting', 'dyeing', 'compacting', 'relaxing', 'spreading', 'cutting', 'bundling', 'printing', 'embroidery', 'sewing', 'checking', 'thread_cutting', 'washing', 'ironing', 'packing', 'carton_packing', 'shipment'];
-        $stagesList = $activeStagesRaw ? json_decode(html_entity_decode($activeStagesRaw), true) : $allStagesDefault;
-        if (!is_array($stagesList) || empty($stagesList)) {
-            $stagesList = $allStagesDefault;
+        // Fetch batch stage sequence based on style techpack specifications
+        $batchStagesObj = self::getBatchStagesList((int)$id);
+        $stagesList = array_column($batchStagesObj, 'key');
+        if (empty($stagesList)) {
+            $stagesList = ['knitting', 'dyeing', 'compacting', 'relaxing', 'spreading', 'cutting', 'bundling', 'printing', 'embroidery', 'sewing', 'checking', 'thread_cutting', 'washing', 'ironing', 'packing', 'carton_packing', 'shipment'];
         }
 
         $this->renderView('company/production_stage', [
@@ -156,6 +152,7 @@ class ProductionController extends Controller {
             'machines' => $machines,
             'employees' => $employees,
             'stagesList' => $stagesList,
+            'batchStagesObj' => $batchStagesObj,
             'currentPage' => $page,
             'totalPages' => $totalPages
         ]);
@@ -183,6 +180,29 @@ class ProductionController extends Controller {
 
         $companyId = Session::get('company_id');
         $userId = Session::get('user_id');
+
+        // Verify preceding stage order sequence compliance
+        $batchStages = self::getBatchStagesList((int)$id);
+        $stageKeys = array_column($batchStages, 'key');
+        $targetIndex = array_search($stage, $stageKeys);
+
+        if ($targetIndex !== false && $targetIndex > 0) {
+            $db = Database::getInstance();
+            for ($i = 0; $i < $targetIndex; $i++) {
+                $precedingKey = $batchStages[$i]['key'];
+                $precedingName = $batchStages[$i]['name'];
+
+                $stmtCheckPrec = $db->prepare("SELECT id FROM production_stage_logs WHERE production_order_id = ? AND company_id = ? AND stage = ? LIMIT 1");
+                $stmtCheckPrec->execute([(int)$id, $companyId, $precedingKey]);
+                if (!$stmtCheckPrec->fetchColumn()) {
+                    $targetName = $batchStages[$targetIndex]['name'];
+                    Session::setFlash('error', "Order Sequence Error: Cannot log stage '{$targetName}' yet. Batch must complete preceding stage '{$precedingName}' first!");
+                    $this->redirect("company/production/stage/{$id}");
+                    return;
+                }
+            }
+        }
+
         $productionService = new ProductionService();
 
         try {
@@ -465,6 +485,48 @@ class ProductionController extends Controller {
     }
 
     /**
+     * Retrieve batch stage sequence from tech pack specifications
+     */
+    public static function getBatchStagesList(int $batchId): array {
+        $db = Database::getInstance();
+        $companyId = Session::get('company_id');
+
+        $stmt = $db->prepare("
+            SELECT tp.stages_json
+            FROM production_orders pro
+            JOIN buyer_pos po ON pro.po_id = po.id
+            JOIN styles s ON po.style_id = s.id
+            LEFT JOIN tech_packs tp ON s.id = tp.style_id
+            WHERE pro.id = ? AND pro.company_id = ? AND pro.deleted_at IS NULL
+        ");
+        $stmt->execute([$batchId, $companyId]);
+        $stagesJson = $stmt->fetchColumn();
+
+        if ($stagesJson) {
+            $decoded = json_decode($stagesJson, true);
+            if (is_array($decoded) && !empty($decoded)) {
+                usort($decoded, function($a, $b) {
+                    return (int)($a['order'] ?? 0) <=> (int)($b['order'] ?? 0);
+                });
+                return $decoded;
+            }
+        }
+
+        return \App\Controllers\CompanyController::getCompanyWipStages($companyId);
+    }
+
+    /**
+     * AJAX endpoint to fetch WIP stages for a production batch
+     */
+    public function getBatchStages(Request $request, Response $response, string $id): void {
+        header('Content-Type: application/json');
+        $batchId = (int)$id;
+        $stages = self::getBatchStagesList($batchId);
+        echo json_encode(['success' => true, 'stages' => $stages]);
+        exit;
+    }
+
+    /**
      * Mobile RFID QR Code production tracking scanner page
      */
     public function qrTracking(Request $request, Response $response): void {
@@ -484,19 +546,25 @@ class ProductionController extends Controller {
             }
         }
 
-        // Fetch active WIP stages configured for this company from system_settings
-        $stmtWip = $db->prepare("SELECT setting_value FROM system_settings WHERE company_id = ? AND setting_key = 'active_production_stages' AND deleted_at IS NULL ORDER BY id DESC LIMIT 1");
-        $stmtWip->execute([$companyId]);
-        $activeWipRaw = $stmtWip->fetchColumn();
-        
-        $activeWipStages = $activeWipRaw ? json_decode($activeWipRaw, true) : [];
-        if (!is_array($activeWipStages) || empty($activeWipStages)) {
-            $activeWipStages = ['cutting', 'embellishment', 'sewing', 'washing', 'finishing', 'packing'];
-        }
+        // Fetch active production started batches for scanner selection dropdown
+        $stmtBatches = $db->prepare("
+            SELECT pro.id, pro.production_no, s.style_no, s.name as style_name, c.name as buyer_name
+            FROM production_orders pro
+            JOIN buyer_pos po ON pro.po_id = po.id
+            JOIN styles s ON po.style_id = s.id
+            JOIN contacts c ON po.buyer_id = c.id
+            WHERE pro.company_id = ? AND pro.status != 'completed' AND pro.deleted_at IS NULL
+            ORDER BY pro.id DESC
+        ");
+        $stmtBatches->execute([$companyId]);
+        $activeBatches = $stmtBatches->fetchAll() ?: [];
+
+        $companyWipStages = \App\Controllers\CompanyController::getCompanyWipStages($companyId);
 
         $this->renderView('company/qr_tracking', [
             'title' => 'Mobile QR Code Scanner | ERP',
-            'stages' => $activeWipStages
+            'batches' => $activeBatches,
+            'stages' => $companyWipStages
         ], 'mobile');
     }
 
@@ -561,6 +629,33 @@ class ProductionController extends Controller {
         if (!$batch) {
             echo json_encode(['success' => false, 'message' => "Production batch '{$batchNo}' not found."]);
             exit;
+        }
+
+        // Verify preceding stage order sequence compliance for QR code scan
+        $batchStages = self::getBatchStagesList((int)$batch['id']);
+        $stageKeys = array_column($batchStages, 'key');
+        $targetIndex = array_search($stage, $stageKeys);
+
+        if ($targetIndex !== false && $targetIndex > 0) {
+            for ($i = 0; $i < $targetIndex; $i++) {
+                $precedingKey = $batchStages[$i]['key'];
+                $precedingName = $batchStages[$i]['name'];
+
+                $stmtCheckPrec = $db->prepare("
+                    SELECT id FROM production_stage_logs 
+                    WHERE company_id = ? AND qr_code = ? AND stage = ? 
+                    LIMIT 1
+                ");
+                $stmtCheckPrec->execute([$companyId, $qrCode, $precedingKey]);
+                if (!$stmtCheckPrec->fetchColumn()) {
+                    $targetName = isset($batchStages[$targetIndex]['name']) ? $batchStages[$targetIndex]['name'] : strtoupper(str_replace('_', ' ', $stage));
+                    echo json_encode([
+                        'success' => false,
+                        'message' => "Order Sequence Error: Unit ({$qrCode}) cannot enter stage '{$targetName}' yet. Preceding stage '{$precedingName}' must be completed first!"
+                    ]);
+                    exit;
+                }
+            }
         }
 
         // Logged-in user is the operator / employee
