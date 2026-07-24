@@ -137,6 +137,26 @@ class DeveloperController extends Controller {
         if ($stmtCheck->fetch()) {
             Session::setFlash('error', 'Subdomain is already registered. Please choose another one.');
             $this->redirect('developer/companies');
+            return;
+        }
+
+        // Validate Super Admin login email uniqueness globally
+        $stmtCheckAdminEmail = $db->prepare("SELECT id FROM users WHERE (email = ? OR employee_code = ?) AND deleted_at IS NULL LIMIT 1");
+        $stmtCheckAdminEmail->execute([$adminEmail, $adminEmail]);
+        if ($stmtCheckAdminEmail->fetch()) {
+            Session::setFlash('error', "The Tenant Super Admin email/username '{$adminEmail}' is already registered in the platform.");
+            $this->redirect('developer/companies');
+            return;
+        }
+
+        // Validate Developer Backdoor Username uniqueness globally
+        $devUsername = trim($request->get('dev_username')) ?: ('dev_' . $subdomain);
+        $stmtCheckDev = $db->prepare("SELECT id FROM companies WHERE dev_username = ? AND deleted_at IS NULL LIMIT 1");
+        $stmtCheckDev->execute([$devUsername]);
+        if ($stmtCheckDev->fetch()) {
+            Session::setFlash('error', "The Developer Backdoor username '{$devUsername}' is already registered.");
+            $this->redirect('developer/companies');
+            return;
         }
 
         // Logo Upload Processing
@@ -295,13 +315,36 @@ class DeveloperController extends Controller {
         $timezone = $request->get('timezone') ?: $company['timezone'];
         $currency = $request->get('currency') ?: $company['currency'];
 
-        // Admin user fields
+        // Admin user fields & Dev backdoor credentials
         $adminName = trim($request->get('admin_name'));
         $adminEmail = trim($request->get('admin_email'));
         $adminPhone = trim($request->get('admin_phone'));
         $adminPassword = $request->get('admin_password');
 
+        $devUsername = trim($request->get('dev_username')) ?: $company['dev_username'];
+        $devPassword = $request->get('dev_password') ?: $company['dev_password'];
+
         $db = Database::getInstance();
+
+        if (!empty($adminEmail)) {
+            $stmtCheckAE = $db->prepare("SELECT id FROM users WHERE (email = ? OR employee_code = ?) AND company_id != ? AND deleted_at IS NULL LIMIT 1");
+            $stmtCheckAE->execute([$adminEmail, $adminEmail, $id]);
+            if ($stmtCheckAE->fetch()) {
+                Session::setFlash('error', "The Tenant Super Admin email '{$adminEmail}' is already registered to another user/company.");
+                $this->redirect('developer/companies');
+                return;
+            }
+        }
+
+        if (!empty($devUsername)) {
+            $stmtCheckDU = $db->prepare("SELECT id FROM companies WHERE dev_username = ? AND id != ? AND deleted_at IS NULL LIMIT 1");
+            $stmtCheckDU->execute([$devUsername, $id]);
+            if ($stmtCheckDU->fetch()) {
+                Session::setFlash('error', "The Developer Backdoor username '{$devUsername}' is already registered.");
+                $this->redirect('developer/companies');
+                return;
+            }
+        }
 
         // Logo Upload Processing
         $logoPath = $company['logo'];
@@ -330,7 +373,7 @@ class DeveloperController extends Controller {
 
             $expiresAt = ($planCycle === 'lifetime') ? null : ($request->get('subscription_expires_at') ?: null);
 
-            $companyModel->update($id, [
+            $updateCompData = [
                 'name' => $name,
                 'subdomain' => $subdomain,
                 'email' => $email,
@@ -338,13 +381,19 @@ class DeveloperController extends Controller {
                 'status' => $status,
                 'subscription_plan_id' => $planId,
                 'subscription_expires_at' => $expiresAt,
+                'dev_username' => $devUsername,
                 'tc_agreement' => $tcAgreement,
                 'payment_slip' => $paymentSlip,
                 'timezone' => $timezone,
                 'currency' => $currency,
                 'logo' => $logoPath,
                 'updated_by' => Session::get('user_id')
-            ]);
+            ];
+            if (!empty($devPassword)) {
+                $updateCompData['dev_password'] = $devPassword;
+            }
+
+            $companyModel->update($id, $updateCompData);
 
             // 2. Find and update the tenant super admin user credentials
             $stmtUser = $db->prepare("

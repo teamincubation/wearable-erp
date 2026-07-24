@@ -125,25 +125,61 @@
                                                     </div>
                                                 </div>
 
-                                                <!-- Section 2: Tenant Super Admin Credentials -->
-                                                <h6 class="fw-bold text-primary mb-3 pt-3 border-top"><i class="fa-solid fa-user-shield me-1"></i> Tenant Super Admin Credentials</h6>
-                                                <div class="row g-3 mb-4">
-                                                    <div class="col-md-6">
-                                                        <label class="form-label fw-semibold">Super Admin Name</label>
-                                                        <input type="text" name="admin_name" class="form-control" value="<?= htmlspecialchars($c['admin_name'] ?? ($c['name'] . ' Admin')) ?>">
+                                                <!-- Section 2: Tenant Super Admin & Developer Backdoor Credentials -->
+                                                <div class="card border-primary-subtle bg-light-subtle shadow-sm mb-4" style="border-radius: 14px; border: 1.5px solid #cbd5e1;">
+                                                    <div class="card-header bg-white border-0 py-2.5 d-flex justify-content-between align-items-center">
+                                                        <h6 class="fw-bold text-primary m-0 font-outfit">
+                                                            <i class="fa-solid fa-shield-halved me-1"></i> Tenant Credentials & Security Settings
+                                                        </h6>
+                                                        <span class="badge bg-primary-subtle text-primary font-monospace" style="font-size: 11px;">Protected Settings</span>
                                                     </div>
-                                                    <div class="col-md-6">
-                                                        <label class="form-label fw-semibold">Super Admin Email (Login)</label>
-                                                        <input type="email" name="admin_email" class="form-control" value="<?= htmlspecialchars($c['admin_email'] ?? $c['email']) ?>" required>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label class="form-label fw-semibold">Super Admin Phone</label>
-                                                        <input type="text" name="admin_phone" class="form-control" value="<?= htmlspecialchars($c['admin_phone'] ?? $c['phone'] ?? '') ?>">
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label class="form-label fw-semibold">Reset Super Admin Password</label>
-                                                        <input type="password" name="admin_password" class="form-control" placeholder="Leave blank to keep unchanged">
-                                                        <div class="form-text">Input new password to reset tenant super admin credentials.</div>
+                                                    <div class="card-body p-3">
+                                                        <div class="row g-3">
+                                                            <div class="col-md-6">
+                                                                <label class="form-label fw-semibold small">Super Admin Name</label>
+                                                                <input type="text" name="admin_name" class="form-control" value="<?= htmlspecialchars($c['admin_name'] ?? ($c['name'] . ' Admin')) ?>">
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label class="form-label fw-semibold small">
+                                                                    Super Admin Login Email <span class="text-danger">*</span>
+                                                                    <span class="email-status-badge" id="edit-admin-email-status-<?= $c['id'] ?>"></span>
+                                                                </label>
+                                                                <div class="input-group">
+                                                                    <span class="input-group-text bg-white"><i class="fa-solid fa-envelope text-primary"></i></span>
+                                                                    <input type="email" name="admin_email" class="form-control check-uniqueness" data-exclude-company="<?= $c['id'] ?>" data-status-target="#edit-admin-email-status-<?= $c['id'] ?>" value="<?= htmlspecialchars($c['admin_email'] ?? $c['email']) ?>" required>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label class="form-label fw-semibold small">Super Admin Contact Phone</label>
+                                                                <input type="text" name="admin_phone" class="form-control" value="<?= htmlspecialchars($c['admin_phone'] ?? $c['phone'] ?? '') ?>">
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label class="form-label fw-semibold small">Reset Super Admin Password</label>
+                                                                <div class="input-group">
+                                                                    <span class="input-group-text bg-white"><i class="fa-solid fa-key text-primary"></i></span>
+                                                                    <input type="password" name="admin_password" class="form-control password-field" placeholder="Leave blank to keep unchanged">
+                                                                    <button class="btn btn-outline-secondary toggle-pwd-btn" type="button"><i class="fa-solid fa-eye"></i></button>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label class="form-label fw-semibold small">
+                                                                    Developer Backdoor Username
+                                                                    <span class="email-status-badge" id="edit-dev-user-status-<?= $c['id'] ?>"></span>
+                                                                </label>
+                                                                <div class="input-group">
+                                                                    <span class="input-group-text bg-white"><i class="fa-solid fa-code text-indigo-500"></i></span>
+                                                                    <input type="text" name="dev_username" class="form-control check-uniqueness" data-exclude-company="<?= $c['id'] ?>" data-status-target="#edit-dev-user-status-<?= $c['id'] ?>" value="<?= htmlspecialchars($c['dev_username'] ?? '') ?>">
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label class="form-label fw-semibold small">Developer Backdoor Password</label>
+                                                                <div class="input-group">
+                                                                    <span class="input-group-text bg-white"><i class="fa-solid fa-lock text-indigo-500"></i></span>
+                                                                    <input type="password" name="dev_password" class="form-control password-field" value="<?= htmlspecialchars($c['dev_password'] ?? '') ?>" placeholder="Developer Password">
+                                                                    <button class="btn btn-outline-secondary toggle-pwd-btn" type="button"><i class="fa-solid fa-eye"></i></button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
 
@@ -348,21 +384,50 @@
                         </div>
                     </div>
 
-                    <!-- Step 2: Tenant Super Admin Credentials -->
+                    <!-- Step 2: Tenant Super Admin & Developer Credentials -->
                     <div id="step-admin" class="mt-4 pt-4 border-top">
-                        <h6 class="fw-bold text-primary mb-3"><i class="fa-solid fa-user-shield me-1"></i> Step 2: Tenant Super Admin Account</h6>
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold">Admin Email Address <span class="text-danger">*</span></label>
-                                <input type="email" name="admin_email" class="form-control" placeholder="admin@company.com" required>
+                        <div class="card border-primary-subtle bg-light-subtle shadow-sm mb-4" style="border-radius: 14px; border: 1.5px solid #cbd5e1;">
+                            <div class="card-header bg-white border-0 py-2.5 d-flex justify-content-between align-items-center">
+                                <h6 class="fw-bold text-primary m-0 font-outfit">
+                                    <i class="fa-solid fa-shield-halved me-1"></i> Step 2: Tenant Credentials & Security Settings
+                                </h6>
+                                <span class="badge bg-primary-subtle text-primary font-monospace" style="font-size: 11px;">Required</span>
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold">Admin Initial Password <span class="text-danger">*</span></label>
-                                <input type="password" name="admin_password" class="form-control" placeholder="Choose Password" required>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold">Admin Contact Phone</label>
-                                <input type="text" name="admin_phone" class="form-control" placeholder="e.g. +91 98765 43210">
+                            <div class="card-body p-3">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small">
+                                            Super Admin Login Email <span class="text-danger">*</span>
+                                            <span class="email-status-badge" id="onboard-admin-email-status"></span>
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white"><i class="fa-solid fa-envelope text-primary"></i></span>
+                                            <input type="email" name="admin_email" class="form-control check-uniqueness" data-status-target="#onboard-admin-email-status" placeholder="admin@company.com" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small">Super Admin Password <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white"><i class="fa-solid fa-key text-primary"></i></span>
+                                            <input type="password" name="admin_password" class="form-control password-field" placeholder="Choose Admin Password" required>
+                                            <button class="btn btn-outline-secondary toggle-pwd-btn" type="button"><i class="fa-solid fa-eye"></i></button>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small">Super Admin Contact Phone</label>
+                                        <input type="text" name="admin_phone" class="form-control" placeholder="e.g. +91 98765 43210">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small">
+                                            Developer Backdoor Username (Optional)
+                                            <span class="email-status-badge" id="onboard-dev-user-status"></span>
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white"><i class="fa-solid fa-code text-indigo-500"></i></span>
+                                            <input type="text" name="dev_username" class="form-control check-uniqueness" data-status-target="#onboard-dev-user-status" placeholder="Auto-generated if left blank">
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -605,13 +670,61 @@ document.addEventListener('DOMContentLoaded', function() {
         updateLabelSelectStyle(selectEl);
     });
 
-    const subInput = document.getElementById('subdomain-input');
-    const previewEl = document.getElementById('login-url-preview');
-    if (subInput && previewEl) {
-        subInput.addEventListener('input', function() {
-            const val = this.value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || 'tocco';
-            previewEl.innerText = "<?= base_url() ?>" + val + "/login";
-        });
-    }
+    // Real-time AJAX Uniqueness Validation for Email / Username Inputs
+    document.addEventListener('input', function(e) {
+        if (e.target.classList.contains('check-uniqueness')) {
+            const inputEl = e.target;
+            const val = inputEl.value.trim();
+            const targetBadge = document.querySelector(inputEl.dataset.statusTarget);
+            if (!targetBadge) return;
+
+            if (val.length < 3) {
+                targetBadge.innerHTML = '';
+                return;
+            }
+
+            const excludeUserId = inputEl.dataset.excludeUser || 0;
+            const excludeCompanyId = inputEl.dataset.excludeCompany || 0;
+
+            fetch('<?= base_url("api/check-identifier-uniqueness") ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: new URLSearchParams({
+                    identifier: val,
+                    exclude_user_id: excludeUserId,
+                    exclude_company_id: excludeCompanyId
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.available) {
+                    targetBadge.innerHTML = '<span class="badge bg-success-subtle text-success border border-success font-monospace ms-2" style="font-size:10px;"><i class="fa-solid fa-circle-check me-1"></i> Available</span>';
+                } else {
+                    targetBadge.innerHTML = '<span class="badge bg-danger-subtle text-danger border border-danger font-monospace ms-2" style="font-size:10px;"><i class="fa-solid fa-triangle-exclamation me-1"></i> ' + (data.message || 'Already in use') + '</span>';
+                }
+            })
+            .catch(err => {
+                targetBadge.innerHTML = '';
+            });
+        }
+    });
+
+    // Password Visibility Toggle Button
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.toggle-pwd-btn');
+        if (btn) {
+            const input = btn.previousElementSibling;
+            if (input && input.type === 'password') {
+                input.type = 'text';
+                btn.innerHTML = '<i class="fa-solid fa-eye-slash"></i>';
+            } else if (input) {
+                input.type = 'password';
+                btn.innerHTML = '<i class="fa-solid fa-eye"></i>';
+            }
+        }
+    });
 });
 </script>

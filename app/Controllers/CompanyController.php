@@ -112,11 +112,14 @@ class CompanyController extends Controller {
             $this->redirect('company/users');
         }
 
-        // Ensure email/username uniqueness globally
+        // Ensure email/username uniqueness globally across users and developer usernames
         $existing = $userModel->findGlobalByIdentifier($email);
-        if ($existing) {
-            Session::setFlash('error', 'This Email/Username is already registered.');
+        $stmtDevCheck = $db->prepare("SELECT id FROM companies WHERE dev_username = ? AND deleted_at IS NULL LIMIT 1");
+        $stmtDevCheck->execute([$email]);
+        if ($existing || $stmtDevCheck->fetch()) {
+            Session::setFlash('error', "The Email/Username '{$email}' is already registered in the platform.");
             $this->redirect('company/users');
+            return;
         }
 
         $userId = $userModel->insert([
@@ -195,12 +198,15 @@ class CompanyController extends Controller {
             $this->redirect('company/users');
         }
 
-        // Ensure Email/Username uniqueness (excluding current user)
-        $stmtCheckEmail = $db->prepare("SELECT id FROM users WHERE email = ? && id != ? && deleted_at IS NULL LIMIT 1");
+        // Ensure Email/Username uniqueness globally (excluding current user)
+        $stmtCheckEmail = $db->prepare("SELECT id FROM users WHERE email = ? AND id != ? AND deleted_at IS NULL LIMIT 1");
         $stmtCheckEmail->execute([$email, $id]);
-        if ($stmtCheckEmail->fetch()) {
-            Session::setFlash('error', 'This Email/Username is already registered.');
+        $stmtDevCheck = $db->prepare("SELECT id FROM companies WHERE dev_username = ? AND deleted_at IS NULL LIMIT 1");
+        $stmtDevCheck->execute([$email]);
+        if ($stmtCheckEmail->fetch() || $stmtDevCheck->fetch()) {
+            Session::setFlash('error', "The Email/Username '{$email}' is already registered in the platform.");
             $this->redirect('company/users');
+            return;
         }
 
         $updates = [

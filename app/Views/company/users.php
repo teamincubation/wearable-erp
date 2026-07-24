@@ -231,8 +231,14 @@
                                                     <input type="text" name="name" class="form-control text-dark" value="<?= htmlspecialchars($u['name']) ?>" required>
                                                 </div>
                                                 <div class="mb-3">
-                                                    <label class="form-label fw-semibold">Email / Username <span class="text-danger">*</span></label>
-                                                    <input type="text" name="email" class="form-control text-dark" value="<?= htmlspecialchars($u['email']) ?>" required>
+                                                    <label class="form-label fw-semibold">
+                                                        Email / Username <span class="text-danger">*</span>
+                                                        <span class="email-status-badge" id="edit-emp-email-status-<?= $u['id'] ?>"></span>
+                                                    </label>
+                                                    <div class="input-group">
+                                                        <span class="input-group-text bg-white"><i class="fa-solid fa-envelope text-primary"></i></span>
+                                                        <input type="text" name="email" class="form-control text-dark check-uniqueness" data-exclude-user="<?= $u['id'] ?>" data-status-target="#edit-emp-email-status-<?= $u['id'] ?>" value="<?= htmlspecialchars($u['email']) ?>" required>
+                                                    </div>
                                                 </div>
                                                 <div class="mb-3">
                                                     <label class="form-label fw-semibold">Contact Phone</label>
@@ -344,8 +350,14 @@
                         <input type="text" name="name" class="form-control" placeholder="e.g. Ramesh Kumar" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Email / Username <span class="text-danger">*</span></label>
-                        <input type="text" name="email" class="form-control" placeholder="ramesh or ramesh@toccoexports.com" required>
+                        <label class="form-label fw-semibold">
+                            Email / Username <span class="text-danger">*</span>
+                            <span class="email-status-badge" id="add-emp-email-status"></span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white"><i class="fa-solid fa-envelope text-primary"></i></span>
+                            <input type="text" name="email" class="form-control check-uniqueness" data-status-target="#add-emp-email-status" placeholder="ramesh or ramesh@toccoexports.com" required>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Phone Number</label>
@@ -353,7 +365,11 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Password <span class="text-danger">*</span></label>
-                        <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white"><i class="fa-solid fa-key text-primary"></i></span>
+                            <input type="password" name="password" class="form-control password-field" placeholder="••••••••" required>
+                            <button class="btn btn-outline-secondary toggle-pwd-btn" type="button"><i class="fa-solid fa-eye"></i></button>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-semibold">ERP Security Role <span class="text-danger">*</span></label>
@@ -409,4 +425,63 @@ function toggleInactivitySection(selectEl, userId) {
         dateInput.removeAttribute('required');
     }
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Real-time AJAX Uniqueness Validation for Email / Username Inputs
+    document.addEventListener('input', function(e) {
+        if (e.target.classList.contains('check-uniqueness')) {
+            const inputEl = e.target;
+            const val = inputEl.value.trim();
+            const targetBadge = document.querySelector(inputEl.dataset.statusTarget);
+            if (!targetBadge) return;
+
+            if (val.length < 3) {
+                targetBadge.innerHTML = '';
+                return;
+            }
+
+            const excludeUserId = inputEl.dataset.excludeUser || 0;
+            const excludeCompanyId = inputEl.dataset.excludeCompany || 0;
+
+            fetch('<?= base_url("api/check-identifier-uniqueness") ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: new URLSearchParams({
+                    identifier: val,
+                    exclude_user_id: excludeUserId,
+                    exclude_company_id: excludeCompanyId
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.available) {
+                    targetBadge.innerHTML = '<span class="badge bg-success-subtle text-success border border-success font-monospace ms-2" style="font-size:10px;"><i class="fa-solid fa-circle-check me-1"></i> Available</span>';
+                } else {
+                    targetBadge.innerHTML = '<span class="badge bg-danger-subtle text-danger border border-danger font-monospace ms-2" style="font-size:10px;"><i class="fa-solid fa-triangle-exclamation me-1"></i> ' + (data.message || 'Already in use') + '</span>';
+                }
+            })
+            .catch(err => {
+                targetBadge.innerHTML = '';
+            });
+        }
+    });
+
+    // Password Visibility Toggle Button
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.toggle-pwd-btn');
+        if (btn) {
+            const input = btn.previousElementSibling;
+            if (input && input.type === 'password') {
+                input.type = 'text';
+                btn.innerHTML = '<i class="fa-solid fa-eye-slash"></i>';
+            } else if (input) {
+                input.type = 'password';
+                btn.innerHTML = '<i class="fa-solid fa-eye"></i>';
+            }
+        }
+    });
+});
 </script>

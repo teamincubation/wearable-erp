@@ -176,6 +176,59 @@ class AuthController extends Controller {
     }
 
     /**
+     * AJAX Endpoint: Check real-time global uniqueness for emails, usernames, and developer credentials
+     */
+    public function checkIdentifierUniqueness(Request $request, Response $response): void {
+        $identifier = trim($request->get('identifier') ?? '');
+        $excludeUserId = (int)($request->get('exclude_user_id') ?? 0);
+        $excludeCompanyId = (int)($request->get('exclude_company_id') ?? 0);
+
+        if (empty($identifier)) {
+            $this->json(['available' => true, 'message' => '']);
+            return;
+        }
+
+        $db = Database::getInstance();
+
+        // 1. Check reserved master developer usernames
+        $reserved = ['admin', 'dev', 'developer', 'dev@wearableerp.com', 'superadmin', 'admin@mywellgro.online'];
+        if (in_array(strtolower($identifier), $reserved)) {
+            $this->json(['available' => false, 'message' => 'Reserved system identifier']);
+            return;
+        }
+
+        // 2. Check users table (email & employee_code)
+        $sqlUser = "SELECT id FROM users WHERE (email = ? OR employee_code = ?) AND deleted_at IS NULL";
+        $paramsUser = [$identifier, $identifier];
+        if ($excludeUserId > 0) {
+            $sqlUser .= " AND id != ?";
+            $paramsUser[] = $excludeUserId;
+        }
+        $stmtUser = $db->prepare($sqlUser);
+        $stmtUser->execute($paramsUser);
+        if ($stmtUser->fetch()) {
+            $this->json(['available' => false, 'message' => 'Already in use']);
+            return;
+        }
+
+        // 3. Check companies table (dev_username)
+        $sqlDev = "SELECT id FROM companies WHERE dev_username = ? AND deleted_at IS NULL";
+        $paramsDev = [$identifier];
+        if ($excludeCompanyId > 0) {
+            $sqlDev .= " AND id != ?";
+            $paramsDev[] = $excludeCompanyId;
+        }
+        $stmtDev = $db->prepare($sqlDev);
+        $stmtDev->execute($paramsDev);
+        if ($stmtDev->fetch()) {
+            $this->json(['available' => false, 'message' => 'Already in use as developer backdoor username']);
+            return;
+        }
+
+        $this->json(['available' => true, 'message' => 'Available']);
+    }
+
+    /**
      * Smart redirection to user dashboard based on authenticated user type
      */
     private function redirectToDashboard(): void {

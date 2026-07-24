@@ -34,6 +34,10 @@ $router->post('/reset-password', [AuthController::class, 'resetPassword'])->midd
 
 $router->get('/verify-email', [AuthController::class, 'verifyEmail']);
 
+// AJAX Identifier Uniqueness Validation API
+$router->get('/api/check-identifier-uniqueness', [AuthController::class, 'checkIdentifierUniqueness']);
+$router->post('/api/check-identifier-uniqueness', [AuthController::class, 'checkIdentifierUniqueness']);
+
 // ==========================================================
 // 2. DEVELOPER PORTAL ROUTES (Global Super Admin Only)
 // ==========================================================
