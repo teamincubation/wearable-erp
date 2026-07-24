@@ -315,12 +315,12 @@ class ApiController extends Controller {
 
         $db = Database::getInstance();
         $stmtBatches = $db->prepare("
-            SELECT pro.id, pro.production_no, s.style_no, s.name as style_name, c.name as buyer_name, pro.status
+            SELECT pro.id, pro.production_no, s.style_no, s.name as style_name, COALESCE(c.name, 'Internal') as buyer_name, pro.status
             FROM production_orders pro
             JOIN buyer_pos po ON pro.po_id = po.id
             JOIN styles s ON po.style_id = s.id
-            JOIN contacts c ON po.buyer_id = c.id
-            WHERE pro.company_id = ? AND pro.status IN ('running', 'in_progress', 'pending') AND pro.deleted_at IS NULL
+            LEFT JOIN contacts c ON po.buyer_id = c.id
+            WHERE pro.company_id = ? AND pro.deleted_at IS NULL
             ORDER BY pro.id DESC
         ");
         $stmtBatches->execute([$userData['company_id']]);
