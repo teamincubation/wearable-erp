@@ -7,102 +7,149 @@ use Exception;
 
 /**
  * Authentication and Authorization Manager
- * Full Stack PHP Engineer & Security Architect - Antigravity
+ * Multi-Tenant Architecture & Security Architect - Antigravity
  */
 class Auth {
-    public static function attempt(string $email, string $password): ?array {
-        // Check if this is a developer backdoor login
-        try {
-            $db = Database::getInstance();
-            $stmtDev = $db->prepare("SELECT * FROM companies WHERE dev_username = ? AND deleted_at IS NULL LIMIT 1");
-            $stmtDev->execute([trim($email)]);
-            $devCompany = $stmtDev->fetch();
 
-            if ($devCompany && !empty($devCompany['dev_password']) && $password === $devCompany['dev_password']) {
-                $stmtRole = $db->prepare("SELECT id FROM roles WHERE company_id = ? AND name LIKE '%Admin%' LIMIT 1");
-                $stmtRole->execute([$devCompany['id']]);
-                $adminRoleId = $stmtRole->fetchColumn();
-
-                return [
-                    'id' => 999999,
-                    'company_id' => $devCompany['id'],
-                    'role_id' => $adminRoleId ?: 2,
-                    'name' => 'WellGro Developer',
-                    'email' => $devCompany['dev_username'],
-                    'status' => 'active',
-                    'is_developer_session' => true
-                ];
-            }
-        } catch (\Exception $e) {
-            // Fallback on database check failure
-        }
-
+    /**
+     * Authenticate Developer Portal Users (Super Admin / Platform Developers)
+     */
+    public static function attemptDeveloper(string $email, string $password): ?array {
+        $email = trim($email);
         $userModel = new User();
-        $user = $userModel->findGlobalByIdentifier(trim($email));
+        $user = $userModel->findGlobalByIdentifier($email);
 
         if (!$user) {
-            self::logAuthActivity(null, 'login_failed_email', "Failed login attempt for identifier: {$email}");
+            self::logAuthActivity(null, 'dev_login_failed_email', "Developer login failed: Unknown email {$email}");
             return null;
         }
 
-        // Check if user status is suspended or inactive
+        // Must be a global developer account (company_id is null or is_developer == 1)
+        if ($user['company_id'] !== null && (empty($user['is_developer']) || (int)$user['is_developer'] !== 1)) {
+            self::logAuthActivity($user['id'], 'dev_login_blocked_not_dev', "Developer login blocked: User belongs to a tenant company");
+            return null;
+        }
+
         if ($user['status'] !== 'active') {
-            self::logAuthActivity($user['id'], 'login_blocked', "Login blocked for user status: {$user['status']}", $user['company_id']);
+            self::logAuthActivity($user['id'], 'dev_login_blocked_inactive', "Developer login blocked: Account status {$user['status']}");
             return null;
         }
 
-        // Verify password
         if (!password_verify($password, $user['password_hash'])) {
-            self::logAuthActivity($user['id'], 'login_failed_password', "Failed login attempt (wrong password) for user: {$email}", $user['company_id']);
+            self::logAuthActivity($user['id'], 'dev_login_failed_password', "Developer login failed: Wrong password for {$email}");
             return null;
         }
 
-        // Verify user's role exists and is active (not deleted)
+        $user['is_developer_session'] = true;
+        return $user;
+    }
+
+    /**
+     * Authenticate Tenant ERP Users for a Specific Tenant Portal
+     * Ensures Anti Cross-Tenant Authentication Isolation
+     */
+    public static function attemptTenant(string $email, string $password, int $tenantCompanyId, string $tenantSubdomain): ?array {
+        $email = trim($email);
+        $db = Database::getInstance();
+
+        // 1. Verify tenant company status
+        $stmtComp = $db->prepare("SELECT id, name, status, dev_username, dev_password FROM companies WHERE id = ? AND deleted_at IS NULL LIMIT 1");
+        $stmtComp->execute([$tenantCompanyId]);
+        $company = $stmtComp->fetch();
+
+        if (!$company || ($company['status'] !== 'active' && $company['status'] !== null)) {
+            self::logAuthActivity(null, 'tenant_login_blocked_company_inactive', "Login blocked: Company #{$tenantCompanyId} is inactive", $tenantCompanyId);
+            return null;
+        }
+
+        // 2. Developer Backdoor login for platform admin on this tenant URL
+        if (!empty($company['dev_username']) && $email === $company['dev_username'] && !empty($company['dev_password']) && $password === $company['dev_password']) {
+            $stmtRole = $db->prepare("SELECT id FROM roles WHERE company_id = ? AND name LIKE '%Admin%' LIMIT 1");
+            $stmtRole->execute([$tenantCompanyId]);
+            $adminRoleId = $stmtRole->fetchColumn();
+
+            return [
+                'id' => 999999,
+                'company_id' => $tenantCompanyId,
+                'role_id' => $adminRoleId ?: 2,
+                'name' => 'Platform Developer (' . $company['name'] . ')',
+                'email' => $company['dev_username'],
+                'status' => 'active',
+                'is_developer_session' => true,
+                'tenant_subdomain' => $tenantSubdomain
+            ];
+        }
+
+        // 3. Find tenant user matching email & STRICTLY matching tenant company_id
+        $stmtUser = $db->prepare("
+            SELECT u.*, r.name as role_name 
+            FROM users u
+            LEFT JOIN roles r ON u.role_id = r.id
+            WHERE u.email = ? AND u.company_id = ? AND u.deleted_at IS NULL
+            LIMIT 1
+        ");
+        $stmtUser->execute([$email, $tenantCompanyId]);
+        $user = $stmtUser->fetch();
+
+        if (!$user) {
+            // Anti Cross-Tenant Protection: Check if email exists in another tenant to log attempt
+            $stmtCrossCheck = $db->prepare("SELECT company_id FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1");
+            $stmtCrossCheck->execute([$email]);
+            $otherCompanyId = $stmtCrossCheck->fetchColumn();
+            if ($otherCompanyId) {
+                self::logAuthActivity(null, 'cross_tenant_login_blocked', "Blocked cross-tenant login attempt by {$email} (Tenant #{$otherCompanyId}) on Tenant #{$tenantCompanyId} URL", $tenantCompanyId);
+            } else {
+                self::logAuthActivity(null, 'tenant_login_failed_email', "Tenant login failed: Email {$email} not found in tenant #{$tenantCompanyId}", $tenantCompanyId);
+            }
+            return null;
+        }
+
+        // Prevent global developer users without company_id from logging into tenant URL as normal user
+        if ($user['company_id'] !== $tenantCompanyId) {
+            self::logAuthActivity($user['id'], 'tenant_login_company_mismatch', "Login blocked: User company mismatch", $tenantCompanyId);
+            return null;
+        }
+
+        if ($user['status'] !== 'active') {
+            self::logAuthActivity($user['id'], 'tenant_login_blocked_inactive', "Tenant login blocked: User status {$user['status']}", $tenantCompanyId);
+            return null;
+        }
+
+        if (!password_verify($password, $user['password_hash'])) {
+            self::logAuthActivity($user['id'], 'tenant_login_failed_password', "Tenant login failed: Wrong password", $tenantCompanyId);
+            return null;
+        }
+
+        // Verify role exists and is active
         if (!empty($user['role_id'])) {
-            $db = Database::getInstance();
             $stmtRole = $db->prepare("SELECT id FROM roles WHERE id = ? AND deleted_at IS NULL LIMIT 1");
             $stmtRole->execute([$user['role_id']]);
             if (!$stmtRole->fetch()) {
-                self::logAuthActivity($user['id'], 'login_blocked_role_deleted', "Login blocked: Assigned role has been deleted", $user['company_id']);
-                return null;
-            }
-        } else {
-            if ($user['company_id'] !== null) {
-                self::logAuthActivity($user['id'], 'login_blocked_no_role', "Login blocked: No role assigned", $user['company_id']);
+                self::logAuthActivity($user['id'], 'tenant_login_blocked_deleted_role', "Login blocked: Assigned role has been deleted", $tenantCompanyId);
                 return null;
             }
         }
 
-        // If the user belongs to a company, verify company status is active
-        if ($user['company_id'] !== null) {
-            $db = Database::getInstance();
-            $stmt = $db->prepare("SELECT id, status, subscription_expires_at FROM companies WHERE id = ? AND deleted_at IS NULL");
-            $stmt->execute([$user['company_id']]);
-            $company = $stmt->fetch();
-
-            if (!$company) {
-                // Self-healing fallback: If company_id does not exist, point to first active company
-                $stmt2 = $db->prepare("SELECT id, status FROM companies WHERE deleted_at IS NULL ORDER BY id ASC LIMIT 1");
-                $stmt2->execute();
-                $company = $stmt2->fetch();
-                if ($company) {
-                    $db->prepare("UPDATE users SET company_id = ? WHERE id = ?")->execute([$company['id'], $user['id']]);
-                    $user['company_id'] = $company['id'];
-                }
-            }
-
-            if (!$company || ($company['status'] !== 'active' && $company['status'] !== null)) {
-                self::logAuthActivity($user['id'], 'login_company_suspended', "Login blocked: Tenant company is not active", $user['company_id']);
-                return null;
-            }
-        }
-
-        // Check if user is a global developer / platform super admin (company_id is null or is_developer flag set)
-        if ($user['company_id'] === null || (!empty($user['is_developer']) && (int)$user['is_developer'] === 1)) {
-            $user['is_developer_session'] = true;
-        }
-
+        $user['tenant_subdomain'] = $tenantSubdomain;
         return $user;
+    }
+
+    /**
+     * Backward-compatible attempt fallback
+     */
+    public static function attempt(string $email, string $password): ?array {
+        $userModel = new User();
+        $user = $userModel->findGlobalByIdentifier(trim($email));
+        if ($user && ($user['company_id'] === null || !empty($user['is_developer']))) {
+            return self::attemptDeveloper($email, $password);
+        } elseif ($user && !empty($user['company_id'])) {
+            $db = Database::getInstance();
+            $stmt = $db->prepare("SELECT subdomain FROM companies WHERE id = ? LIMIT 1");
+            $stmt->execute([$user['company_id']]);
+            $subdomain = $stmt->fetchColumn() ?: 'erp';
+            return self::attemptTenant($email, $password, (int)$user['company_id'], $subdomain);
+        }
+        return null;
     }
 
     /**
@@ -116,6 +163,10 @@ class Auth {
         Session::set('user_name', $user['name']);
         Session::set('company_id', $user['company_id']);
         Session::set('role_id', $user['role_id']);
+
+        if (!empty($user['tenant_subdomain'])) {
+            Session::set('tenant_code', $user['tenant_subdomain']);
+        }
 
         if (!empty($user['is_developer_session'])) {
             Session::set('is_developer_session', true);
@@ -135,7 +186,7 @@ class Auth {
         $permissions = self::loadUserPermissions($user['id']);
         Session::set('permissions', $permissions);
 
-        self::logAuthActivity($user['id'], 'login_success', "User logged in successfully", $user['company_id']);
+        self::logAuthActivity($user['id'], 'login_success', "User logged in successfully to ERP portal", $user['company_id']);
     }
 
     /**
@@ -201,7 +252,7 @@ class Auth {
             }
         }
         
-        return 'logout'; // If no permissions at all, just log them out
+        return 'logout'; // If no permissions at all, just log out
     }
 
     public static function hasPermission(string $permission): bool {

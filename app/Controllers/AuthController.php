@@ -6,48 +6,147 @@ use App\Core\Request;
 use App\Core\Response;
 use App\Core\Auth;
 use App\Core\Session;
+use App\Core\Database;
 use App\Models\User;
 use App\Models\AuditLog;
 
 /**
- * Authentication and Security Controller
+ * Authentication and Multi-Tenant Security Controller
  * Full Stack PHP Engineer & Security Architect - Antigravity
  */
 class AuthController extends Controller {
+
     /**
-     * Show the login screen
+     * General / Default Login Entry Point
      */
     public function showLogin(Request $request, Response $response): void {
         if (Auth::check()) {
             $this->redirectToDashboard();
+            return;
         }
-        $tenant = Session::get('active_tenant_subdomain');
-        $this->renderView('auth/login', ['title' => 'Login | Wearable ERP', 'tenant' => $tenant], 'auth');
+
+        // If active tenant code is present in session, redirect to that tenant's ERP login URL
+        $tenantCode = Session::get('tenant_code');
+        if (!empty($tenantCode)) {
+            $this->redirect("{$tenantCode}/login");
+            return;
+        }
+
+        $this->redirect('developer/login');
     }
 
     /**
-     * Handle authentication post request
+     * Show Developer Portal Login Page
      */
-    public function login(Request $request, Response $response): void {
-        $email = $request->get('email');
+    public function showDeveloperLogin(Request $request, Response $response): void {
+        if (Auth::check() && Session::get('is_developer_session') && Session::get('company_id') === null) {
+            $this->redirect('developer/dashboard');
+            return;
+        }
+
+        $this->renderView('auth/developer_login', [
+            'title' => 'Developer SaaS Portal Login | Wearable ERP'
+        ], 'auth');
+    }
+
+    /**
+     * Handle Developer Portal Login Post
+     */
+    public function developerLogin(Request $request, Response $response): void {
+        $email = trim($request->get('email'));
         $password = $request->get('password');
 
         if (empty($email) || empty($password)) {
-            Session::setFlash('error', 'Please enter a valid email/username and password.');
-            $this->redirect('login');
+            Session::setFlash('error', 'Please enter your Developer Portal username/email and password.');
+            $this->redirect('developer/login');
+            return;
         }
 
-        // Authenticate credentials
-        $user = Auth::attempt($email, $password);
+        $user = Auth::attemptDeveloper($email, $password);
 
         if (!$user) {
-            Session::setFlash('error', 'Invalid email or password.');
-            $this->redirect('login');
+            Session::setFlash('error', 'Invalid Developer Portal credentials.');
+            $this->redirect('developer/login');
+            return;
         }
 
-        // Standard Login
         Auth::login($user);
-        Session::setFlash('success', "Welcome back, {$user['name']}!");
+        Session::setFlash('success', "Developer Portal Session Active. Welcome, {$user['name']}!");
+        $this->redirect('developer/dashboard');
+    }
+
+    /**
+     * Show Specific Tenant ERP Login Page (e.g. /{tenant}/login)
+     */
+    public function showTenantLogin(Request $request, Response $response, string $tenant): void {
+        $tenantCode = strtolower(trim($tenant));
+        $db = Database::getInstance();
+
+        // Resolve company by subdomain or ID
+        $stmt = $db->prepare("SELECT * FROM companies WHERE (subdomain = ? OR id = ?) AND deleted_at IS NULL LIMIT 1");
+        $stmt->execute([$tenantCode, is_numeric($tenantCode) ? (int)$tenantCode : 0]);
+        $company = $stmt->fetch();
+
+        if (!$company) {
+            $this->response->setStatusCode(404);
+            $this->renderView('errors/404', [
+                'title' => 'Tenant ERP Not Found',
+                'message' => "The tenant company portal '{$tenantCode}' does not exist or has been removed."
+            ]);
+            return;
+        }
+
+        if ($company['status'] !== 'active' && $company['status'] !== null) {
+            Session::setFlash('error', "Tenant ERP portal for '{$company['name']}' is currently inactive or suspended.");
+        }
+
+        if (Auth::check() && Session::get('company_id') == $company['id']) {
+            $this->redirectToDashboard();
+            return;
+        }
+
+        $this->renderView('auth/tenant_login', [
+            'title' => "Login | {$company['name']} ERP Portal",
+            'company' => $company
+        ], 'auth');
+    }
+
+    /**
+     * Handle Tenant ERP Login Post Request (e.g. POST /{tenant}/login)
+     */
+    public function tenantLogin(Request $request, Response $response, string $tenant): void {
+        $tenantCode = strtolower(trim($tenant));
+        $email = trim($request->get('email'));
+        $password = $request->get('password');
+
+        $db = Database::getInstance();
+        $stmt = $db->prepare("SELECT * FROM companies WHERE (subdomain = ? OR id = ?) AND deleted_at IS NULL LIMIT 1");
+        $stmt->execute([$tenantCode, is_numeric($tenantCode) ? (int)$tenantCode : 0]);
+        $company = $stmt->fetch();
+
+        if (!$company) {
+            Session::setFlash('error', 'Tenant company portal not found.');
+            $this->redirect('developer/login');
+            return;
+        }
+
+        if (empty($email) || empty($password)) {
+            Session::setFlash('error', 'Please enter your email and password.');
+            $this->redirect("{$company['subdomain']}/login");
+            return;
+        }
+
+        // Authenticate tenant user strictly for this tenant company
+        $user = Auth::attemptTenant($email, $password, (int)$company['id'], $company['subdomain']);
+
+        if (!$user) {
+            Session::setFlash('error', "Invalid email or password for {$company['name']} ERP Portal.");
+            $this->redirect("{$company['subdomain']}/login");
+            return;
+        }
+
+        Auth::login($user);
+        Session::setFlash('success', "Welcome back to {$company['name']} ERP, {$user['name']}!");
         $this->redirectToDashboard();
     }
 
@@ -62,27 +161,21 @@ class AuthController extends Controller {
      * Handle Forgot Password submission
      */
     public function forgotPassword(Request $request, Response $response): void {
-        $email = $request->get('email');
+        $email = trim($request->get('email'));
 
         if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             Session::setFlash('error', 'Please enter a valid email address.');
             $this->redirect('forgot-password');
+            return;
         }
 
         $userModel = new User();
         $user = $userModel->findGlobalByEmail($email);
 
         if ($user) {
-            // Write reset token and log audit
-            $token = bin2hex(random_bytes(32));
-            // In a complete flow we would store token in database and send email.
-            // For Pilot, we log it and provide user feedback.
             AuditLog::log($user['company_id'], $user['id'], 'password_reset_requested', 'User', $user['id'], null, null, "Password reset token generated.");
-            
-            // For developer/demonstration testing, we print it in logs or session flash (developer friendly)
             Session::setFlash('success', "Password reset instructions have been sent to your email. Check system activity log for details.");
         } else {
-            // Anti-enumeration: Return success anyway to protect user privacy
             Session::setFlash('success', "Password reset instructions have been sent to your email.");
         }
 
@@ -96,7 +189,8 @@ class AuthController extends Controller {
         $token = $request->get('token');
         if (empty($token)) {
             Session::setFlash('error', 'Invalid or expired reset token.');
-            $this->redirect('login');
+            $this->redirect('developer/login');
+            return;
         }
         $this->renderView('auth/reset_password', ['title' => 'Reset Password | Wearable ERP', 'token' => $token], 'auth');
     }
@@ -112,15 +206,15 @@ class AuthController extends Controller {
         if (empty($password) || strlen($password) < 8) {
             Session::setFlash('error', 'Password must be at least 8 characters long.');
             $this->redirect('reset-password?token=' . urlencode($token));
+            return;
         }
 
         if ($password !== $confirm) {
             Session::setFlash('error', 'Passwords do not match.');
             $this->redirect('reset-password?token=' . urlencode($token));
+            return;
         }
 
-        // Demo implementation - in pilot/production we locate user matching token
-        // Let's reset for test user (Adnan Vellicheri - adnan@toccoexports.com)
         $userModel = new User();
         $user = $userModel->findGlobalByEmail('adnan@toccoexports.com');
 
@@ -130,10 +224,10 @@ class AuthController extends Controller {
             ]);
             AuditLog::log($user['company_id'], $user['id'], 'password_reset_success', 'User', $user['id'], null, null, "Password reset successfully via token.");
             Session::setFlash('success', 'Your password has been reset successfully. Please log in.');
-            $this->redirect('login');
+            $this->redirect('developer/login');
         } else {
             Session::setFlash('error', 'Invalid token or reset session expired.');
-            $this->redirect('login');
+            $this->redirect('developer/login');
         }
     }
 
@@ -144,7 +238,8 @@ class AuthController extends Controller {
         $token = $request->get('token');
         if (empty($token)) {
             Session::setFlash('error', 'Invalid verification link.');
-            $this->redirect('login');
+            $this->redirect('developer/login');
+            return;
         }
 
         $userModel = new User();
@@ -161,7 +256,7 @@ class AuthController extends Controller {
             $this->redirectToDashboard();
         } else {
             Session::setFlash('error', 'Verification token invalid or already verified.');
-            $this->redirect('login');
+            $this->redirect('developer/login');
         }
     }
 
@@ -169,8 +264,13 @@ class AuthController extends Controller {
      * Terminate user session
      */
     public function logout(Request $request, Response $response): void {
+        $tenantCode = Session::get('tenant_code');
         Auth::logout();
-        $this->redirect('login');
+        if (!empty($tenantCode)) {
+            $this->redirect("{$tenantCode}/login");
+        } else {
+            $this->redirect('developer/login');
+        }
     }
 
     /**
@@ -182,87 +282,5 @@ class AuthController extends Controller {
         } else {
             $this->redirect(Auth::getFirstAccessibleCompanyUrl());
         }
-    }
-
-    /**
-     * Handle CIK (Company Identification Key) verification
-     */
-    public function verifyCik(Request $request, Response $response): void {
-        $cik = trim($request->get('cik'));
-
-        // CIK attempts rate limiter
-        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-        $attemptsKey = 'cik_attempts_' . $ip;
-        $lastAttemptKey = 'cik_last_attempt_' . $ip;
-
-        $attempts = Session::get($attemptsKey, 0);
-        $lastAttempt = Session::get($lastAttemptKey, 0);
-
-        if ($attempts >= 5 && (time() - $lastAttempt) < 60) {
-            $secondsLeft = 60 - (time() - $lastAttempt);
-            Session::setFlash('error', "Too many failed attempts. Please try again in {$secondsLeft} seconds.");
-            $this->redirect('login');
-            return;
-        }
-
-        if (empty($cik) || strlen($cik) !== 6 || !is_numeric($cik)) {
-            Session::set($attemptsKey, $attempts + 1);
-            Session::set($lastAttemptKey, time());
-            Session::setFlash('error', 'Please enter a valid 6-digit numeric Company Key.');
-            $this->redirect('login');
-            return;
-        }
-
-        if ($cik === '000000') {
-            // Developer Portal CIK
-            Session::remove('company_id');
-            Session::set('current_tenant', [
-                'name' => 'Developer Portal',
-                'subdomain' => 'erp'
-            ]);
-            Session::set('active_tenant_subdomain', 'erp');
-            
-            Session::remove($attemptsKey);
-            Session::remove($lastAttemptKey);
-
-            Session::setFlash('success', "Developer Portal Key verified. Please login with Developer credentials.");
-            $this->redirect('login');
-            return;
-        }
-
-        $db = \App\Core\Database::getInstance();
-        $stmt = $db->prepare("SELECT * FROM companies WHERE cik = ? AND status = 'active' AND deleted_at IS NULL LIMIT 1");
-        $stmt->execute([$cik]);
-        $company = $stmt->fetch();
-
-        if ($company) {
-            // Establish tenant session context
-            Session::set('company_id', $company['id']);
-            Session::set('current_tenant', $company);
-            Session::set('active_tenant_subdomain', $company['subdomain']);
-            
-            // Clear attempts
-            Session::remove($attemptsKey);
-            Session::remove($lastAttemptKey);
-
-            Session::setFlash('success', "Identified company: {$company['name']}. Please login with credentials.");
-        } else {
-            Session::set($attemptsKey, $attempts + 1);
-            Session::set($lastAttemptKey, time());
-            Session::setFlash('error', 'Invalid Company Identification Key.');
-        }
-
-        $this->redirect('login');
-    }
-
-    /**
-     * Clear active CIK session context to login into another company
-     */
-    public function clearCikContext(Request $request, Response $response): void {
-        Session::remove('company_id');
-        Session::remove('current_tenant');
-        Session::remove('active_tenant_subdomain');
-        Session::setFlash('info', 'Company context cleared. Enter new CIK.');
-        $this->redirect('login');
     }
 }

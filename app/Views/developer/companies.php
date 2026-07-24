@@ -18,8 +18,7 @@
                 <thead>
                     <tr>
                         <th>Company Name</th>
-                        <th>Subdomain</th>
-                        <th>CIK & Logo</th>
+                        <th>Tenant Login URL</th>
                         <th>Admin Email</th>
                         <th>T&C & Payment Slip Info</th>
                         <th>Subscription</th>
@@ -33,30 +32,18 @@
                         <?php foreach ($companies as $c): ?>
                             <tr>
                                 <td>
-                                    <strong class="text-dark"><?= htmlspecialchars($c['name']) ?></strong>
-                                    <div class="text-muted" style="font-size: 12px;"><?= htmlspecialchars($c['city'] ?? 'Tiruppur') ?>, <?= htmlspecialchars($c['state'] ?? 'Tamil Nadu') ?></div>
-                                </td>
-                                <td><span class="badge bg-light text-primary"><?= htmlspecialchars($c['subdomain']) ?></span></td>
-                                <td>
                                     <div class="d-flex align-items-center mb-1">
                                         <?php if (!empty($c['logo'])): ?>
                                             <img src="<?= base_url($c['logo']) ?>" alt="Logo" class="rounded me-2" style="width: 24px; height: 24px; object-fit: contain; border: 1px solid #dee2e6;">
                                         <?php endif; ?>
-                                        <span class="badge bg-warning text-dark font-monospace fw-bold" style="font-size: 13px; letter-spacing: 1px;"><?= htmlspecialchars($c['cik'] ?? 'N/A') ?></span>
+                                        <strong class="text-dark fs-6"><?= htmlspecialchars($c['name']) ?></strong>
                                     </div>
-                                    <div style="font-size: 11px;" class="text-secondary">
-                                        <div><strong>Gen:</strong> <?= $c['cik_generated_at'] ? date('d M Y H:i', strtotime($c['cik_generated_at'])) : 'System' ?></div>
-                                        <?php if ($c['cik_regenerated_at']): ?>
-                                            <div><strong>Regen:</strong> <?= date('d M Y H:i', strtotime($c['cik_regenerated_at'])) ?></div>
-                                            <div><strong>Count:</strong> <?= (int)$c['cik_regeneration_count'] ?> (By: <?= htmlspecialchars($c['cik_regenerated_by_name'] ?: 'Admin') ?>)</div>
-                                        <?php endif; ?>
-                                    </div>
-                                    <form action="<?= base_url('developer/companies/regenerate-cik/' . $c['id']) ?>" method="POST" class="mt-1" onsubmit="return confirm('Are you sure you want to regenerate the CIK for <?= htmlspecialchars($c['name']) ?>? The old CIK will be instantly archived and become invalid.');">
-                                        <?= \App\Core\Session::csrfField() ?>
-                                        <button type="submit" class="btn btn-xs btn-outline-secondary py-0 px-2 mt-1" style="font-size: 10px;">
-                                            <i class="fa-solid fa-arrows-rotate"></i> Regenerate CIK
-                                        </button>
-                                    </form>
+                                    <div class="text-muted" style="font-size: 11.5px;"><?= htmlspecialchars($c['city'] ?? 'Tiruppur') ?>, <?= htmlspecialchars($c['state'] ?? 'Tamil Nadu') ?></div>
+                                </td>
+                                <td>
+                                    <a href="<?= base_url($c['subdomain'] . '/login') ?>" target="_blank" class="badge bg-primary-subtle text-primary font-monospace p-2 border border-primary text-decoration-none shadow-sm" style="font-size: 12px;" title="Click to open tenant login page">
+                                        <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> <?= base_url($c['subdomain'] . '/login') ?>
+                                    </a>
                                 </td>
                                 <td>
                                     <div class="fw-bold text-dark"><?= htmlspecialchars($c['admin_email'] ?? $c['email']) ?></div>
@@ -342,10 +329,12 @@
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold">Subdomain Name <span class="text-danger">*</span></label>
                                 <div class="input-group">
-                                    <input type="text" name="subdomain" class="form-control" placeholder="e.g. tocco" required>
+                                    <input type="text" name="subdomain" id="subdomain-input" class="form-control" placeholder="e.g. tocco" required>
                                     <span class="input-group-text">.mywellgro.online</span>
                                 </div>
-                                <div class="form-text">Alphabets, digits and hyphens only.</div>
+                                <div class="form-text text-primary font-monospace mt-1" style="font-size: 11.5px;">
+                                    <i class="fa-solid fa-link me-1"></i> Tenant Login URL: <strong id="login-url-preview"><?= base_url('tocco/login') ?></strong>
+                                </div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold">Contact Email <span class="text-danger">*</span></label>
@@ -619,5 +608,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         updateLabelSelectStyle(selectEl);
     });
+
+    const subInput = document.getElementById('subdomain-input');
+    const previewEl = document.getElementById('login-url-preview');
+    if (subInput && previewEl) {
+        subInput.addEventListener('input', function() {
+            const val = this.value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || 'tocco';
+            previewEl.innerText = "<?= base_url() ?>" + val + "/login";
+        });
+    }
 });
 </script>

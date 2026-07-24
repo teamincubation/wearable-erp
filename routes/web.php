@@ -22,9 +22,15 @@ use App\Middleware\CsrfMiddleware;
 $router->get('/', [DashboardController::class, 'landing']);
 
 $router->get('/login', [AuthController::class, 'showLogin']);
-$router->post('/login', [AuthController::class, 'login'])->middleware(CsrfMiddleware::class);
-$router->post('/login/cik', [AuthController::class, 'verifyCik'])->middleware(CsrfMiddleware::class);
-$router->get('/login/change-cik', [AuthController::class, 'clearCikContext']);
+
+// Developer Portal Dedicated Auth Routes
+$router->get('/developer/login', [AuthController::class, 'showDeveloperLogin']);
+$router->post('/developer/login', [AuthController::class, 'developerLogin'])->middleware(CsrfMiddleware::class);
+
+// Tenant ERP Dedicated Auth Routes (e.g. /{tenant_code}/login)
+$router->get('/{tenant}/login', [AuthController::class, 'showTenantLogin']);
+$router->post('/{tenant}/login', [AuthController::class, 'tenantLogin'])->middleware(CsrfMiddleware::class);
+
 $router->get('/logout', [AuthController::class, 'logout']);
 
 $router->get('/forgot-password', [AuthController::class, 'showForgotPassword']);
@@ -60,12 +66,6 @@ $router->post('/developer/companies/edit/{id}', [DeveloperController::class, 'ed
        ->permission('developer.companies');
 
 $router->post('/developer/companies/delete/{id}', [DeveloperController::class, 'deleteCompany'])
-       ->middleware(AuthMiddleware::class)
-       ->middleware(CsrfMiddleware::class)
-       ->middleware(PermissionMiddleware::class)
-       ->permission('developer.companies');
-
-$router->post('/developer/companies/regenerate-cik/{id}', [DeveloperController::class, 'regenerateCik'])
        ->middleware(AuthMiddleware::class)
        ->middleware(CsrfMiddleware::class)
        ->middleware(PermissionMiddleware::class)
