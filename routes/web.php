@@ -31,6 +31,9 @@ $router->post('/api/v1/verify-token', [ApiController::class, 'me']);
 $router->get('/api/v1/qr/batches', [ApiController::class, 'getQrBatches']);
 $router->get('/api/v1/qr/stages', [ApiController::class, 'getQrStages']);
 $router->post('/api/v1/qr/scan', [ApiController::class, 'logQrScan']);
+$router->get('/api/v1/qr/verify', [ApiController::class, 'verifyQrCode']);
+$router->post('/api/v1/qr/verify', [ApiController::class, 'verifyQrCode']);
+$router->get('/api/v1/qr/unit-status', [ApiController::class, 'verifyQrCode']);
 
 // Style Master & Associated WIP Stages API Routes
 $router->get('/api/v1/styles', [ApiController::class, 'getStyles']);

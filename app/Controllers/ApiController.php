@@ -556,6 +556,182 @@ class ApiController extends Controller {
     }
 
     /**
+     * Inspect QR Code Status, Detect Already Scanned, and Identify Current Stage Level
+     * GET /api/v1/qr/verify or POST /api/v1/qr/verify or GET /api/v1/qr/unit-status
+     */
+    public function verifyQrCode(Request $request, Response $response): void {
+        $this->setCorsHeaders();
+
+        $token = $this->extractToken($request);
+        $userData = $token ? $this->verifyApiToken($token) : null;
+
+        if (!$userData || empty($userData['company_id'])) {
+            $response->json([
+                'status' => 'error',
+                'message' => 'Unauthorized or missing company context.'
+            ], 401);
+            return;
+        }
+
+        $companyId = (int)$userData['company_id'];
+        $db = Database::getInstance();
+
+        // Enforce company timezone
+        $stmtTz = $db->prepare("SELECT timezone FROM companies WHERE id = ?");
+        $stmtTz->execute([$companyId]);
+        $companyTz = $stmtTz->fetchColumn() ?: 'Asia/Kolkata';
+        date_default_timezone_set($companyTz);
+
+        $qrCode = trim((string)($request->get('qr_code') ?: $request->get('qr', '') ?: $request->get('tag', '')));
+        $targetStage = strtolower(trim((string)$request->get('stage', '')));
+
+        if (empty($qrCode)) {
+            $response->json([
+                'status' => 'error',
+                'message' => 'QR Code string is required for verification.'
+            ], 400);
+            return;
+        }
+
+        // Fetch all scan logs for this QR code in this company
+        $stmtLogs = $db->prepare("
+            SELECT psl.*, u.name as operator_name, r.name as operator_role
+            FROM production_stage_logs psl
+            LEFT JOIN users u ON psl.employee_id = u.id
+            LEFT JOIN roles r ON u.role_id = r.id
+            WHERE psl.company_id = ? AND LOWER(TRIM(psl.qr_code)) = LOWER(TRIM(?))
+            ORDER BY psl.id ASC
+        ");
+        $stmtLogs->execute([$companyId, $qrCode]);
+        $rawLogs = $stmtLogs->fetchAll() ?: [];
+
+        $isAlreadyScannedInTargetStage = false;
+        if (!empty($targetStage)) {
+            foreach ($rawLogs as $l) {
+                if (strtolower(trim($l['stage'])) === $targetStage) {
+                    $isAlreadyScannedInTargetStage = true;
+                    break;
+                }
+            }
+        }
+
+        // Parse QR Code e.g. PO-TOCCO-2026-001-S-0005 or BATCH-01-S-0001
+        $parts = explode('-', $qrCode);
+        $serial = 0;
+        $size = 'FREE';
+        $batchNo = $qrCode;
+
+        if (count($parts) >= 3) {
+            $serial = (int)array_pop($parts);
+            $size = array_pop($parts);
+            $batchNo = implode('-', $parts);
+        }
+
+        // Fetch production order & style details
+        $stmtBatch = $db->prepare("
+            SELECT pro.id, pro.production_no, pro.status, s.id as style_id, s.style_no, s.name as style_name, po.po_no
+            FROM production_orders pro
+            JOIN buyer_pos po ON pro.po_id = po.id
+            JOIN styles s ON po.style_id = s.id
+            WHERE (pro.production_no = ? OR pro.id = ?) AND pro.company_id = ? AND pro.deleted_at IS NULL
+            LIMIT 1
+        ");
+        $stmtBatch->execute([$batchNo, is_numeric($batchNo) ? (int)$batchNo : 0, $companyId]);
+        $batchInfo = $stmtBatch->fetch();
+
+        // Get style stages or company defaults
+        $stagesList = [];
+        if ($batchInfo) {
+            $stmtTp = $db->prepare("SELECT stages_json FROM tech_packs WHERE style_id = ? AND company_id = ? AND deleted_at IS NULL LIMIT 1");
+            $stmtTp->execute([$batchInfo['style_id'], $companyId]);
+            $tpJson = $stmtTp->fetchColumn();
+            if ($tpJson) {
+                $decoded = json_decode($tpJson, true);
+                if (is_array($decoded) && !empty($decoded)) {
+                    $stagesList = $decoded;
+                }
+            }
+        }
+        if (empty($stagesList)) {
+            $stagesList = \App\Controllers\CompanyController::getCompanyWipStages($companyId);
+        }
+
+        // Identify completed stage keys & level
+        $completedStageKeys = array_unique(array_map(function($l) {
+            return strtolower(trim($l['stage']));
+        }, $rawLogs));
+
+        $currentStage = null;
+        $nextStage = null;
+
+        foreach ($stagesList as $idx => $stgObj) {
+            $key = strtolower(trim($stgObj['key'] ?? ''));
+            if (in_array($key, $completedStageKeys)) {
+                $currentStage = [
+                    'key' => $stgObj['key'],
+                    'name' => $stgObj['name'],
+                    'order' => (int)($stgObj['order'] ?? ($idx + 1)),
+                    'level' => $idx + 1
+                ];
+            } elseif ($currentStage && !$nextStage) {
+                $nextStage = [
+                    'key' => $stgObj['key'],
+                    'name' => $stgObj['name'],
+                    'order' => (int)($stgObj['order'] ?? ($idx + 1)),
+                    'level' => $idx + 1
+                ];
+            }
+        }
+
+        // If no stage completed yet, next allowed stage is first stage in sequence
+        if (!$currentStage && !empty($stagesList)) {
+            $nextStage = [
+                'key' => $stagesList[0]['key'],
+                'name' => $stagesList[0]['name'],
+                'order' => (int)($stagesList[0]['order'] ?? 1),
+                'level' => 1
+            ];
+        }
+
+        // Format step-by-step history
+        $history = array_map(function($l) use ($companyTz) {
+            $formattedTime = \App\Helpers\TimezoneHelper::formatTenantTime($l['created_at'] ?? 'now', $companyTz, 'd M Y, h:i A');
+            return [
+                'id' => (int)$l['id'],
+                'stage' => strtoupper(str_replace('_', ' ', $l['stage'])),
+                'stage_key' => strtolower($l['stage']),
+                'status' => strtoupper(($l['qty_out'] > 0 || ($l['status'] ?? '') === 'pass') ? 'PASS' : 'FAIL'),
+                'operator_name' => $l['operator_name'] ?: 'System Operator',
+                'operator_role' => $l['operator_role'] ?: 'Employee',
+                'logged_at' => $formattedTime,
+                'raw_created_at' => $l['created_at']
+            ];
+        }, $rawLogs);
+
+        $response->json([
+            'status' => 'success',
+            'data' => [
+                'qr_code' => $qrCode,
+                'is_valid' => true,
+                'target_stage' => $targetStage ?: null,
+                'already_scanned_in_target_stage' => $isAlreadyScannedInTargetStage,
+                'completed_stages_count' => count($completedStageKeys),
+                'total_pipeline_stages' => count($stagesList),
+                'current_stage' => $currentStage,
+                'next_allowed_stage' => $nextStage,
+                'batch_info' => $batchInfo ? [
+                    'batch_id' => (int)$batchInfo['id'],
+                    'production_no' => $batchInfo['production_no'],
+                    'style_no' => $batchInfo['style_no'],
+                    'style_name' => $batchInfo['style_name'],
+                    'buyer_po' => $batchInfo['po_no']
+                ] : null,
+                'history' => $history
+            ]
+        ], 200);
+    }
+
+    /**
      * Get All Garment Styles with their associated WIP Stages
      * GET /api/v1/styles
      */
