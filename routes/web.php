@@ -37,6 +37,10 @@ $router->get('/api/v1/styles', [ApiController::class, 'getStyles']);
 $router->get('/api/v1/styles/{id}', [ApiController::class, 'getStyleDetails']);
 $router->get('/api/v1/styles/{id}/stages', [ApiController::class, 'getQrStages']);
 
+// Company Logo & Branding API Routes
+$router->get('/api/v1/company/logo', [ApiController::class, 'getCompanyLogo']);
+$router->get('/api/v1/company/info', [ApiController::class, 'getCompanyLogo']);
+
 // Single Universal SaaS Portal Login Routes
 $router->get('/login', [AuthController::class, 'showLogin']);
 $router->post('/login', [AuthController::class, 'login'])->middleware(CsrfMiddleware::class);

@@ -63,7 +63,7 @@ class ApiController extends Controller {
         // Search user by employee_code, email, or phone
         if ($companyId) {
             $stmtUser = $db->prepare("
-                SELECT u.*, r.name as role_name, c.name as company_name, c.subdomain as company_subdomain, c.status as company_status
+                SELECT u.*, r.name as role_name, c.name as company_name, c.subdomain as company_subdomain, c.logo as company_logo, c.status as company_status
                 FROM users u
                 LEFT JOIN roles r ON u.role_id = r.id
                 LEFT JOIN companies c ON u.company_id = c.id
@@ -75,7 +75,7 @@ class ApiController extends Controller {
             $stmtUser->execute([$identifier, $identifier, $identifier, $companyId]);
         } else {
             $stmtUser = $db->prepare("
-                SELECT u.*, r.name as role_name, c.name as company_name, c.subdomain as company_subdomain, c.status as company_status
+                SELECT u.*, r.name as role_name, c.name as company_name, c.subdomain as company_subdomain, c.logo as company_logo, c.status as company_status
                 FROM users u
                 LEFT JOIN roles r ON u.role_id = r.id
                 LEFT JOIN companies c ON u.company_id = c.id
@@ -129,6 +129,8 @@ class ApiController extends Controller {
         // Sanitize return user object (remove sensitive hashes)
         unset($user['password_hash'], $user['email_verification_token'], $user['two_factor_secret']);
 
+        $companyLogoUrl = !empty($user['company_logo']) ? base_url($user['company_logo']) : null;
+
         $response->json([
             'status' => 'success',
             'message' => 'Employee logged in successfully.',
@@ -144,6 +146,8 @@ class ApiController extends Controller {
                     'company_id' => $user['company_id'] ? (int)$user['company_id'] : null,
                     'company_name' => $user['company_name'] ?? 'System Developer',
                     'company_subdomain' => $user['company_subdomain'] ?? 'erp',
+                    'company_logo' => $user['company_logo'] ?? null,
+                    'company_logo_url' => $companyLogoUrl,
                     'role_id' => $user['role_id'] ? (int)$user['role_id'] : null,
                     'role_name' => $user['role_name'] ?? 'Employee'
                 ]
@@ -180,7 +184,7 @@ class ApiController extends Controller {
 
         $db = Database::getInstance();
         $stmt = $db->prepare("
-            SELECT u.*, r.name as role_name, c.name as company_name, c.subdomain as company_subdomain
+            SELECT u.*, r.name as role_name, c.name as company_name, c.subdomain as company_subdomain, c.logo as company_logo
             FROM users u
             LEFT JOIN roles r ON u.role_id = r.id
             LEFT JOIN companies c ON u.company_id = c.id
@@ -200,6 +204,8 @@ class ApiController extends Controller {
 
         unset($user['password_hash'], $user['email_verification_token'], $user['two_factor_secret']);
 
+        $companyLogoUrl = !empty($user['company_logo']) ? base_url($user['company_logo']) : null;
+
         $response->json([
             'status' => 'success',
             'data' => [
@@ -213,9 +219,69 @@ class ApiController extends Controller {
                     'company_id' => $user['company_id'] ? (int)$user['company_id'] : null,
                     'company_name' => $user['company_name'] ?? 'System Developer',
                     'company_subdomain' => $user['company_subdomain'] ?? 'erp',
+                    'company_logo' => $user['company_logo'] ?? null,
+                    'company_logo_url' => $companyLogoUrl,
                     'role_id' => $user['role_id'] ? (int)$user['role_id'] : null,
                     'role_name' => $user['role_name'] ?? 'Employee'
                 ]
+            ]
+        ], 200);
+    }
+
+    /**
+     * Get Company Branding Logo & Portal Info
+     * GET /api/v1/company/logo or GET /api/v1/company/info
+     */
+    public function getCompanyLogo(Request $request, Response $response): void {
+        $this->setCorsHeaders();
+
+        $companyCode = trim((string)($request->get('company_code') ?: $request->get('subdomain') ?: $request->get('tenant', '')));
+
+        $token = $this->extractToken($request);
+        $userData = $token ? $this->verifyApiToken($token) : null;
+
+        $db = Database::getInstance();
+        $company = null;
+
+        if (!empty($companyCode)) {
+            $stmt = $db->prepare("SELECT id, name, subdomain, email, phone, address, city, state, logo, status FROM companies WHERE (subdomain = ? OR id = ?) AND deleted_at IS NULL LIMIT 1");
+            $stmt->execute([strtolower($companyCode), is_numeric($companyCode) ? (int)$companyCode : 0]);
+            $company = $stmt->fetch();
+        } elseif ($userData && !empty($userData['company_id'])) {
+            $stmt = $db->prepare("SELECT id, name, subdomain, email, phone, address, city, state, logo, status FROM companies WHERE id = ? AND deleted_at IS NULL LIMIT 1");
+            $stmt->execute([(int)$userData['company_id']]);
+            $company = $stmt->fetch();
+        } else {
+            // Default fallback to first active company or tenant
+            $stmt = $db->prepare("SELECT id, name, subdomain, email, phone, address, city, state, logo, status FROM companies WHERE status = 'active' AND deleted_at IS NULL ORDER BY id ASC LIMIT 1");
+            $stmt->execute();
+            $company = $stmt->fetch();
+        }
+
+        if (!$company) {
+            $response->json([
+                'status' => 'error',
+                'message' => 'Company not found.'
+            ], 404);
+            return;
+        }
+
+        $logoUrl = !empty($company['logo']) ? base_url($company['logo']) : null;
+
+        $response->json([
+            'status' => 'success',
+            'data' => [
+                'company_id' => (int)$company['id'],
+                'name' => $company['name'],
+                'subdomain' => $company['subdomain'],
+                'logo' => $company['logo'],
+                'logo_url' => $logoUrl,
+                'email' => $company['email'],
+                'phone' => $company['phone'],
+                'address' => $company['address'],
+                'city' => $company['city'],
+                'state' => $company['state'],
+                'status' => $company['status']
             ]
         ], 200);
     }
