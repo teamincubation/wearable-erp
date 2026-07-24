@@ -21,17 +21,10 @@ use App\Middleware\CsrfMiddleware;
 // ==========================================================
 $router->get('/', [DashboardController::class, 'landing']);
 
+// Single Universal SaaS Portal Login Routes
 $router->get('/login', [AuthController::class, 'showLogin']);
-
-// Developer Portal Dedicated Auth Routes
-$router->get('/developer/login', [AuthController::class, 'showDeveloperLogin']);
-$router->post('/developer/login', [AuthController::class, 'developerLogin'])->middleware(CsrfMiddleware::class);
-
-// Tenant ERP Dedicated Auth Routes (e.g. /{tenant_code} or /{tenant_code}/login)
-$router->get('/{tenant}', [AuthController::class, 'showTenantLogin']);
-$router->get('/{tenant}/login', [AuthController::class, 'showTenantLogin']);
-$router->post('/{tenant}/login', [AuthController::class, 'tenantLogin'])->middleware(CsrfMiddleware::class);
-
+$router->post('/login', [AuthController::class, 'login'])->middleware(CsrfMiddleware::class);
+$router->get('/developer/login', [AuthController::class, 'showLogin']);
 $router->get('/logout', [AuthController::class, 'logout']);
 
 $router->get('/forgot-password', [AuthController::class, 'showForgotPassword']);

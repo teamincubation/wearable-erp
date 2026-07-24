@@ -18,7 +18,7 @@
                 <thead>
                     <tr>
                         <th>Company Name</th>
-                        <th>Tenant Login URL</th>
+                        <th>Subdomain</th>
                         <th>Admin Email</th>
                         <th>T&C & Payment Slip Info</th>
                         <th>Subscription</th>
@@ -41,9 +41,7 @@
                                     <div class="text-muted" style="font-size: 11.5px;"><?= htmlspecialchars($c['city'] ?? 'Tiruppur') ?>, <?= htmlspecialchars($c['state'] ?? 'Tamil Nadu') ?></div>
                                 </td>
                                 <td>
-                                    <a href="<?= base_url($c['subdomain'] . '/login') ?>" target="_blank" class="badge bg-primary-subtle text-primary font-monospace p-2 border border-primary text-decoration-none shadow-sm" style="font-size: 12px;" title="Click to open tenant login page">
-                                        <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> <?= base_url($c['subdomain'] . '/login') ?>
-                                    </a>
+                                    <span class="badge bg-light text-primary border font-monospace px-2.5 py-1.5" style="font-size: 12px;"><?= htmlspecialchars($c['subdomain']) ?></span>
                                 </td>
                                 <td>
                                     <div class="fw-bold text-dark"><?= htmlspecialchars($c['admin_email'] ?? $c['email']) ?></div>
@@ -332,9 +330,7 @@
                                     <input type="text" name="subdomain" id="subdomain-input" class="form-control" placeholder="e.g. tocco" required>
                                     <span class="input-group-text">.mywellgro.online</span>
                                 </div>
-                                <div class="form-text text-primary font-monospace mt-1" style="font-size: 11.5px;">
-                                    <i class="fa-solid fa-link me-1"></i> Tenant Login URL: <strong id="login-url-preview"><?= base_url('tocco/login') ?></strong>
-                                </div>
+                                <div class="form-text">Alphabets, digits and hyphens only.</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold">Contact Email <span class="text-danger">*</span></label>
