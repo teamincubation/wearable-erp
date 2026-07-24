@@ -714,46 +714,46 @@
                     .then(data => {
                         if (data.success && data.logs && data.logs.length > 0) {
                             let html = `
-                                <div class="p-3 bg-primary bg-opacity-15 border border-primary rounded-3 mb-3">
+                                <div class="p-3 rounded-3 mb-3" style="background: #0f172a; border: 1px solid #1e293b;">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div>
-                                            <span class="badge bg-primary font-monospace fw-bold me-1">QR / CODE</span>
-                                            <strong class="font-monospace text-primary fs-5">${data.qr_code}</strong>
+                                            <span class="badge bg-primary text-white font-monospace fw-bold me-2 px-2.5 py-1" style="font-size: 11px; background: #2563eb !important; color: #ffffff !important;">QR / CODE</span>
+                                            <strong class="font-monospace fs-5 text-white fw-bold" style="color: #ffffff !important; letter-spacing: 0.05em;">${data.qr_code}</strong>
                                         </div>
-                                        <span class="badge bg-success text-white px-3 py-1.5 rounded-pill fw-bold">
+                                        <span class="badge bg-success text-white px-3 py-1.5 rounded-pill fw-bold" style="font-size: 12px; background: #10b981 !important; color: #ffffff !important;">
                                             <i class="fa-solid fa-check-double me-1"></i> ${data.total_stages} Stages Tracked
                                         </span>
                                     </div>
                                 </div>
-                                <div class="table-responsive">
-                                    <table class="table table-hover align-middle mb-0" style="font-size: 12.5px; color: #f8fafc;">
+                                <div class="table-responsive border-0" style="background: #0f172a; border-radius: 12px;">
+                                    <table class="table table-hover table-dark-custom align-middle mb-0" style="font-size: 12.5px; background-color: #0f172a !important; color: #f8fafc !important; --bs-table-bg: #0f172a; --bs-table-color: #f8fafc; --bs-table-border-color: rgba(255,255,255,0.08);">
                                         <thead>
-                                            <tr style="background-color: #0f172a; color: #94a3b8;">
-                                                <th>WIP Stage</th>
-                                                <th>Status</th>
-                                                <th>Updated By (Operator)</th>
-                                                <th>Logged Date & Time</th>
-                                                <th>Duration</th>
+                                            <tr style="background-color: #1e293b !important; color: #94a3b8 !important;">
+                                                <th style="background-color: #1e293b !important; color: #94a3b8 !important; padding: 12px 14px;">WIP STAGE</th>
+                                                <th style="background-color: #1e293b !important; color: #94a3b8 !important; padding: 12px 14px;">STATUS</th>
+                                                <th style="background-color: #1e293b !important; color: #94a3b8 !important; padding: 12px 14px;">UPDATED BY (OPERATOR)</th>
+                                                <th style="background-color: #1e293b !important; color: #94a3b8 !important; padding: 12px 14px;">LOGGED DATE & TIME</th>
+                                                <th style="background-color: #1e293b !important; color: #94a3b8 !important; padding: 12px 14px;">DURATION</th>
                                             </tr>
                                         </thead>
-                                        <tbody>
+                                        <tbody style="background-color: #0f172a !important;">
                             `;
 
                             data.logs.forEach(l => {
                                 const badge = l.status === 'PASS' ? 'bg-success' : 'bg-danger';
                                 html += `
                                     <tr>
-                                        <td><strong class="font-monospace text-white">${l.stage}</strong></td>
-                                        <td><span class="badge ${badge} text-white font-monospace">${l.status}</span></td>
-                                        <td>
-                                            <div class="fw-bold text-white">${l.operator_name}</div>
-                                            <small class="text-dash-sub opacity-75">${l.operator_role}</small>
+                                        <td style="background-color: #0f172a !important; color: #38bdf8 !important; border-bottom: 1px solid rgba(255,255,255,0.06);"><strong class="font-monospace text-uppercase" style="color: #38bdf8 !important; font-weight: 700;">${l.stage}</strong></td>
+                                        <td style="background-color: #0f172a !important; border-bottom: 1px solid rgba(255,255,255,0.06);"><span class="badge ${badge} text-white font-monospace px-2.5 py-1" style="color: #ffffff !important; font-weight: 700;">${l.status}</span></td>
+                                        <td style="background-color: #0f172a !important; color: #ffffff !important; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                                            <div class="fw-bold text-white" style="color: #ffffff !important;">${l.operator_name}</div>
+                                            <small style="color: #94a3b8 !important; font-size: 11px;">${l.operator_role}</small>
                                         </td>
-                                        <td>
-                                            <div class="fw-bold font-monospace text-white">${l.updated_at}</div>
-                                            <small class="text-dash-sub font-monospace">${l.time_ago}</small>
+                                        <td style="background-color: #0f172a !important; color: #ffffff !important; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                                            <div class="fw-bold font-monospace text-white" style="color: #ffffff !important;">${l.updated_at}</div>
+                                            <small style="color: #94a3b8 !important; font-size: 11px;">${l.time_ago}</small>
                                         </td>
-                                        <td><span class="badge bg-secondary text-white font-monospace">${l.duration}</span></td>
+                                        <td style="background-color: #0f172a !important; border-bottom: 1px solid rgba(255,255,255,0.06);"><span class="badge text-white font-monospace" style="color: #ffffff !important; background: #334155 !important;">${l.duration}</span></td>
                                     </tr>
                                 `;
                             });
