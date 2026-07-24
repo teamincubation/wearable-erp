@@ -14,78 +14,7 @@
     </div>
 </div>
 
-<!-- Track Unit by QR Code Search Card (Request 6) & Latest Live WIP Activity Card (Request 7) -->
-<div class="row g-3 mb-4">
-    <!-- Request 6: Track by QR Number Search Field -->
-    <div class="col-md-7">
-        <div class="card border-0 shadow-sm h-100" style="border-radius: 16px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 2px solid #3b82f6 !important;">
-            <div class="card-body p-3.5 d-flex flex-column justify-content-between">
-                <div>
-                    <span class="badge bg-primary text-white font-monospace fw-bold mb-1" style="font-size: 10px;">
-                        <i class="fa-solid fa-bolt me-1"></i> INSTANT UNIT LOOKUP
-                    </span>
-                    <h6 class="fw-bold text-primary m-0"><i class="fa-solid fa-qrcode me-1.5"></i> Track Unit Production Status by QR Number</h6>
-                    <small class="text-secondary">Scan or type any QR Code / Serial No to view complete stage lifecycle history.</small>
-                </div>
-                <form id="track-qr-unit-form" class="d-flex gap-2 mt-2">
-                    <input type="text" id="track-qr-unit-input" class="form-control form-control-lg font-monospace fw-bold text-dark border-primary" placeholder="Enter QR Code e.g. BATCH-01-S-0005" required style="border-radius: 12px; font-size: 13.5px;">
-                    <button type="submit" id="track-qr-unit-btn" class="btn btn-primary px-3.5 fw-bold text-nowrap rounded-pill shadow-sm">
-                        <i class="fa-solid fa-magnifying-glass me-1"></i> Track Status
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
 
-    <!-- Request 7: Last Updated WIP Stage & Activity Card -->
-    <div class="col-md-5">
-        <?php 
-            $latestLog = $history[0] ?? null;
-            $tzStr = $tenantTimezone ?? 'Asia/Kolkata';
-        ?>
-        <div class="card border-0 shadow-sm h-100" style="border-radius: 16px; background: #ffffff; border-left: 5px solid #10b981 !important;">
-            <div class="card-body p-3.5 d-flex flex-column justify-content-between">
-                <div>
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span class="badge bg-success-subtle text-success font-monospace fw-bold" style="font-size: 10px;">
-                            <i class="fa-solid fa-clock-rotate-left me-1"></i> LATEST LIVE WIP UPDATE
-                        </span>
-                        <?php if ($latestLog): ?>
-                            <?php 
-                                $timeAgoStr = \App\Helpers\TimezoneHelper::timeAgo($latestLog['created_at'] ?? 'now');
-                            ?>
-                            <span class="badge bg-light text-secondary border font-monospace" style="font-size: 10px;"><?= $timeAgoStr ?></span>
-                        <?php endif; ?>
-                    </div>
-                    <h5 class="fw-bold text-dark m-0 my-1">
-                        <?php if ($latestLog): ?>
-                            Stage: <span class="text-primary text-uppercase font-monospace"><?= str_replace('_', ' ', $latestLog['stage']) ?></span>
-                        <?php else: ?>
-                            No WIP Activity Yet
-                        <?php endif; ?>
-                    </h5>
-                    <?php if ($latestLog): ?>
-                        <div class="text-secondary small">
-                            Updated By: <strong class="text-dark"><?= htmlspecialchars($latestLog['employee_name'] ?: 'System Operator') ?></strong><br>
-                            Output: <strong class="text-success font-monospace"><?= (int)($latestLog['qty_out'] ?: 1) ?> pcs (<?= strtoupper($latestLog['status'] ?? 'PASS') ?>)</strong>
-                        </div>
-                    <?php endif; ?>
-                </div>
-                <div class="border-top pt-2 mt-2 text-end">
-                    <?php if ($latestLog): ?>
-                        <?php 
-                            $dtLog = new \DateTime($latestLog['created_at'] ?? 'now', new \DateTimeZone('UTC'));
-                            try { $dtLog->setTimezone(new \DateTimeZone($tzStr)); } catch (\Exception $e) {}
-                        ?>
-                        <small class="text-secondary font-monospace"><i class="fa-regular fa-calendar-check me-1"></i> <?= $dtLog->format('d M Y, h:i A') ?></small>
-                    <?php else: ?>
-                        <small class="text-secondary">Awaiting first operations scan</small>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
 <div class="row g-4">
     <!-- Live WIP Pipelines (Request 4: X-Axis Tech Pack Stage Order) -->

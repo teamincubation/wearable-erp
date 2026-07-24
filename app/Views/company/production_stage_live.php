@@ -169,6 +169,74 @@
                 </div>
             </div>
         </div>
+    <!-- INSTANT UNIT LOOKUP & LATEST LIVE WIP UPDATE CARDS -->
+    <div class="row g-3 mb-4">
+        <!-- Track Unit by QR Number Search Card -->
+        <div class="col-lg-7 col-12">
+            <div class="live-card p-3.5 h-100 glow-indigo">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="badge bg-primary text-white font-monospace fw-bold" style="font-size: 10px;">
+                        <i class="fa-solid fa-bolt me-1"></i> INSTANT UNIT LOOKUP
+                    </span>
+                    <span class="small text-secondary font-monospace" style="font-size: 11px;">Track by QR Number</span>
+                </div>
+                <h5 class="fw-bold text-white m-0 mb-1 font-outfit"><i class="fa-solid fa-qrcode text-cyan-400 me-2"></i> Track Unit Production Status by QR Number</h5>
+                <p class="text-secondary small mb-3">Scan or type any QR Code / Serial No to view complete stage lifecycle history.</p>
+                <form id="track-qr-unit-form" class="d-flex gap-2">
+                    <input type="text" id="track-qr-unit-input" class="form-control form-control-lg bg-slate-900 border-slate-700 text-white font-monospace fw-bold" placeholder="Enter QR Code e.g. BATCH-01-S-0005" required style="border-radius: 12px; font-size: 14px;">
+                    <button type="submit" id="track-qr-unit-btn" class="btn btn-primary px-4 fw-bold text-nowrap rounded-pill shadow-sm">
+                        <i class="fa-solid fa-magnifying-glass me-1"></i> Track Status
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Latest Live WIP Activity Card -->
+        <div class="col-lg-5 col-12">
+            <?php 
+                $latestLog = $recentLogs[0] ?? null;
+                $tzStr = $tenantTimezone ?? 'Asia/Kolkata';
+            ?>
+            <div class="live-card p-3.5 h-100 glow-green d-flex flex-column justify-content-between">
+                <div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="badge bg-success bg-opacity-20 text-success border border-success font-monospace fw-bold" style="font-size: 10px;">
+                            <i class="fa-solid fa-clock-rotate-left me-1"></i> LATEST LIVE WIP UPDATE
+                        </span>
+                        <?php if ($latestLog): ?>
+                            <?php 
+                                $timeAgoStr = \App\Helpers\TimezoneHelper::timeAgo($latestLog['created_at'] ?? 'now');
+                            ?>
+                            <span class="badge bg-slate-800 text-slate-300 border border-slate-700 font-monospace" style="font-size: 10px;"><?= $timeAgoStr ?></span>
+                        <?php endif; ?>
+                    </div>
+                    <h5 class="fw-bold text-white m-0 my-1 font-outfit">
+                        <?php if ($latestLog): ?>
+                            Stage: <span class="text-cyan-400 text-uppercase font-monospace"><?= str_replace('_', ' ', $latestLog['stage']) ?></span>
+                        <?php else: ?>
+                            No WIP Activity Yet
+                        <?php endif; ?>
+                    </h5>
+                    <?php if ($latestLog): ?>
+                        <div class="text-secondary small mt-2">
+                            Updated By: <strong class="text-white"><?= htmlspecialchars($latestLog['employee_name'] ?: 'System Operator') ?></strong><br>
+                            Output: <strong class="text-neon-green font-monospace"><?= (int)($latestLog['qty_out'] ?: 1) ?> pcs (<?= strtoupper($latestLog['status'] ?? 'PASS') ?>)</strong>
+                        </div>
+                    <?php endif; ?>
+                </div>
+                <div class="border-top border-slate-800 pt-2 mt-2 text-end">
+                    <?php if ($latestLog): ?>
+                        <?php 
+                            $dtLog = new \DateTime($latestLog['created_at'] ?? 'now', new \DateTimeZone('UTC'));
+                            try { $dtLog->setTimezone(new \DateTimeZone($tzStr)); } catch (\Exception $e) {}
+                        ?>
+                        <small class="text-secondary font-monospace"><i class="fa-regular fa-calendar-check me-1"></i> <?= $dtLog->format('d M Y, h:i A') ?></small>
+                    <?php else: ?>
+                        <small class="text-secondary">Awaiting first operations scan</small>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- CHART & STAGE PROGRESS ROW -->
@@ -443,4 +511,125 @@
             }
         });
     });
+</script>
+
+<!-- Track Unit Lifecycle History Modal -->
+<div class="modal fade" id="trackQrUnitModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content text-start bg-slate-900 border-slate-700 text-white" style="border-radius: 16px;">
+            <div class="modal-header bg-slate-950 border-slate-800">
+                <h5 class="modal-title fw-bold text-white"><i class="fa-solid fa-qrcode text-primary me-2"></i> Complete Unit Stage Lifecycle History</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 text-start" id="track-qr-modal-body">
+                <div class="text-center py-4">
+                    <span class="spinner-border text-primary" role="status"></span>
+                    <p class="mt-2 text-secondary">Fetching stage lifecycle logs...</p>
+                </div>
+            </div>
+            <div class="modal-footer border-slate-800">
+                <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const trackForm = document.getElementById('track-qr-unit-form');
+    const trackInput = document.getElementById('track-qr-unit-input');
+    const trackModalEl = document.getElementById('trackQrUnitModal');
+    const trackModalBody = document.getElementById('track-qr-modal-body');
+
+    if (trackForm && trackInput) {
+        trackForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const qrCode = trackInput.value.trim();
+            if (!qrCode) return;
+
+            const modal = new bootstrap.Modal(trackModalEl);
+            trackModalBody.innerHTML = `
+                <div class="text-center py-4">
+                    <span class="spinner-border text-primary" role="status"></span>
+                    <p class="mt-2 text-secondary small font-monospace">Fetching complete lifecycle history for <strong>${qrCode}</strong>...</p>
+                </div>
+            `;
+            modal.show();
+
+            fetch(`<?= base_url('company/production/track-qr-unit') ?>?qr_code=${encodeURIComponent(qrCode)}&batch_id=<?= $order['id'] ?>`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.logs && data.logs.length > 0) {
+                        let html = `
+                            <div class="p-3 bg-primary bg-opacity-20 border border-primary rounded-3 mb-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <span class="badge bg-primary font-monospace fw-bold me-1">QR / CODE</span>
+                                        <strong class="font-monospace text-neon-cyan fs-5">${data.qr_code}</strong>
+                                    </div>
+                                    <span class="badge bg-success text-white px-3 py-1.5 rounded-pill fw-bold">
+                                        <i class="fa-solid fa-check-double me-1"></i> ${data.total_stages} Stages Tracked
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table align-middle mb-0 text-white" style="font-size: 13px;">
+                                    <thead class="bg-slate-950 text-slate-400">
+                                        <tr>
+                                            <th>WIP Stage</th>
+                                            <th>Status</th>
+                                            <th>Updated By (Operator)</th>
+                                            <th>Logged Date & Time</th>
+                                            <th>Duration</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                        `;
+
+                        data.logs.forEach(l => {
+                            const badge = l.status === 'PASS' ? 'bg-success' : 'bg-danger';
+                            html += `
+                                <tr class="border-slate-800">
+                                    <td><strong class="text-white font-monospace">${l.stage}</strong></td>
+                                    <td><span class="badge ${badge} text-white font-monospace">${l.status}</span></td>
+                                    <td>
+                                        <div class="fw-bold text-white">${l.operator_name}</div>
+                                        <small class="text-secondary opacity-75">${l.operator_role}</small>
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold text-white font-monospace">${l.updated_at}</div>
+                                        <small class="text-secondary font-monospace">${l.time_ago}</small>
+                                    </td>
+                                    <td><span class="badge bg-slate-800 text-slate-300 font-monospace">${l.duration}</span></td>
+                                </tr>
+                            `;
+                        });
+
+                        html += `
+                                    </tbody>
+                                </table>
+                            </div>
+                        `;
+                        trackModalBody.innerHTML = html;
+                    } else {
+                        trackModalBody.innerHTML = `
+                            <div class="alert alert-warning text-center py-4 my-2">
+                                <i class="fa-solid fa-circle-exclamation fs-2 mb-2 text-warning"></i>
+                                <h6 class="fw-bold text-dark">No Stage History Logs Found</h6>
+                                <p class="small text-secondary mb-0">No operational logs recorded yet for item tag <strong>${qrCode}</strong> in this batch.</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    trackModalBody.innerHTML = `
+                        <div class="alert alert-danger text-center py-3 my-2">
+                            <i class="fa-solid fa-triangle-exclamation me-1"></i> Failed to communicate with production tracking server.
+                        </div>
+                    `;
+                });
+        });
+    }
+});
 </script>

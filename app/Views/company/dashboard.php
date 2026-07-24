@@ -53,9 +53,6 @@
     <div class="pepp-card border-0 shadow-sm mb-5" style="border-radius: 16px; background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);">
         <div class="pepp-card-header bg-transparent border-0 pt-4 px-4 pb-2 d-flex justify-content-between align-items-center">
             <div>
-                <span class="badge bg-success bg-opacity-20 text-success border border-success px-3 py-1.5 rounded-pill font-monospace fw-bold mb-2">
-                    <span class="spinner-grow spinner-grow-sm me-1" role="status" aria-hidden="true"></span> LIVE WIP OPERATIONS ACTIVE
-                </span>
                 <h4 class="fw-bold text-white m-0"><i class="fa-solid fa-industry text-warning me-2"></i> Active Production Lines Tracking Hub</h4>
                 <p class="text-white-50 small m-0 mt-1">Direct access to Operations Stage Live Dashboards for all running garment batches.</p>
             </div>
@@ -89,7 +86,7 @@
                                     </div>
                                 </div>
                                 <div class="mt-3 text-end">
-                                    <a href="<?= base_url('company/production/stage/' . $ab['id']) ?>" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold shadow-sm" style="letter-spacing: 0.3px;">
+                                    <a href="<?= base_url('company/production/stage/' . $ab['id'] . '/live-report') ?>" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold shadow-sm" style="letter-spacing: 0.3px;">
                                         Operations Stage Live Dashboard <i class="fa-solid fa-arrow-right-long ms-1.5"></i>
                                     </a>
                                 </div>
