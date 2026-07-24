@@ -18,6 +18,9 @@ class Response {
      * Return a JSON response
      */
     public function json(array $data, int $code = 200): void {
+        if (ob_get_length()) {
+            @ob_clean();
+        }
         header('Content-Type: application/json; charset=utf-8');
         $this->setStatusCode($code);
         echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

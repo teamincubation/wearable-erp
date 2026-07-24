@@ -982,6 +982,10 @@ class ApiController extends Controller {
      * Set standard CORS headers for Flutter mobile app requests
      */
     private function setCorsHeaders(): void {
+        if (ob_get_length()) {
+            @ob_clean();
+        }
+        header('Content-Type: application/json; charset=utf-8');
         header('Access-Control-Allow-Origin: *');
         header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
         header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-Tenant-ID');
