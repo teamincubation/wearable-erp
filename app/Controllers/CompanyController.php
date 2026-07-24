@@ -153,6 +153,13 @@ class CompanyController extends Controller {
             $this->redirect('company/users');
         }
 
+        // Prevent self-editing account details in Employee Manager
+        if ((int)$id === (int)Session::get('user_id')) {
+            Session::setFlash('error', 'You cannot edit your own employee account details in Employee Manager.');
+            $this->redirect('company/users');
+            return;
+        }
+
         $name = $request->get('name');
         $email = trim($request->get('email'));
         $employeeCode = trim($request->get('employee_code'));

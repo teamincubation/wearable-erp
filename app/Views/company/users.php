@@ -117,15 +117,21 @@
                                     </button>
 
                                     <?php if (\App\Core\Auth::hasPermission('company.users.edit')): ?>
-                                        <button class="btn btn-sm btn-light border me-1" data-bs-toggle="modal" data-bs-target="#editUserModal-<?= $u['id'] ?>">
-                                            <i class="fa-regular fa-pen-to-square"></i>
-                                        </button>
+                                        <?php if ((int)$u['id'] === (int)\App\Core\Session::get('user_id')): ?>
+                                            <button class="btn btn-sm btn-light border me-1 opacity-50" disabled title="Signed user cannot edit their own account details">
+                                                <i class="fa-regular fa-pen-to-square text-muted"></i>
+                                            </button>
+                                        <?php else: ?>
+                                            <button class="btn btn-sm btn-light border me-1" data-bs-toggle="modal" data-bs-target="#editUserModal-<?= $u['id'] ?>" title="Edit Employee Details">
+                                                <i class="fa-regular fa-pen-to-square"></i>
+                                            </button>
+                                        <?php endif; ?>
                                     <?php endif; ?>
 
-                                    <?php if (\App\Core\Auth::hasPermission('company.users.delete') && $u['id'] != \App\Core\Session::get('user_id')): ?>
+                                    <?php if (\App\Core\Auth::hasPermission('company.users.delete') && (int)$u['id'] !== (int)\App\Core\Session::get('user_id')): ?>
                                         <form action="<?= base_url('company/users/delete/' . $u['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to deactivate this employee?');">
                                             <?= \App\Core\Session::csrfField() ?>
-                                            <button type="submit" class="btn btn-sm btn-light border text-danger">
+                                            <button type="submit" class="btn btn-sm btn-light border text-danger" title="Deactivate Employee Account">
                                                 <i class="fa-regular fa-trash-can"></i>
                                             </button>
                                         </form>
