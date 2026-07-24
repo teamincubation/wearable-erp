@@ -935,18 +935,19 @@ class ProductionController extends Controller {
         $productionService = new ProductionService();
         $wipSummary = $productionService->getOrderWipSummary($companyId, (int)$id);
 
-        // Fetch active production stages settings
-        $stmtStageSettings = $db->prepare("SELECT setting_value FROM system_settings WHERE company_id = ? AND setting_key = 'active_production_stages' AND deleted_at IS NULL ORDER BY id DESC LIMIT 1");
-        $stmtStageSettings->execute([$companyId]);
-        $activeStagesRaw = $stmtStageSettings->fetchColumn();
-        
-        $allStagesDefault = ['knitting', 'dyeing', 'compacting', 'relaxing', 'spreading', 'cutting', 'bundling', 'printing', 'embroidery', 'sewing', 'checking', 'thread_cutting', 'washing', 'ironing', 'packing', 'carton_packing', 'shipment'];
-        $stagesList = $activeStagesRaw ? json_decode(html_entity_decode($activeStagesRaw), true) : $allStagesDefault;
-        if (!is_array($stagesList) || empty($stagesList)) {
-            $stagesList = $allStagesDefault;
+        // Fetch batch stage sequence based on style techpack specifications
+        $batchStagesObj = self::getBatchStagesList((int)$id);
+        $stagesList = array_column($batchStagesObj, 'key');
+        if (empty($stagesList)) {
+            $stagesList = ['knitting', 'dyeing', 'compacting', 'relaxing', 'spreading', 'cutting', 'bundling', 'printing', 'embroidery', 'sewing', 'checking', 'thread_cutting', 'washing', 'ironing', 'packing', 'carton_packing', 'shipment'];
         }
 
-        // Fetch the 10 most recent activity logs for live ticker
+        // Fetch company timezone
+        $stmtComp = $db->prepare("SELECT timezone FROM companies WHERE id = ?");
+        $stmtComp->execute([$companyId]);
+        $tenantTimezone = $stmtComp->fetchColumn() ?: 'Asia/Kolkata';
+
+        // Fetch the 15 most recent activity logs for live ticker
         $stmtLogs = $db->prepare("
             SELECT psl.*, u.name as employee_name, m.name as machine_name
             FROM production_stage_logs psl
@@ -954,7 +955,7 @@ class ProductionController extends Controller {
             LEFT JOIN machines m ON psl.machine_id = m.id
             WHERE psl.production_order_id = ? AND psl.company_id = ?
             ORDER BY psl.id DESC
-            LIMIT 10
+            LIMIT 15
         ");
         $stmtLogs->execute([$id, $companyId]);
         $recentLogs = $stmtLogs->fetchAll() ?: [];
@@ -964,7 +965,8 @@ class ProductionController extends Controller {
             'order' => $order,
             'wip_summary' => $wipSummary,
             'stagesList' => $stagesList,
-            'recentLogs' => $recentLogs
+            'recentLogs' => $recentLogs,
+            'tenantTimezone' => $tenantTimezone
         ], 'mobile');
     }
 

@@ -107,6 +107,7 @@
         
         // Cumulative output of last active stage
         $lastStage = end($stagesList);
+        reset($stagesList);
         $finishedQty = isset($wip_summary[$lastStage]) ? (int)$wip_summary[$lastStage]['out'] : 0;
         $completionPct = $targetQty > 0 ? round(($finishedQty / $targetQty) * 100, 1) : 0;
 
@@ -198,11 +199,13 @@
                                     $badgeClass = $isPass ? 'bg-success' : 'bg-danger';
                                     $statusText = $isPass ? 'PASS' : 'FAIL';
                                     $tagLabel = $log['machine_name'] ?: ($log['qr_code'] ?: 'Manual');
+                                    $tzStr = $tenantTimezone ?? 'Asia/Kolkata';
+                                    $formattedLogTime = \App\Helpers\TimezoneHelper::formatTenantTime($log['created_at'] ?? 'now', $tzStr, 'h:i:s A');
                                 ?>
                                 <div class="list-group-item bg-transparent text-light border-slate-800 px-0 py-2.5">
                                     <div class="d-flex w-100 justify-content-between align-items-center mb-1">
                                         <span class="badge <?= $badgeClass ?> font-monospace fw-bold" style="font-size: 0.65rem; padding: 0.25em 0.5em;"><?= $statusText ?></span>
-                                        <small class="text-secondary font-monospace"><?= date('H:i:s', strtotime($log['created_at'])) ?></small>
+                                        <small class="text-secondary font-monospace"><?= $formattedLogTime ?></small>
                                     </div>
                                     <p class="mb-0 text-white small">
                                         Stage <strong class="text-capitalize text-indigo-300"><?= str_replace('_', ' ', $log['stage']) ?></strong>
