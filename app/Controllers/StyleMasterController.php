@@ -227,6 +227,12 @@ class StyleMasterController extends Controller {
      * Update Tech Pack BOM & Sizing details
      */
     public function techpackUpdate(Request $request, Response $response, string $id): void {
+        // Auto-heal tech_packs.stages_json column on remote database
+        try {
+            $db = Database::getInstance();
+            $db->exec("ALTER TABLE `tech_packs` ADD COLUMN `stages_json` TEXT DEFAULT NULL");
+        } catch (\Throwable $ex) {}
+
         $techPackModel = new TechPack();
         $techpack = $techPackModel->find($id);
 

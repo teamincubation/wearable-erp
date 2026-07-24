@@ -553,7 +553,7 @@ class ProductionController extends Controller {
             JOIN buyer_pos po ON pro.po_id = po.id
             JOIN styles s ON po.style_id = s.id
             JOIN contacts c ON po.buyer_id = c.id
-            WHERE pro.company_id = ? AND pro.status != 'completed' AND pro.deleted_at IS NULL
+            WHERE pro.company_id = ? AND pro.status IN ('running', 'in_progress') AND pro.deleted_at IS NULL
             ORDER BY pro.id DESC
         ");
         $stmtBatches->execute([$companyId]);
