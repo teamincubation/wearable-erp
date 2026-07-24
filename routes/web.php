@@ -27,7 +27,8 @@ $router->get('/login', [AuthController::class, 'showLogin']);
 $router->get('/developer/login', [AuthController::class, 'showDeveloperLogin']);
 $router->post('/developer/login', [AuthController::class, 'developerLogin'])->middleware(CsrfMiddleware::class);
 
-// Tenant ERP Dedicated Auth Routes (e.g. /{tenant_code}/login)
+// Tenant ERP Dedicated Auth Routes (e.g. /{tenant_code} or /{tenant_code}/login)
+$router->get('/{tenant}', [AuthController::class, 'showTenantLogin']);
 $router->get('/{tenant}/login', [AuthController::class, 'showTenantLogin']);
 $router->post('/{tenant}/login', [AuthController::class, 'tenantLogin'])->middleware(CsrfMiddleware::class);
 
