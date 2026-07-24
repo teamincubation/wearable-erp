@@ -1,7 +1,15 @@
 <div id="live-dashboard-container" class="container-fluid py-4 min-vh-100 px-3 px-md-4" data-theme="dark" style="font-family: 'Outfit', sans-serif; transition: background 0.3s ease, color 0.3s ease;">
     
-    <!-- Theme Switcher & Dashboard CSS Custom Properties -->
+    <!-- Theme Switcher & Full Dashboard CSS Overrides -->
     <style>
+        /* Force html and body to inherit theme background to eliminate white gaps */
+        html, body {
+            background-color: #090d16 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            min-height: 100vh;
+        }
+
         :root, [data-theme="dark"] {
             --bg-main: #090d16;
             --card-bg: #131a29;
@@ -18,6 +26,7 @@
             --toolbar-border: #1f2937;
             --table-header-bg: #0f172a;
             --table-row-border: rgba(255, 255, 255, 0.06);
+            --table-hover-bg: rgba(255, 255, 255, 0.04);
             --color-primary: #3b82f6;
             --color-success: #10b981;
             --color-warning: #f59e0b;
@@ -41,6 +50,7 @@
             --toolbar-border: #3d3129;
             --table-header-bg: #271f1a;
             --table-row-border: rgba(255, 248, 230, 0.08);
+            --table-hover-bg: rgba(255, 248, 230, 0.05);
             --color-primary: #e09f67;
             --color-success: #84cc16;
             --color-warning: #eab308;
@@ -51,7 +61,7 @@
         [data-theme="bright"] {
             --bg-main: #f1f5f9;
             --card-bg: #ffffff;
-            --card-border: #e2e8f0;
+            --card-border: #cbd5e1;
             --card-hover-border: #3b82f6;
             --text-main: #0f172a;
             --text-sub: #475569;
@@ -64,6 +74,7 @@
             --toolbar-border: #cbd5e1;
             --table-header-bg: #f8fafc;
             --table-row-border: #e2e8f0;
+            --table-hover-bg: rgba(0, 0, 0, 0.03);
             --color-primary: #2563eb;
             --color-success: #059669;
             --color-warning: #d97706;
@@ -135,8 +146,8 @@
 
         /* Minimal QR Bar */
         .qr-lookup-bar {
-            background-color: var(--card-bg);
-            border: 1px solid var(--card-border);
+            background-color: var(--card-bg) !important;
+            border: 1px solid var(--card-border) !important;
             border-radius: 16px;
         }
         .qr-lookup-input {
@@ -153,6 +164,12 @@
         .qr-lookup-input:focus {
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3) !important;
             border-color: var(--color-primary) !important;
+        }
+
+        /* Fix Bootstrap Table Row Hover Background */
+        .table-hover > tbody > tr:hover > * {
+            background-color: var(--table-hover-bg) !important;
+            color: var(--text-main) !important;
         }
 
         /* Custom Scrollbar for Real-Time Activity Feed */
@@ -506,7 +523,7 @@
 <!-- Track Unit Lifecycle History Modal -->
 <div class="modal fade" id="trackQrUnitModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content text-start" style="border-radius: 16px; background: var(--card-bg); color: var(--text-main); border: 1px solid var(--card-border);">
+        <div class="modal-content text-start" style="border-radius: 16px; background: var(--card-bg) !important; color: var(--text-main) !important; border: 1px solid var(--card-border) !important;">
             <div class="modal-header border-0 pb-0">
                 <h5 class="modal-title fw-bold text-dash-main"><i class="fa-solid fa-qrcode text-primary me-2"></i> Complete Unit Stage Lifecycle History</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -528,12 +545,18 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-    // 1. Theme Switcher Logic
+    // 1. Theme Switcher Logic (Enforces body & html background color match)
     function setDashboardTheme(themeName) {
         const container = document.getElementById('live-dashboard-container');
         if (!container) return;
         container.setAttribute('data-theme', themeName);
         localStorage.setItem('wearable_dashboard_theme', themeName);
+
+        // Dynamically get active background color from CSS variable
+        const computedBg = getComputedStyle(container).getPropertyValue('--bg-main').trim();
+        document.body.style.backgroundColor = computedBg;
+        document.body.style.background = computedBg;
+        document.documentElement.style.backgroundColor = computedBg;
 
         // Update button active state
         document.querySelectorAll('.theme-btn-group .btn').forEach(btn => btn.classList.remove('active'));
