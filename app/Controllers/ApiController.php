@@ -997,13 +997,4 @@ class ApiController extends Controller {
             exit;
         }
     }
-
-    /**
-     * Helper: Convert any WIP stage input into a standardized system key (e.g. "cutting", "stitching", "ironing")
-     */
-    public function toStageKey(string $input): string {
-        $clean = preg_replace('/^(#|\d+\.|\d+\s*-\s*|\d+\s*:\s*|Stage\s*\d+\s*:?\s*)/i', '', trim($input));
-        $key = strtolower(trim((string)preg_replace('/[^a-zA-Z0-9]+/', '_', $clean), '_'));
-        return !empty($key) ? $key : 'general';
-    }
 }
