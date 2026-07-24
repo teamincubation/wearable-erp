@@ -3,6 +3,14 @@
         <h3 class="fw-bold">Master Data Hub</h3>
         <p class="text-secondary m-0">Central repository to manage apparel specifications, vendor/client contacts, branches, and warehouses</p>
     </div>
+    <div class="d-flex align-items-center gap-2">
+        <a href="<?= base_url('company/masterdata/export-csv') ?>" class="btn btn-sm btn-outline-success rounded-pill px-3 shadow-sm" title="Download complete Master Data CSV backup">
+            <i class="fa-solid fa-file-csv me-1.5"></i> Export Master Data (CSV)
+        </a>
+        <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#importMasterDataModal" title="Upload and restore Master Data CSV backup">
+            <i class="fa-solid fa-file-import me-1.5"></i> Import Master Data (CSV)
+        </button>
+    </div>
 </div>
 
 <!-- Tabs Navigation -->
@@ -1341,3 +1349,45 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+
+<!-- Import Master Data CSV Backup Modal -->
+<div class="modal fade" id="importMasterDataModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form action="<?= base_url('company/masterdata/import-csv') ?>" method="POST" enctype="multipart/form-data">
+            <?= \App\Core\Session::csrfField() ?>
+            <div class="modal-content text-start" style="border-radius: 16px;">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold text-dark"><i class="fa-solid fa-file-import text-primary me-2"></i> Import Master Data (CSV Backup)</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-start p-4">
+                    <div class="p-3 bg-primary bg-opacity-10 border border-primary rounded-3 mb-3">
+                        <div class="d-flex align-items-center gap-2 text-primary fw-bold small">
+                            <i class="fa-solid fa-circle-info fs-5"></i> Complete Master Data Backup Restore
+                        </div>
+                        <p class="small text-secondary m-0 mt-1" style="font-size: 12px;">
+                            Upload a Master Data CSV backup file to populate records across all sections (BOM Categories, Contacts/Vendors, Warehouses, Branches, Storage Types, Designations, Shifts, Holidays, Style Variables, System Settings). Duplicate entries will be automatically updated safely.
+                        </p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-dark">Select Master Data CSV File <span class="text-danger">*</span></label>
+                        <input type="file" name="csv_file" class="form-control form-control-lg" accept=".csv" required style="border-radius: 10px; font-size: 14px;">
+                    </div>
+
+                    <div class="text-end">
+                        <a href="<?= base_url('company/masterdata/export-csv') ?>" class="text-decoration-none small text-primary fw-semibold">
+                            <i class="fa-solid fa-download me-1"></i> Download current Master Data backup file first
+                        </a>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0">
+                    <button type="button" class="btn btn-light border rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm">
+                        <i class="fa-solid fa-cloud-arrow-up me-1.5"></i> Start Import Now
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>

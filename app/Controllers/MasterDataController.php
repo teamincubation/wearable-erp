@@ -862,4 +862,324 @@ class MasterDataController extends Controller {
         Session::setFlash('success', "Style Variable deleted successfully.");
         $this->redirect('company/masterdata?tab=style_vars');
     }
+
+    /**
+     * Export Complete Master Data Backup (CSV)
+     */
+    public function exportCsv(Request $request, Response $response): void {
+        $db = Database::getInstance();
+        $companyId = Session::get('company_id');
+
+        $filename = "Master_Data_Backup_Company_" . $companyId . "_" . date('Y-m-d_H-i') . ".csv";
+
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+        $output = fopen('php://output', 'w');
+
+        // CSV Header
+        fputcsv($output, ['SECTION_TYPE', 'FIELD_1', 'FIELD_2', 'FIELD_3', 'FIELD_4', 'FIELD_5', 'FIELD_6', 'FIELD_7']);
+
+        // 1. BOM Categories
+        $stmt = $db->prepare("SELECT * FROM bom_categories WHERE company_id = ? AND deleted_at IS NULL ORDER BY id ASC");
+        $stmt->execute([$companyId]);
+        foreach ($stmt->fetchAll() as $row) {
+            fputcsv($output, ['BOM_CATEGORY', $row['name'] ?? '', $row['code'] ?? '', $row['description'] ?? '', '', '', '', '']);
+        }
+
+        // 2. Contacts (Vendors & Logistics)
+        $stmt = $db->prepare("SELECT * FROM contacts WHERE company_id = ? AND deleted_at IS NULL ORDER BY id ASC");
+        $stmt->execute([$companyId]);
+        foreach ($stmt->fetchAll() as $row) {
+            fputcsv($output, ['CONTACT', $row['type'] ?? 'supplier', $row['name'] ?? '', $row['code'] ?? '', $row['email'] ?? '', $row['phone'] ?? '', $row['gstin'] ?? '', $row['address'] ?? '']);
+        }
+
+        // 3. Branches
+        $stmt = $db->prepare("SELECT * FROM branches WHERE company_id = ? AND deleted_at IS NULL ORDER BY id ASC");
+        $stmt->execute([$companyId]);
+        foreach ($stmt->fetchAll() as $row) {
+            fputcsv($output, ['BRANCH', $row['name'] ?? '', $row['code'] ?? '', $row['address'] ?? '', $row['phone'] ?? '', $row['email'] ?? '', '', '']);
+        }
+
+        // 4. Warehouses
+        $stmt = $db->prepare("SELECT * FROM warehouses WHERE company_id = ? AND deleted_at IS NULL ORDER BY id ASC");
+        $stmt->execute([$companyId]);
+        foreach ($stmt->fetchAll() as $row) {
+            fputcsv($output, ['WAREHOUSE', $row['name'] ?? '', $row['code'] ?? '', $row['type'] ?? '', $row['address'] ?? '', '', '', '']);
+        }
+
+        // 5. Warehouse / Storage Types
+        $stmt = $db->prepare("SELECT * FROM warehouse_types WHERE company_id = ? AND deleted_at IS NULL ORDER BY id ASC");
+        $stmt->execute([$companyId]);
+        foreach ($stmt->fetchAll() as $row) {
+            fputcsv($output, ['STORAGE_TYPE', $row['name'] ?? '', $row['code'] ?? '', $row['description'] ?? '', '', '', '', '']);
+        }
+
+        // 6. Designations
+        $stmt = $db->prepare("SELECT * FROM designations WHERE company_id = ? AND deleted_at IS NULL ORDER BY id ASC");
+        $stmt->execute([$companyId]);
+        foreach ($stmt->fetchAll() as $row) {
+            fputcsv($output, ['DESIGNATION', $row['title'] ?? '', $row['department'] ?? '', $row['description'] ?? '', '', '', '', '']);
+        }
+
+        // 7. Shifts
+        $stmt = $db->prepare("SELECT * FROM shifts WHERE company_id = ? AND deleted_at IS NULL ORDER BY id ASC");
+        $stmt->execute([$companyId]);
+        foreach ($stmt->fetchAll() as $row) {
+            fputcsv($output, ['SHIFT', $row['name'] ?? '', $row['start_time'] ?? '', $row['end_time'] ?? '', $row['grace_period_minutes'] ?? '15', '', '', '']);
+        }
+
+        // 8. Company Holidays
+        $stmt = $db->prepare("SELECT * FROM company_holidays WHERE company_id = ? ORDER BY id ASC");
+        $stmt->execute([$companyId]);
+        foreach ($stmt->fetchAll() as $row) {
+            fputcsv($output, ['HOLIDAY', $row['date'] ?? '', $row['name'] ?? '', $row['type'] ?? 'holiday', '', '', '', '']);
+        }
+
+        // 9. Style Variables
+        try {
+            $stmt = $db->prepare("SELECT * FROM style_variables WHERE company_id = ? AND deleted_at IS NULL ORDER BY id ASC");
+            $stmt->execute([$companyId]);
+            foreach ($stmt->fetchAll() as $row) {
+                $vType = $row['type'] ?? $row['variable_type'] ?? 'size';
+                $vName = $row['value'] ?? $row['name'] ?? '';
+                $vCode = $row['code'] ?? '';
+                fputcsv($output, ['STYLE_VARIABLE', $vType, $vName, $vCode, '', '', '', '']);
+            }
+        } catch (\Exception $e) {}
+
+        // 10. System Settings & HR Policies
+        $stmt = $db->prepare("SELECT * FROM system_settings WHERE company_id = ? AND deleted_at IS NULL ORDER BY id ASC");
+        $stmt->execute([$companyId]);
+        foreach ($stmt->fetchAll() as $row) {
+            fputcsv($output, ['SYSTEM_SETTING', $row['setting_key'] ?? '', $row['setting_value'] ?? '', '', '', '', '', '']);
+        }
+
+        fclose($output);
+        AuditLog::log($companyId, Session::get('user_id'), 'export_masterdata_csv', 'MasterData', null, null, null, "Exported complete Master Data CSV backup");
+        exit;
+    }
+
+    /**
+     * Import Master Data Backup (CSV)
+     */
+    public function importCsv(Request $request, Response $response): void {
+        $companyId = Session::get('company_id');
+        $userId = Session::get('user_id');
+
+        if (empty($_FILES['csv_file']['tmp_name'])) {
+            Session::setFlash('error', 'Please select a valid CSV backup file to import.');
+            $this->redirect('company/masterdata');
+            return;
+        }
+
+        $handle = fopen($_FILES['csv_file']['tmp_name'], 'r');
+        if (!$handle) {
+            Session::setFlash('error', 'Failed to read uploaded CSV file.');
+            $this->redirect('company/masterdata');
+            return;
+        }
+
+        $db = Database::getInstance();
+        $importedCount = 0;
+        $headerSkipped = false;
+
+        while (($row = fgetcsv($handle, 2000, ',')) !== false) {
+            if (empty($row) || count($row) < 2) continue;
+
+            $section = strtoupper(trim($row[0] ?? ''));
+            if ($section === 'SECTION_TYPE' || empty($section)) {
+                $headerSkipped = true;
+                continue;
+            }
+
+            try {
+                switch ($section) {
+                    case 'BOM_CATEGORY':
+                        $name = trim($row[1] ?? '');
+                        $code = trim($row[2] ?? '');
+                        $desc = trim($row[3] ?? '');
+                        if (!empty($name)) {
+                            $stmtChk = $db->prepare("SELECT id FROM bom_categories WHERE company_id = ? AND name = ? AND deleted_at IS NULL LIMIT 1");
+                            $stmtChk->execute([$companyId, $name]);
+                            $existingId = $stmtChk->fetchColumn();
+                            if ($existingId) {
+                                $db->prepare("UPDATE bom_categories SET code = ?, description = ? WHERE id = ?")->execute([$code, $desc, $existingId]);
+                            } else {
+                                $db->prepare("INSERT INTO bom_categories (company_id, name, code, description, created_at) VALUES (?, ?, ?, ?, NOW())")->execute([$companyId, $name, $code, $desc]);
+                            }
+                            $importedCount++;
+                        }
+                        break;
+
+                    case 'CONTACT':
+                        $type = trim($row[1] ?? '') ?: 'supplier';
+                        $name = trim($row[2] ?? '');
+                        $code = trim($row[3] ?? '');
+                        $email = trim($row[4] ?? '');
+                        $phone = trim($row[5] ?? '');
+                        $gstin = trim($row[6] ?? '');
+                        $address = trim($row[7] ?? '');
+                        if (!empty($name)) {
+                            $stmtChk = $db->prepare("SELECT id FROM contacts WHERE company_id = ? AND name = ? AND deleted_at IS NULL LIMIT 1");
+                            $stmtChk->execute([$companyId, $name]);
+                            $existingId = $stmtChk->fetchColumn();
+                            if ($existingId) {
+                                $db->prepare("UPDATE contacts SET type = ?, code = ?, email = ?, phone = ?, gstin = ?, address = ? WHERE id = ?")->execute([$type, $code, $email, $phone, $gstin, $address, $existingId]);
+                            } else {
+                                $db->prepare("INSERT INTO contacts (company_id, type, name, code, email, phone, gstin, address, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())")->execute([$companyId, $type, $name, $code, $email, $phone, $gstin, $address]);
+                            }
+                            $importedCount++;
+                        }
+                        break;
+
+                    case 'BRANCH':
+                        $name = trim($row[1] ?? '');
+                        $code = trim($row[2] ?? '');
+                        $address = trim($row[3] ?? '');
+                        $phone = trim($row[4] ?? '');
+                        $email = trim($row[5] ?? '');
+                        if (!empty($name)) {
+                            $stmtChk = $db->prepare("SELECT id FROM branches WHERE company_id = ? AND name = ? AND deleted_at IS NULL LIMIT 1");
+                            $stmtChk->execute([$companyId, $name]);
+                            $existingId = $stmtChk->fetchColumn();
+                            if ($existingId) {
+                                $db->prepare("UPDATE branches SET code = ?, address = ?, phone = ?, email = ? WHERE id = ?")->execute([$code, $address, $phone, $email, $existingId]);
+                            } else {
+                                $db->prepare("INSERT INTO branches (company_id, name, code, address, phone, email, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())")->execute([$companyId, $name, $code, $address, $phone, $email]);
+                            }
+                            $importedCount++;
+                        }
+                        break;
+
+                    case 'WAREHOUSE':
+                        $name = trim($row[1] ?? '');
+                        $code = trim($row[2] ?? '');
+                        $type = trim($row[3] ?? '') ?: 'Storage';
+                        $address = trim($row[4] ?? '');
+                        if (!empty($name)) {
+                            $stmtChk = $db->prepare("SELECT id FROM warehouses WHERE company_id = ? AND name = ? AND deleted_at IS NULL LIMIT 1");
+                            $stmtChk->execute([$companyId, $name]);
+                            $existingId = $stmtChk->fetchColumn();
+                            if ($existingId) {
+                                $db->prepare("UPDATE warehouses SET code = ?, type = ?, address = ? WHERE id = ?")->execute([$code, $type, $address, $existingId]);
+                            } else {
+                                $db->prepare("INSERT INTO warehouses (company_id, name, code, type, address, created_at) VALUES (?, ?, ?, ?, ?, NOW())")->execute([$companyId, $name, $code, $type, $address]);
+                            }
+                            $importedCount++;
+                        }
+                        break;
+
+                    case 'STORAGE_TYPE':
+                        $name = trim($row[1] ?? '');
+                        $code = trim($row[2] ?? '');
+                        $desc = trim($row[3] ?? '');
+                        if (!empty($name)) {
+                            $stmtChk = $db->prepare("SELECT id FROM warehouse_types WHERE company_id = ? AND name = ? AND deleted_at IS NULL LIMIT 1");
+                            $stmtChk->execute([$companyId, $name]);
+                            $existingId = $stmtChk->fetchColumn();
+                            if ($existingId) {
+                                $db->prepare("UPDATE warehouse_types SET code = ?, description = ? WHERE id = ?")->execute([$code, $desc, $existingId]);
+                            } else {
+                                $db->prepare("INSERT INTO warehouse_types (company_id, name, code, description, created_at) VALUES (?, ?, ?, ?, NOW())")->execute([$companyId, $name, $code, $desc]);
+                            }
+                            $importedCount++;
+                        }
+                        break;
+
+                    case 'DESIGNATION':
+                        $title = trim($row[1] ?? '');
+                        $dept = trim($row[2] ?? '');
+                        $desc = trim($row[3] ?? '');
+                        if (!empty($title)) {
+                            $stmtChk = $db->prepare("SELECT id FROM designations WHERE company_id = ? AND title = ? AND deleted_at IS NULL LIMIT 1");
+                            $stmtChk->execute([$companyId, $title]);
+                            $existingId = $stmtChk->fetchColumn();
+                            if ($existingId) {
+                                $db->prepare("UPDATE designations SET department = ?, description = ? WHERE id = ?")->execute([$dept, $desc, $existingId]);
+                            } else {
+                                $db->prepare("INSERT INTO designations (company_id, title, department, description, created_at) VALUES (?, ?, ?, ?, NOW())")->execute([$companyId, $title, $dept, $desc]);
+                            }
+                            $importedCount++;
+                        }
+                        break;
+
+                    case 'SHIFT':
+                        $name = trim($row[1] ?? '');
+                        $startTime = trim($row[2] ?? '') ?: '09:00:00';
+                        $endTime = trim($row[3] ?? '') ?: '17:00:00';
+                        $grace = (int)($row[4] ?? 15);
+                        if (!empty($name)) {
+                            $stmtChk = $db->prepare("SELECT id FROM shifts WHERE company_id = ? AND name = ? AND deleted_at IS NULL LIMIT 1");
+                            $stmtChk->execute([$companyId, $name]);
+                            $existingId = $stmtChk->fetchColumn();
+                            if ($existingId) {
+                                $db->prepare("UPDATE shifts SET start_time = ?, end_time = ?, grace_period_minutes = ? WHERE id = ?")->execute([$startTime, $endTime, $grace, $existingId]);
+                            } else {
+                                $db->prepare("INSERT INTO shifts (company_id, name, start_time, end_time, grace_period_minutes, created_at) VALUES (?, ?, ?, ?, ?, NOW())")->execute([$companyId, $name, $startTime, $endTime, $grace]);
+                            }
+                            $importedCount++;
+                        }
+                        break;
+
+                    case 'HOLIDAY':
+                        $date = trim($row[1] ?? '');
+                        $name = trim($row[2] ?? '');
+                        $type = trim($row[3] ?? '') ?: 'holiday';
+                        if (!empty($date) && !empty($name)) {
+                            $stmtChk = $db->prepare("SELECT id FROM company_holidays WHERE company_id = ? AND date = ? AND name = ? LIMIT 1");
+                            $stmtChk->execute([$companyId, $date, $name]);
+                            $existingId = $stmtChk->fetchColumn();
+                            if ($existingId) {
+                                $db->prepare("UPDATE company_holidays SET type = ? WHERE id = ?")->execute([$type, $existingId]);
+                            } else {
+                                $db->prepare("INSERT INTO company_holidays (company_id, date, name, type, created_at) VALUES (?, ?, ?, ?, NOW())")->execute([$companyId, $date, $name, $type]);
+                            }
+                            $importedCount++;
+                        }
+                        break;
+
+                    case 'STYLE_VARIABLE':
+                        $type = trim($row[1] ?? '') ?: 'size';
+                        $name = trim($row[2] ?? '');
+                        $code = trim($row[3] ?? '');
+                        if (!empty($name)) {
+                            try {
+                                $stmtChk = $db->prepare("SELECT id FROM style_variables WHERE company_id = ? AND type = ? AND value = ? AND deleted_at IS NULL LIMIT 1");
+                                $stmtChk->execute([$companyId, $type, $name]);
+                                $existingId = $stmtChk->fetchColumn();
+                                if (!$existingId) {
+                                    $db->prepare("INSERT INTO style_variables (company_id, type, value, created_by, created_at) VALUES (?, ?, ?, ?, NOW())")->execute([$companyId, $type, $name, $userId]);
+                                }
+                                $importedCount++;
+                            } catch (\Exception $ex) {}
+                        }
+                        break;
+
+                    case 'SYSTEM_SETTING':
+                        $key = trim($row[1] ?? '');
+                        $val = trim($row[2] ?? '');
+                        if (!empty($key)) {
+                            $stmtChk = $db->prepare("SELECT id FROM system_settings WHERE company_id = ? AND setting_key = ? AND deleted_at IS NULL LIMIT 1");
+                            $stmtChk->execute([$companyId, $key]);
+                            $existingId = $stmtChk->fetchColumn();
+                            if ($existingId) {
+                                $db->prepare("UPDATE system_settings SET setting_value = ? WHERE id = ?")->execute([$val, $existingId]);
+                            } else {
+                                $db->prepare("INSERT INTO system_settings (company_id, setting_key, setting_value, created_at) VALUES (?, ?, ?, NOW())")->execute([$companyId, $key, $val]);
+                            }
+                            $importedCount++;
+                        }
+                        break;
+                }
+            } catch (\Exception $e) {
+                // Ignore broken line and continue
+            }
+        }
+        fclose($handle);
+
+        AuditLog::log($companyId, $userId, 'import_masterdata_csv', 'MasterData', null, null, null, "Imported Master Data CSV backup ({$importedCount} records processed)");
+        Session::setFlash('success', "Master Data CSV backup imported successfully! Total {$importedCount} records restored / updated across master data sections.");
+        $this->redirect('company/masterdata');
+    }
 }

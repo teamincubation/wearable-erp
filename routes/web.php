@@ -248,6 +248,17 @@ $router->get('/company/masterdata', [\App\Controllers\MasterDataController::clas
        ->middleware(PermissionMiddleware::class)
        ->permission('company.styles.view');
 
+$router->get('/company/masterdata/export-csv', [\App\Controllers\MasterDataController::class, 'exportCsv'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.view');
+
+$router->post('/company/masterdata/import-csv', [\App\Controllers\MasterDataController::class, 'importCsv'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.styles.manage');
+
 $router->post('/company/masterdata/contacts/create', [\App\Controllers\MasterDataController::class, 'createContact'])
        ->middleware(AuthMiddleware::class)
        ->middleware(CsrfMiddleware::class)
