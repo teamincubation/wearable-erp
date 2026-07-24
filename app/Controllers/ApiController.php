@@ -661,21 +661,48 @@ class ApiController extends Controller {
             $batchNo = implode('-', array_slice($parts, 0, count($parts) - 1));
         }
 
-        // Lookup Production Order Batch Details
+        // Lookup Production Order Batch & Style Details from Database
         $stmtBatch = $db->prepare("
-            SELECT pro.*, s.id as style_id, s.style_no, s.name as style_name, s.wip_stages, s.fabric_composition, s.fit_type,
-                   c.name as buyer_name, b.name as brand_name, cat.name as category_name
+            SELECT pro.*, 
+                   s.id as style_id, s.style_no, s.name as style_name, s.wip_stages, 
+                   COALESCE(s.composition, s.fabric_composition, '100% Premium Cotton') as fabric_composition, s.fit_type,
+                   COALESCE(c.name, 'Internal') as buyer_name, 
+                   COALESCE(b.name, s.brand, 'Tocco') as brand_name, 
+                   COALESCE(cat.name, s.category, 'General') as category_name,
+                   po.quantity as po_target_qty
             FROM production_orders pro
-            JOIN buyer_pos po ON pro.po_id = po.id
-            JOIN styles s ON po.style_id = s.id
-            JOIN contacts c ON po.buyer_id = c.id
+            LEFT JOIN buyer_pos po ON pro.po_id = po.id
+            LEFT JOIN styles s ON po.style_id = s.id
+            LEFT JOIN contacts c ON po.buyer_id = c.id
             LEFT JOIN brands b ON s.brand_id = b.id
             LEFT JOIN categories cat ON s.category_id = cat.id
-            WHERE pro.company_id = ? AND (pro.production_no = ? OR pro.id = ?)
+            WHERE pro.company_id = ? AND (LOWER(pro.production_no) = LOWER(?) OR pro.id = ?)
             LIMIT 1
         ");
         $stmtBatch->execute([$companyId, $batchNo, is_numeric($batchNo) ? (int)$batchNo : 0]);
         $batchData = $stmtBatch->fetch();
+
+        // Fallback: If production batch is not matched directly, lookup Style Master directly by Style No
+        if (empty($batchData) || empty($batchData['style_no'])) {
+            $stmtStyleDirect = $db->prepare("
+                SELECT s.id as style_id, s.style_no, s.name as style_name, s.wip_stages, 
+                       COALESCE(s.composition, s.fabric_composition, '100% Premium Cotton') as fabric_composition, 
+                       s.fit_type, 
+                       COALESCE(cat.name, s.category, 'General') as category_name, 
+                       COALESCE(b.name, s.brand, 'Tocco') as brand_name
+                FROM styles s
+                LEFT JOIN brands b ON s.brand_id = b.id
+                LEFT JOIN categories cat ON s.category_id = cat.id
+                WHERE s.company_id = ? AND (LOWER(s.style_no) = LOWER(?) OR s.id = ?) AND s.deleted_at IS NULL
+                LIMIT 1
+            ");
+            $stmtStyleDirect->execute([$companyId, $batchNo, is_numeric($batchNo) ? (int)$batchNo : 0]);
+            $directStyle = $stmtStyleDirect->fetch();
+
+            if ($directStyle) {
+                $batchData = array_merge($batchData ?: [], $directStyle);
+            }
+        }
 
         // Parse WIP stages pipeline definition
         $wipStagesPipeline = [];
@@ -707,17 +734,17 @@ class ApiController extends Controller {
 
         $productPayload = [
             'qr_code' => $qrCode,
-            'batch_no' => $batchData['production_no'] ?? $batchNo,
-            'style_no' => $batchData['style_no'] ?? 'N/A',
-            'style_name' => $batchData['style_name'] ?? 'Garment Unit',
-            'category' => $batchData['category_name'] ?? 'General',
-            'brand' => $batchData['brand_name'] ?? 'Tocco',
-            'composition' => $batchData['fabric_composition'] ?? '100% Cotton',
-            'fit_type' => $batchData['fit_type'] ?? 'Regular',
+            'batch_no' => !empty($batchData['production_no']) ? $batchData['production_no'] : $batchNo,
+            'style_no' => !empty($batchData['style_no']) ? $batchData['style_no'] : 'ST-MASTER',
+            'style_name' => !empty($batchData['style_name']) ? $batchData['style_name'] : 'Garment Style Item',
+            'category' => !empty($batchData['category_name']) ? $batchData['category_name'] : 'Apparel',
+            'brand' => !empty($batchData['brand_name']) ? $batchData['brand_name'] : 'Tocco',
+            'composition' => !empty($batchData['fabric_composition']) ? $batchData['fabric_composition'] : '100% Premium Cotton',
+            'fit_type' => !empty($batchData['fit_type']) ? $batchData['fit_type'] : 'Regular',
             'size' => $size,
             'serial' => $serial,
-            'target_qty' => (int)($batchData['target_qty'] ?? 100),
-            'buyer' => $batchData['buyer_name'] ?? 'Internal'
+            'target_qty' => (int)(!empty($batchData['po_target_qty']) ? $batchData['po_target_qty'] : (!empty($batchData['target_qty']) ? $batchData['target_qty'] : 100)),
+            'buyer' => !empty($batchData['buyer_name']) ? $batchData['buyer_name'] : 'Internal'
         ];
 
         $history = array_map(function($l) {
