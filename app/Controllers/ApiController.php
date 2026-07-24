@@ -151,17 +151,17 @@ class ApiController extends Controller {
                 'token' => $token,
                 'user' => [
                     'id' => (int)$user['id'],
-                    'name' => $user['name'],
-                    'email' => $user['email'],
-                    'employee_code' => $user['employee_code'],
-                    'phone' => $user['phone'],
-                    'avatar' => $user['avatar'],
-                    'company_id' => $user['company_id'] ? (int)$user['company_id'] : null,
+                    'name' => $user['name'] ?? 'Employee',
+                    'email' => $user['email'] ?? '',
+                    'employee_code' => $user['employee_code'] ?? '',
+                    'phone' => $user['phone'] ?? null,
+                    'avatar' => $user['avatar'] ?? null,
+                    'company_id' => !empty($user['company_id']) ? (int)$user['company_id'] : null,
                     'company_name' => $user['company_name'] ?? 'System Developer',
                     'company_subdomain' => $user['company_subdomain'] ?? 'erp',
                     'company_logo' => $user['company_logo'] ?? null,
                     'company_logo_url' => $companyLogoUrl,
-                    'role_id' => $user['role_id'] ? (int)$user['role_id'] : null,
+                    'role_id' => !empty($user['role_id']) ? (int)$user['role_id'] : null,
                     'role_name' => $user['role_name'] ?? 'Employee'
                 ]
             ]
@@ -918,16 +918,17 @@ class ApiController extends Controller {
      * Helper: Generate a signed token string
      */
     private function generateApiToken(array $user): string {
+        $secretKey = defined('APP_KEY') ? APP_KEY : 'wearable_erp_secret_key_2026';
         $payload = [
             'user_id' => (int)$user['id'],
-            'company_id' => $user['company_id'] ? (int)$user['company_id'] : null,
-            'email' => $user['email'],
-            'employee_code' => $user['employee_code'],
+            'company_id' => !empty($user['company_id']) ? (int)$user['company_id'] : null,
+            'email' => $user['email'] ?? '',
+            'employee_code' => $user['employee_code'] ?? '',
             'exp' => time() + (86400 * 30) // Valid for 30 days
         ];
         $jsonPayload = json_encode($payload);
         $encodedPayload = base64_encode($jsonPayload);
-        $signature = hash_hmac('sha256', $encodedPayload, APP_KEY);
+        $signature = hash_hmac('sha256', $encodedPayload, $secretKey);
 
         return $encodedPayload . '.' . $signature;
     }
@@ -936,13 +937,14 @@ class ApiController extends Controller {
      * Helper: Verify and decode a token string
      */
     private function verifyApiToken(string $token): ?array {
+        $secretKey = defined('APP_KEY') ? APP_KEY : 'wearable_erp_secret_key_2026';
         $parts = explode('.', $token);
         if (count($parts) !== 2) {
             return null;
         }
 
         list($encodedPayload, $providedSignature) = $parts;
-        $expectedSignature = hash_hmac('sha256', $encodedPayload, APP_KEY);
+        $expectedSignature = hash_hmac('sha256', $encodedPayload, $secretKey);
 
         if (!hash_equals($expectedSignature, $providedSignature)) {
             return null;
