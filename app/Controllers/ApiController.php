@@ -441,6 +441,170 @@ class ApiController extends Controller {
     }
 
     /**
+     * Get All Garment Styles with their associated WIP Stages
+     * GET /api/v1/styles
+     */
+    public function getStyles(Request $request, Response $response): void {
+        $this->setCorsHeaders();
+
+        $token = $this->extractToken($request);
+        $userData = $token ? $this->verifyApiToken($token) : null;
+
+        if (!$userData || empty($userData['company_id'])) {
+            $response->json([
+                'status' => 'error',
+                'message' => 'Unauthorized or missing company context.'
+            ], 401);
+            return;
+        }
+
+        $companyId = (int)$userData['company_id'];
+        $db = Database::getInstance();
+
+        $stmtStyles = $db->prepare("
+            SELECT s.*, tp.stages_json, tp.bom_json
+            FROM styles s
+            LEFT JOIN tech_packs tp ON tp.style_id = s.id AND tp.deleted_at IS NULL
+            WHERE s.company_id = ? AND s.deleted_at IS NULL
+            ORDER BY s.id DESC
+        ");
+        $stmtStyles->execute([$companyId]);
+        $styles = $stmtStyles->fetchAll() ?: [];
+
+        $companyDefaultStages = \App\Controllers\CompanyController::getCompanyWipStages($companyId);
+
+        $result = array_map(function($s) use ($companyDefaultStages) {
+            $customStages = !empty($s['stages_json']) ? (json_decode($s['stages_json'], true) ?: []) : [];
+            $wipStages = !empty($customStages) ? $customStages : $companyDefaultStages;
+
+            return [
+                'id' => (int)$s['id'],
+                'style_no' => $s['style_no'],
+                'name' => $s['name'],
+                'description' => $s['description'],
+                'category' => $s['category'] ?? 'unisex',
+                'composition' => $s['composition'],
+                'gsm' => $s['gsm'] ?? null,
+                'color' => $s['color'] ?? null,
+                'brand' => $s['brand'],
+                'size_range' => $s['size_range'],
+                'wip_stages' => $wipStages,
+                'created_at' => $s['created_at']
+            ];
+        }, $styles);
+
+        $response->json([
+            'status' => 'success',
+            'data' => $result
+        ], 200);
+    }
+
+    /**
+     * Get Specific Garment Style Details with Tech Pack & Associated WIP Stages
+     * GET /api/v1/styles/{id}
+     */
+    public function getStyleDetails(Request $request, Response $response, string $id = ''): void {
+        $this->setCorsHeaders();
+
+        $token = $this->extractToken($request);
+        $userData = $token ? $this->verifyApiToken($token) : null;
+
+        if (!$userData || empty($userData['company_id'])) {
+            $response->json([
+                'status' => 'error',
+                'message' => 'Unauthorized or missing company context.'
+            ], 401);
+            return;
+        }
+
+        $companyId = (int)$userData['company_id'];
+        $styleIdentifier = trim($id ?: (string)$request->get('id', '') ?: (string)$request->get('style_id', '') ?: (string)$request->get('style_no', ''));
+
+        if (empty($styleIdentifier)) {
+            $response->json([
+                'status' => 'error',
+                'message' => 'Style ID or Style Number is required.'
+            ], 400);
+            return;
+        }
+
+        $db = Database::getInstance();
+        $stmtStyle = $db->prepare("
+            SELECT s.*
+            FROM styles s
+            WHERE (s.id = ? OR s.style_no = ?) AND s.company_id = ? AND s.deleted_at IS NULL
+            LIMIT 1
+        ");
+        $stmtStyle->execute([is_numeric($styleIdentifier) ? (int)$styleIdentifier : 0, $styleIdentifier, $companyId]);
+        $style = $stmtStyle->fetch();
+
+        if (!$style) {
+            $response->json([
+                'status' => 'error',
+                'message' => 'Style not found.'
+            ], 404);
+            return;
+        }
+
+        // Fetch TechPack details
+        $stmtTp = $db->prepare("SELECT * FROM tech_packs WHERE style_id = ? AND company_id = ? AND deleted_at IS NULL LIMIT 1");
+        $stmtTp->execute([$style['id'], $companyId]);
+        $techpack = $stmtTp->fetch() ?: [];
+
+        $companyDefaultStages = \App\Controllers\CompanyController::getCompanyWipStages($companyId);
+        $customStages = !empty($techpack['stages_json']) ? (json_decode($techpack['stages_json'], true) ?: []) : [];
+        $wipStages = !empty($customStages) ? $customStages : $companyDefaultStages;
+
+        // Fetch Active Production Orders using this style
+        $stmtBatches = $db->prepare("
+            SELECT pro.id, pro.production_no, pro.status, po.po_no, c.name as buyer_name
+            FROM production_orders pro
+            JOIN buyer_pos po ON pro.po_id = po.id
+            JOIN contacts c ON po.buyer_id = c.id
+            WHERE po.style_id = ? AND pro.company_id = ? AND pro.deleted_at IS NULL
+            ORDER BY pro.id DESC
+        ");
+        $stmtBatches->execute([$style['id'], $companyId]);
+        $batches = $stmtBatches->fetchAll() ?: [];
+
+        $response->json([
+            'status' => 'success',
+            'data' => [
+                'style' => [
+                    'id' => (int)$style['id'],
+                    'style_no' => $style['style_no'],
+                    'name' => $style['name'],
+                    'description' => $style['description'],
+                    'category' => $style['category'] ?? 'unisex',
+                    'composition' => $style['composition'],
+                    'gsm' => $style['gsm'] ?? null,
+                    'color' => $style['color'] ?? null,
+                    'brand' => $style['brand'],
+                    'size_range' => $style['size_range'],
+                    'created_at' => $style['created_at']
+                ],
+                'wip_stages' => $wipStages,
+                'techpack' => [
+                    'bom_list' => !empty($techpack['bom_json']) ? (json_decode($techpack['bom_json'], true) ?: []) : [],
+                    'sizing_sheet' => !empty($techpack['sizing_json']) ? (json_decode($techpack['sizing_json'], true) ?: []) : [],
+                    'printing_specs' => $techpack['printing_specs'] ?? null,
+                    'embroidery_specs' => $techpack['embroidery_specs'] ?? null,
+                    'packing_specs' => $techpack['packing_specs'] ?? null
+                ],
+                'active_batches' => array_map(function($b) {
+                    return [
+                        'id' => (int)$b['id'],
+                        'production_no' => $b['production_no'],
+                        'po_no' => $b['po_no'],
+                        'buyer_name' => $b['buyer_name'],
+                        'status' => $b['status']
+                    ];
+                }, $batches)
+            ]
+        ], 200);
+    }
+
+    /**
      * Helper: Generate a signed token string
      */
     private function generateApiToken(array $user): string {
