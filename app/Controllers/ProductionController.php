@@ -590,35 +590,35 @@ class ProductionController extends Controller {
         $companyTz = $stmtTz->fetchColumn() ?: 'Asia/Kolkata';
         date_default_timezone_set($companyTz);
 
-        $qrCode = trim($request->get('qr_code'));
-        $stage = trim($request->get('stage'));
-        $status = trim($request->get('status')); // 'pass' or 'fail'
+        $qrCodeStr = trim((string)$request->get('qr_code', ''));
+        $stageKey = strtolower(trim((string)$request->get('stage', '')));
+        $status = strtolower(trim((string)$request->get('status', 'pass')));
         $durationSeconds = (int)$request->get('duration_seconds');
 
-        if (empty($qrCode) || empty($stage) || empty($status)) {
+        if (empty($qrCodeStr) || empty($stageKey) || empty($status)) {
             echo json_encode(['success' => false, 'message' => 'Missing scanned QR code, stage, or pass/fail status.']);
             exit;
         }
 
-        // Duplicate check: Prevent logging the same QR code twice under the same WIP stage
+        // Duplicate check: Prevent logging the same QR code twice under the same WIP stage (case-insensitive & trimmed)
         $stmtCheckAlready = $db->prepare("
             SELECT id FROM production_stage_logs 
-            WHERE company_id = ? AND qr_code = ? AND stage = ? 
+            WHERE company_id = ? AND LOWER(TRIM(qr_code)) = LOWER(?) AND LOWER(TRIM(stage)) = LOWER(?) 
             LIMIT 1
         ");
-        $stmtCheckAlready->execute([$companyId, $qrCode, $stage]);
+        $stmtCheckAlready->execute([$companyId, $qrCodeStr, $stageKey]);
         if ($stmtCheckAlready->fetchColumn()) {
-            $formattedStage = strtoupper(str_replace('_', ' ', $stage));
+            $formattedStage = strtoupper(str_replace('_', ' ', $stageKey));
             echo json_encode([
                 'success' => false,
                 'already_validated' => true,
-                'message' => "This QR Code ({$qrCode}) has ALREADY been validated in stage '{$formattedStage}'."
+                'message' => "This QR Code ({$qrCodeStr}) has ALREADY been validated in stage '{$formattedStage}'."
             ]);
             exit;
         }
 
         // Parse QR Code e.g. BATCH-TOCCO-001-S-0005
-        $parts = explode('-', $qrCode);
+        $parts = explode('-', $qrCodeStr);
         if (count($parts) < 3) {
             echo json_encode(['success' => false, 'message' => 'Invalid tag format. QR code must match: [BATCH_CODE]-[SIZE]-[SERIAL].']);
             exit;
@@ -637,10 +637,27 @@ class ProductionController extends Controller {
             exit;
         }
 
+        // Secondary check with batch_id context
+        $stmtCheckAlreadyBatch = $db->prepare("
+            SELECT id FROM production_stage_logs 
+            WHERE company_id = ? AND production_order_id = ? AND LOWER(TRIM(qr_code)) = LOWER(?) AND LOWER(TRIM(stage)) = LOWER(?) 
+            LIMIT 1
+        ");
+        $stmtCheckAlreadyBatch->execute([$companyId, $batch['id'], $qrCodeStr, $stageKey]);
+        if ($stmtCheckAlreadyBatch->fetchColumn()) {
+            $formattedStage = strtoupper(str_replace('_', ' ', $stageKey));
+            echo json_encode([
+                'success' => false,
+                'already_validated' => true,
+                'message' => "This QR Code ({$qrCodeStr}) has ALREADY been validated in stage '{$formattedStage}'."
+            ]);
+            exit;
+        }
+
         // Verify preceding stage order sequence compliance for QR code scan
         $batchStages = self::getBatchStagesList((int)$batch['id']);
         $stageKeys = array_column($batchStages, 'key');
-        $targetIndex = array_search($stage, $stageKeys);
+        $targetIndex = array_search($stageKey, $stageKeys);
 
         if ($targetIndex !== false && $targetIndex > 0) {
             for ($i = 0; $i < $targetIndex; $i++) {
@@ -649,15 +666,15 @@ class ProductionController extends Controller {
 
                 $stmtCheckPrec = $db->prepare("
                     SELECT id FROM production_stage_logs 
-                    WHERE company_id = ? AND qr_code = ? AND stage = ? 
+                    WHERE company_id = ? AND LOWER(TRIM(qr_code)) = LOWER(?) AND LOWER(TRIM(stage)) = LOWER(?) 
                     LIMIT 1
                 ");
-                $stmtCheckPrec->execute([$companyId, $qrCode, $precedingKey]);
+                $stmtCheckPrec->execute([$companyId, $qrCodeStr, $precedingKey]);
                 if (!$stmtCheckPrec->fetchColumn()) {
-                    $targetName = isset($batchStages[$targetIndex]['name']) ? $batchStages[$targetIndex]['name'] : strtoupper(str_replace('_', ' ', $stage));
+                    $targetName = isset($batchStages[$targetIndex]['name']) ? $batchStages[$targetIndex]['name'] : strtoupper(str_replace('_', ' ', $stageKey));
                     echo json_encode([
                         'success' => false,
-                        'message' => "Order Sequence Error: Unit ({$qrCode}) cannot enter stage '{$targetName}' yet. Preceding stage '{$precedingName}' must be completed first!"
+                        'message' => "Order Sequence Error: Unit ({$qrCodeStr}) cannot enter stage '{$targetName}' yet. Preceding stage '{$precedingName}' must be completed first!"
                     ]);
                     exit;
                 }
@@ -687,7 +704,7 @@ class ProductionController extends Controller {
             $stmtLog->execute([
                 $companyId,
                 $batch['id'],
-                $stage,
+                $stageKey,
                 $employeeId,
                 $qtyIn,
                 $qtyOut,
@@ -696,7 +713,7 @@ class ProductionController extends Controller {
                 $endTime,
                 $durationMinutes,
                 $userId,
-                $qrCode
+                $qrCodeStr
             ]);
 
             // Update batch status to running if not already
@@ -706,7 +723,7 @@ class ProductionController extends Controller {
 
             echo json_encode([
                 'success' => true,
-                'message' => "Piece #{$serial} (Size {$size}) logged successfully as " . strtoupper($status) . " under stage " . ucfirst(str_replace('_', ' ', $stage)) . ".",
+                'message' => "Piece #{$serial} (Size {$size}) logged successfully as " . strtoupper($status) . " under stage " . ucfirst(str_replace('_', ' ', $stageKey)) . ".",
                 'details' => [
                     'batch_no' => $batchNo,
                     'size' => $size,
@@ -714,6 +731,17 @@ class ProductionController extends Controller {
                     'status' => $status
                 ]
             ]);
+        } catch (\PDOException $pdoEx) {
+            if ($pdoEx->getCode() == 23000 || str_contains($pdoEx->getMessage(), 'Duplicate')) {
+                $formattedStage = strtoupper(str_replace('_', ' ', $stageKey));
+                echo json_encode([
+                    'success' => false,
+                    'already_validated' => true,
+                    'message' => "This QR Code ({$qrCodeStr}) has ALREADY been validated in stage '{$formattedStage}'."
+                ]);
+                exit;
+            }
+            echo json_encode(['success' => false, 'message' => 'Failed to save log to database: ' . $pdoEx->getMessage()]);
         } catch (\Exception $e) {
             echo json_encode(['success' => false, 'message' => 'Failed to save log to database: ' . $e->getMessage()]);
         }
