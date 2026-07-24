@@ -436,8 +436,10 @@ class ApiController extends Controller {
         $companyTz = $stmtTz->fetchColumn() ?: 'Asia/Kolkata';
         date_default_timezone_set($companyTz);
 
-        $qrCode = trim((string)$request->get('qr_code', ''));
-        $stage = trim((string)$request->get('stage', ''));
+        $qrCode = trim((string)($request->get('qr_code') ?: $request->get('qr', '')));
+        $rawStage = trim((string)($request->get('stage') ?: $request->get('stage_name') ?: $request->get('stage_key', '')));
+        $stage = strtolower(trim(preg_replace('/^(#|\d+\.|\d+\s*-|\d+\s*:|Stage\s*\d+:?)\s*/i', '', $rawStage)));
+        
         $status = strtolower(trim((string)$request->get('status', 'pass')));
         if ($status !== 'pass' && $status !== 'fail') {
             $status = 'pass';
@@ -455,14 +457,16 @@ class ApiController extends Controller {
         // 1. Duplicate check: Prevent logging the same QR code twice under the same WIP stage
         $stmtCheckAlready = $db->prepare("
             SELECT id FROM production_stage_logs 
-            WHERE company_id = ? AND qr_code = ? AND stage = ? 
+            WHERE company_id = ? AND LOWER(TRIM(qr_code)) = LOWER(TRIM(?)) 
+              AND (LOWER(TRIM(stage)) = ? OR LOWER(TRIM(stage)) = ?)
             LIMIT 1
         ");
-        $stmtCheckAlready->execute([$companyId, $qrCode, $stage]);
+        $stmtCheckAlready->execute([$companyId, $qrCode, $stage, $rawStage]);
         if ($stmtCheckAlready->fetchColumn()) {
             $formattedStage = strtoupper(str_replace('_', ' ', $stage));
             $response->json([
                 'status' => 'already_validated',
+                'already_validated' => true,
                 'message' => "This QR Code ({$qrCode}) has ALREADY been validated in stage '{$formattedStage}'."
             ], 409);
             return;
@@ -583,7 +587,8 @@ class ApiController extends Controller {
         date_default_timezone_set($companyTz);
 
         $qrCode = trim((string)($request->get('qr_code') ?: $request->get('qr', '') ?: $request->get('tag', '')));
-        $targetStage = strtolower(trim((string)$request->get('stage', '')));
+        $rawStage = trim((string)($request->get('stage') ?: $request->get('stage_name') ?: $request->get('stage_key', '')));
+        $targetStage = strtolower(trim(preg_replace('/^(#|\d+\.|\d+\s*-|\d+\s*:|Stage\s*\d+:?)\s*/i', '', $rawStage)));
 
         if (empty($qrCode)) {
             $response->json([
@@ -608,7 +613,8 @@ class ApiController extends Controller {
         $isAlreadyScannedInTargetStage = false;
         if (!empty($targetStage)) {
             foreach ($rawLogs as $l) {
-                if (strtolower(trim($l['stage'])) === $targetStage) {
+                $logStageClean = strtolower(trim(preg_replace('/^(#|\d+\.|\d+\s*-|\d+\s*:|Stage\s*\d+:?)\s*/i', '', $l['stage'])));
+                if ($logStageClean === $targetStage || strtolower(trim($l['stage'])) === $targetStage) {
                     $isAlreadyScannedInTargetStage = true;
                     break;
                 }
@@ -629,7 +635,7 @@ class ApiController extends Controller {
 
         // Fetch production order & style details
         $stmtBatch = $db->prepare("
-            SELECT pro.id, pro.production_no, pro.status, s.id as style_id, s.style_no, s.name as style_name, po.po_no
+            SELECT pro.id, pro.production_no, pro.status, pro.qty as target_qty, s.id as style_id, s.style_no, s.name as style_name, s.category, s.brand, s.composition, po.po_no
             FROM production_orders pro
             JOIN buyer_pos po ON pro.po_id = po.id
             JOIN styles s ON po.style_id = s.id
@@ -658,25 +664,25 @@ class ApiController extends Controller {
 
         // Identify completed stage keys & level
         $completedStageKeys = array_unique(array_map(function($l) {
-            return strtolower(trim($l['stage']));
+            return strtolower(trim(preg_replace('/^(#|\d+\.|\d+\s*-|\d+\s*:|Stage\s*\d+:?)\s*/i', '', $l['stage'])));
         }, $rawLogs));
 
         $currentStage = null;
         $nextStage = null;
 
         foreach ($stagesList as $idx => $stgObj) {
-            $key = strtolower(trim($stgObj['key'] ?? ''));
+            $key = strtolower(trim(preg_replace('/^(#|\d+\.|\d+\s*-|\d+\s*:|Stage\s*\d+:?)\s*/i', '', $stgObj['key'] ?? $stgObj['name'] ?? '')));
             if (in_array($key, $completedStageKeys)) {
                 $currentStage = [
-                    'key' => $stgObj['key'],
-                    'name' => $stgObj['name'],
+                    'key' => $stgObj['key'] ?? $key,
+                    'name' => $stgObj['name'] ?? ucfirst($key),
                     'order' => (int)($stgObj['order'] ?? ($idx + 1)),
                     'level' => $idx + 1
                 ];
             } elseif ($currentStage && !$nextStage) {
                 $nextStage = [
-                    'key' => $stgObj['key'],
-                    'name' => $stgObj['name'],
+                    'key' => $stgObj['key'] ?? $key,
+                    'name' => $stgObj['name'] ?? ucfirst($key),
                     'order' => (int)($stgObj['order'] ?? ($idx + 1)),
                     'level' => $idx + 1
                 ];
@@ -686,8 +692,8 @@ class ApiController extends Controller {
         // If no stage completed yet, next allowed stage is first stage in sequence
         if (!$currentStage && !empty($stagesList)) {
             $nextStage = [
-                'key' => $stagesList[0]['key'],
-                'name' => $stagesList[0]['name'],
+                'key' => $stagesList[0]['key'] ?? 'cutting',
+                'name' => $stagesList[0]['name'] ?? 'Cutting',
                 'order' => (int)($stagesList[0]['order'] ?? 1),
                 'level' => 1
             ];
@@ -708,8 +714,22 @@ class ApiController extends Controller {
             ];
         }, $rawLogs);
 
+        $productPayload = [
+            'batch_no' => $batchInfo['production_no'] ?? $batchNo,
+            'style_no' => $batchInfo['style_no'] ?? 'N/A',
+            'style_name' => $batchInfo['style_name'] ?? 'Garment WIP Item',
+            'category' => ucfirst($batchInfo['category'] ?? 'Unisex'),
+            'brand' => $batchInfo['brand'] ?? 'Tocco',
+            'composition' => $batchInfo['composition'] ?? '100% Cotton',
+            'size' => $size,
+            'serial' => $serial,
+            'target_qty' => (int)($batchInfo['target_qty'] ?? 100)
+        ];
+
         $response->json([
             'status' => 'success',
+            'already_validated' => $isAlreadyScannedInTargetStage,
+            'already_scanned' => $isAlreadyScannedInTargetStage,
             'data' => [
                 'qr_code' => $qrCode,
                 'is_valid' => true,
@@ -719,6 +739,7 @@ class ApiController extends Controller {
                 'total_pipeline_stages' => count($stagesList),
                 'current_stage' => $currentStage,
                 'next_allowed_stage' => $nextStage,
+                'product' => $productPayload,
                 'batch_info' => $batchInfo ? [
                     'batch_id' => (int)$batchInfo['id'],
                     'production_no' => $batchInfo['production_no'],
@@ -727,7 +748,8 @@ class ApiController extends Controller {
                     'buyer_po' => $batchInfo['po_no']
                 ] : null,
                 'history' => $history
-            ]
+            ],
+            'product' => $productPayload
         ], 200);
     }
 
@@ -941,6 +963,59 @@ class ApiController extends Controller {
         }
 
         return $payload;
+    }
+
+    /**
+     * Clear QR Scan Logs for a Batch / QR Code Tag (REST API)
+     * POST /api/v1/qr/clear-logs
+     */
+    public function clearLogs(Request $request, Response $response): void {
+        $this->setCorsHeaders();
+
+        $token = $this->extractToken($request);
+        $userData = $token ? $this->verifyApiToken($token) : null;
+
+        if (!$userData || empty($userData['company_id'])) {
+            $response->json([
+                'status' => 'error',
+                'message' => 'Unauthorized or missing company context.'
+            ], 401);
+            return;
+        }
+
+        $confirmCode = strtoupper(trim((string)$request->get('confirm_code', '')));
+        if ($confirmCode !== 'DELETE') {
+            $response->json([
+                'status' => 'error',
+                'message' => 'Security confirmation failed. You must provide confirm_code: "DELETE".'
+            ], 400);
+            return;
+        }
+
+        $companyId = (int)$userData['company_id'];
+        $batchId = (int)$request->get('batch_id', 0);
+        $qrCode = trim((string)$request->get('qr_code', ''));
+
+        $db = Database::getInstance();
+
+        if (!empty($qrCode)) {
+            $stmt = $db->prepare("DELETE FROM production_stage_logs WHERE company_id = ? AND LOWER(TRIM(qr_code)) = LOWER(TRIM(?))");
+            $stmt->execute([$companyId, $qrCode]);
+            $msg = "Scan history for tag '{$qrCode}' has been deleted.";
+        } elseif ($batchId > 0) {
+            $stmt = $db->prepare("DELETE FROM production_stage_logs WHERE company_id = ? AND production_order_id = ?");
+            $stmt->execute([$companyId, $batchId]);
+            $msg = "All scan history logs for batch #{$batchId} have been deleted.";
+        } else {
+            $stmt = $db->prepare("DELETE FROM production_stage_logs WHERE company_id = ?");
+            $stmt->execute([$companyId]);
+            $msg = "All production scan logs for company have been reset.";
+        }
+
+        $response->json([
+            'status' => 'success',
+            'message' => $msg
+        ], 200);
     }
 
     /**

@@ -403,7 +403,14 @@
         <!-- Real-Time Activity Feed -->
         <div class="col-lg-4 col-12">
             <div class="live-card p-4 h-100 d-flex flex-column">
-                <h6 class="mb-3 fw-bold font-outfit text-dash-main"><i class="fa-solid fa-clock-rotate-left text-info me-2"></i> Real-Time Activity Feed</h6>
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <h6 class="m-0 fw-bold font-outfit text-dash-main"><i class="fa-solid fa-clock-rotate-left text-info me-2"></i> Activity Feed</h6>
+                    <?php if (!empty($recentLogs) && \App\Core\Auth::hasPermission('company.production.manage')): ?>
+                        <button type="button" onclick="triggerSecurityDeleteModal('<?= base_url('company/production/stage/' . $order['id'] . '/clear-logs') ?>', 'Are you sure you want to CLEAR ALL activity feed logs for Batch #<?= htmlspecialchars($order['production_no']) ?>?')" class="btn btn-sm btn-outline-danger rounded-pill font-monospace" style="font-size: 10.5px; padding: 2px 10px;">
+                            <i class="fa-solid fa-trash-can me-1"></i> Clear Feed
+                        </button>
+                    <?php endif; ?>
+                </div>
                 <div class="flex-grow-1 overflow-y-auto pe-1 custom-scroll" style="max-height: 310px;">
                     <?php if (!empty($recentLogs)): ?>
                         <div class="list-group list-group-flush bg-transparent">
@@ -784,4 +791,58 @@
             }
         });
     });
+</script>
+
+<!-- Security Confirmation DELETE Prompt Modal -->
+<div class="modal fade text-start" id="securityDeleteConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg text-main" style="border-radius: 16px; background: var(--card-bg); color: var(--text-main); border: 1px solid var(--card-border);">
+            <form id="securityDeleteConfirmForm" method="POST">
+                <?= \App\Core\Session::csrfField() ?>
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold text-danger">
+                        <i class="fa-solid fa-triangle-exclamation me-2"></i> Security Confirmation
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 text-start">
+                    <p class="mb-2 text-dash-main fw-semibold" id="securityDeleteModalTargetText">Are you sure you want to delete this record?</p>
+                    <div class="alert alert-warning border-0 rounded-3 p-3 text-secondary small mb-3" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b;">
+                        <i class="fa-solid fa-triangle-exclamation me-1"></i> This action cannot be undone. To proceed, please type <strong class="text-danger font-monospace">DELETE</strong> in the box below.
+                    </div>
+                    <label class="form-label fw-semibold small text-dash-sub">Confirmation Phrase:</label>
+                    <input type="text" id="securityDeleteConfirmInput" name="confirm_code" class="form-control form-control-lg font-monospace text-center fw-bold qr-lookup-input" placeholder="Type DELETE to confirm" autocomplete="off" required style="letter-spacing: 2px;">
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" id="securityDeleteSubmitBtn" class="btn btn-sm btn-danger rounded-pill px-4 fw-bold" disabled>
+                        <i class="fa-solid fa-trash me-1"></i> Confirm Delete
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function triggerSecurityDeleteModal(actionUrl, targetMessage) {
+        const form = document.getElementById('securityDeleteConfirmForm');
+        const textEl = document.getElementById('securityDeleteModalTargetText');
+        const inputEl = document.getElementById('securityDeleteConfirmInput');
+        const btnEl = document.getElementById('securityDeleteSubmitBtn');
+
+        if (form && inputEl && btnEl) {
+            form.action = actionUrl;
+            if (textEl) textEl.innerText = targetMessage || 'Are you sure you want to proceed with deletion?';
+            inputEl.value = '';
+            btnEl.disabled = true;
+
+            const modal = new bootstrap.Modal(document.getElementById('securityDeleteConfirmModal'));
+            modal.show();
+
+            inputEl.oninput = function() {
+                btnEl.disabled = (inputEl.value.trim() !== 'DELETE');
+            };
+        }
+    }
 </script>

@@ -325,17 +325,86 @@ class ProductionController extends Controller {
             return;
         }
 
+        $confirmCode = strtoupper(trim((string)$request->get('confirm_code', 'DELETE')));
+        if ($confirmCode !== 'DELETE') {
+            Session::setFlash('error', 'Deletion cancelled. You must type "DELETE" in capital letters to confirm.');
+            $this->redirect($_SERVER['HTTP_REFERER'] ?? 'company/production/orders');
+            return;
+        }
+
         try {
-            $stmtDelete = $db->prepare("DELETE FROM production_stage_logs WHERE id = ? AND company_id = ?");
-            $stmtDelete->execute([(int)$id, $companyId]);
+            // Delete all matching duplicate log entries for this QR code tag in this stage to prevent false 'already done' checks
+            if (!empty($log['qr_code'])) {
+                $stmtDelete = $db->prepare("DELETE FROM production_stage_logs WHERE company_id = ? AND LOWER(TRIM(qr_code)) = LOWER(TRIM(?)) AND LOWER(TRIM(stage)) = LOWER(TRIM(?))");
+                $stmtDelete->execute([$companyId, $log['qr_code'], $log['stage']]);
+            } else {
+                $stmtDelete = $db->prepare("DELETE FROM production_stage_logs WHERE id = ? AND company_id = ?");
+                $stmtDelete->execute([(int)$id, $companyId]);
+            }
 
             AuditLog::log($companyId, $userId, 'delete_production_stage_log', 'ProductionStageLog', (int)$id, null, null, "Deleted stage log id {$id}");
-            Session::setFlash('success', "Stage log entry deleted successfully.");
+            Session::setFlash('success', "Stage log entry and tag history cleared successfully.");
         } catch (\Exception $e) {
             Session::setFlash('error', 'Failed to delete stage log: ' . $e->getMessage());
         }
 
-        $this->redirect("company/production/stage/{$log['production_order_id']}");
+        $this->redirect($_SERVER['HTTP_REFERER'] ?? "company/production/stage/{$log['production_order_id']}");
+    }
+
+    /**
+     * Clear All Stage Logs for a Production Order Batch
+     */
+    public function clearStageLogs(Request $request, Response $response, string $id): void {
+        $db = Database::getInstance();
+        $companyId = Session::get('company_id');
+        $userId = Session::get('user_id');
+
+        $confirmCode = strtoupper(trim((string)$request->get('confirm_code', '')));
+        if ($confirmCode !== 'DELETE') {
+            Session::setFlash('error', 'Operation cancelled. You must type "DELETE" to confirm clearing all activity logs.');
+            $this->redirect($_SERVER['HTTP_REFERER'] ?? "company/production/stage/{$id}");
+            return;
+        }
+
+        try {
+            $stmtClear = $db->prepare("DELETE FROM production_stage_logs WHERE production_order_id = ? AND company_id = ?");
+            $stmtClear->execute([(int)$id, $companyId]);
+
+            AuditLog::log($companyId, $userId, 'clear_production_stage_logs', 'ProductionOrder', (int)$id, null, null, "Cleared all activity logs for batch id {$id}");
+            Session::setFlash('success', 'All activity feed logs for this production order have been deleted.');
+        } catch (\Exception $e) {
+            Session::setFlash('error', 'Failed to clear activity logs: ' . $e->getMessage());
+        }
+
+        $this->redirect($_SERVER['HTTP_REFERER'] ?? "company/production/stage/{$id}");
+    }
+
+    /**
+     * Clear All Quality Control Inspections
+     */
+    public function clearAllQualityInspections(Request $request, Response $response): void {
+        $db = Database::getInstance();
+        $companyId = Session::get('company_id');
+        $userId = Session::get('user_id');
+
+        $confirmCode = strtoupper(trim((string)$request->get('confirm_code', '')));
+        if ($confirmCode !== 'DELETE') {
+            Session::setFlash('error', 'Operation cancelled. You must type "DELETE" to confirm clearing all quality inspection logs.');
+            $this->redirect('company/production/quality');
+            return;
+        }
+
+        try {
+            $stmtClear = $db->prepare("UPDATE quality_inspections SET deleted_at = NOW(), deleted_by = ? WHERE company_id = ? AND deleted_at IS NULL");
+            $stmtClear->execute([$userId, $companyId]);
+
+            AuditLog::log($companyId, $userId, 'clear_quality_inspections', 'QualityInspection', 0, null, null, "Cleared all quality inspection records");
+            Session::setFlash('success', 'All quality control inspection records have been cleared.');
+        } catch (\Exception $e) {
+            Session::setFlash('error', 'Failed to clear quality inspections: ' . $e->getMessage());
+        }
+
+        $this->redirect('company/production/quality');
     }
 
     /**

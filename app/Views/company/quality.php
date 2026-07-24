@@ -11,8 +11,13 @@
 </div>
 
 <div class="pepp-card">
-    <div class="pepp-card-header">
-        <h5 class="pepp-card-title"><i class="fa-solid fa-square-check text-primary me-2"></i> Quality Assurance Logs</h5>
+    <div class="pepp-card-header d-flex justify-content-between align-items-center">
+        <h5 class="pepp-card-title m-0"><i class="fa-solid fa-square-check text-primary me-2"></i> Quality Assurance Logs</h5>
+        <?php if (!empty($inspections) && \App\Core\Auth::hasPermission('company.production.manage')): ?>
+            <button type="button" onclick="triggerSecurityDeleteModal('<?= base_url('company/production/quality/clear-all') ?>', 'Are you sure you want to DELETE ALL Quality Control inspection records?')" class="btn btn-sm btn-outline-danger rounded-pill fw-bold">
+                <i class="fa-solid fa-trash-can me-1"></i> Delete All Inspections
+            </button>
+        <?php endif; ?>
     </div>
     <div class="pepp-card-body p-0">
         <div class="table-responsive border-0">
@@ -225,4 +230,58 @@ document.addEventListener('DOMContentLoaded', function() {
 
     bindDefectRemoveButtons();
 });
+</script>
+
+<!-- Security Confirmation DELETE Prompt Modal -->
+<div class="modal fade text-start" id="securityDeleteConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg text-dark" style="border-radius: 16px;">
+            <form id="securityDeleteConfirmForm" method="POST">
+                <?= \App\Core\Session::csrfField() ?>
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold text-danger">
+                        <i class="fa-solid fa-triangle-exclamation me-2"></i> Security Confirmation
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 text-start">
+                    <p class="mb-2 text-dark fw-semibold" id="securityDeleteModalTargetText">Are you sure you want to delete this record?</p>
+                    <div class="alert alert-warning border-0 rounded-3 p-3 text-secondary small mb-3">
+                        <i class="fa-solid fa-triangle-exclamation text-warning me-1"></i> This action cannot be undone. To proceed, please type <strong class="text-danger font-monospace">DELETE</strong> in the box below.
+                    </div>
+                    <label class="form-label fw-semibold small text-secondary">Confirmation Phrase:</label>
+                    <input type="text" id="securityDeleteConfirmInput" name="confirm_code" class="form-control form-control-lg font-monospace text-center fw-bold" placeholder="Type DELETE to confirm" autocomplete="off" required style="letter-spacing: 2px;">
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-sm btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" id="securityDeleteSubmitBtn" class="btn btn-sm btn-danger rounded-pill px-4 fw-bold" disabled>
+                        <i class="fa-solid fa-trash me-1"></i> Confirm Delete
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function triggerSecurityDeleteModal(actionUrl, targetMessage) {
+        const form = document.getElementById('securityDeleteConfirmForm');
+        const textEl = document.getElementById('securityDeleteModalTargetText');
+        const inputEl = document.getElementById('securityDeleteConfirmInput');
+        const btnEl = document.getElementById('securityDeleteSubmitBtn');
+
+        if (form && inputEl && btnEl) {
+            form.action = actionUrl;
+            if (textEl) textEl.innerText = targetMessage || 'Are you sure you want to proceed with deletion?';
+            inputEl.value = '';
+            btnEl.disabled = true;
+
+            const modal = new bootstrap.Modal(document.getElementById('securityDeleteConfirmModal'));
+            modal.show();
+
+            inputEl.oninput = function() {
+                btnEl.disabled = (inputEl.value.trim() !== 'DELETE');
+            };
+        }
+    }
 </script>
