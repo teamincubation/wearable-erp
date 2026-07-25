@@ -51,7 +51,7 @@ if (!$isCompanyExpired && $currentPagePermission) {
 }
 
 // Sidebar menu: fixed default order (hardcoded — no DB override)
-$savedOrder = ['dashboard','hr','production','dispatch','merchandising','styles','buyers','inventory','procurement','masterdata','users','roles','tally','logs','settings','rfid_tracking'];
+$savedOrder = ['dashboard','hr','production','dispatch','packing_qr','merchandising','styles','buyers','inventory','procurement','masterdata','users','roles','tally','logs','settings','rfid_tracking'];
 
 
 $defaultMenu = [
@@ -59,6 +59,7 @@ $defaultMenu = [
     'hr' => ['name' => 'HR & Attendance', 'icon' => 'fa-solid fa-user-clock', 'url' => 'company/hr/attendance', 'permission' => 'company.users.view', 'active_check' => 'company/hr'],
     'production' => ['name' => 'Production & Quality', 'icon' => 'fa-solid fa-industry', 'url' => 'company/production/orders', 'permission' => 'company.production.view', 'active_check' => 'company/production'],
     'dispatch' => ['name' => 'Finished Goods Dispatch', 'icon' => 'fa-solid fa-truck-ramp-box', 'url' => 'company/dispatch', 'permission' => 'company.dispatch.view', 'active_check' => 'company/dispatch'],
+    'packing_qr' => ['name' => 'Packing QR', 'icon' => 'fa-solid fa-boxes-packing', 'url' => 'company/packing-qr', 'permission' => 'company.packing.qr', 'active_check' => 'company/packing-qr'],
     'merchandising' => ['name' => 'Merchandising', 'icon' => 'fa-solid fa-file-contract', 'url' => 'company/merchandising/buyerpos', 'permission' => 'company.styles.view', 'active_check' => 'company/merchandising'],
     'styles' => ['name' => 'Style Master', 'icon' => 'fa-solid fa-shirt', 'url' => 'company/styles', 'permission' => 'company.styles.view', 'active_check' => 'company/styles'],
     'buyers' => ['name' => 'Buyers / Clients', 'icon' => 'fa-solid fa-user-tie', 'url' => 'company/buyers', 'permission' => 'company.styles.view', 'active_check' => 'company/buyers'],

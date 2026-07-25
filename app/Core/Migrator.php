@@ -125,7 +125,8 @@ class Migrator {
             $requiredPermissions = [
                 ['name' => 'company.production.rfid_tracking', 'description' => 'Access QR Code / RFID Production Scanner page', 'module' => 'tenant'],
                 ['name' => 'company.dispatch.view', 'description' => 'View finished goods dispatch and packing hub', 'module' => 'tenant'],
-                ['name' => 'company.dispatch.manage', 'description' => 'Manage carton packing, printing QR labels, and dispatching shipments', 'module' => 'tenant']
+                ['name' => 'company.dispatch.manage', 'description' => 'Manage carton packing, printing QR labels, and dispatching shipments', 'module' => 'tenant'],
+                ['name' => 'company.packing.qr', 'description' => 'Access Packing QR Module for Carton Product Assignments', 'module' => 'tenant']
             ];
             foreach ($requiredPermissions as $permInfo) {
                 try {
@@ -139,6 +140,28 @@ class Migrator {
                     }
                     if ($permId) {
                         $db->exec("INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (2, " . (int)$permId . ")");
+                    }
+                } catch (\PDOException $e) {}
+            }
+
+            // Auto-heal cartons table columns for capacity and details
+            try {
+                $checkCtn = $db->query("SHOW COLUMNS FROM `cartons` LIKE 'max_capacity_pcs'");
+                if (!$checkCtn || $checkCtn->rowCount() === 0) {
+                    $db->exec("ALTER TABLE `cartons` ADD COLUMN `max_capacity_pcs` INT DEFAULT 50 AFTER `warehouse_id`");
+                }
+            } catch (\PDOException $e) {}
+
+            // Auto-heal carton_items table columns for tracking
+            $cartonItemCols = [
+                'assigned_by' => "INT DEFAULT NULL",
+                'assigned_at' => "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+            ];
+            foreach ($cartonItemCols as $col => $type) {
+                try {
+                    $checkCi = $db->query("SHOW COLUMNS FROM `carton_items` LIKE '{$col}'");
+                    if (!$checkCi || $checkCi->rowCount() === 0) {
+                        $db->exec("ALTER TABLE `carton_items` ADD COLUMN `{$col}` {$type}");
                     }
                 } catch (\PDOException $e) {}
             }

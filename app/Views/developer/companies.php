@@ -261,6 +261,10 @@
                                                                 $moduleName = 'Production QR';
                                                                 $bgColor = '#00acb5';
                                                                 $cleanLabel = 'Production QR (Mobile & Floor Scanner)';
+                                                            } elseif ($perm['name'] === 'company.packing.qr') {
+                                                                $moduleName = 'Packing QR';
+                                                                $bgColor = '#fd7e14';
+                                                                $cleanLabel = 'Packing QR (Carton Box Assignment)';
                                                             } elseif (strpos($perm['name'], 'company.users') !== false || strpos($perm['name'], 'company.payroll') !== false) {
                                                                 $moduleName = 'HR/Users';
                                                                 $bgColor = '#6f42c1';
@@ -509,6 +513,10 @@
                                         $moduleName = 'Production QR';
                                         $bgColor = '#00acb5';
                                         $cleanLabel = 'Production QR (Mobile & Floor Scanner)';
+                                    } elseif ($perm['name'] === 'company.packing.qr') {
+                                        $moduleName = 'Packing QR';
+                                        $bgColor = '#fd7e14';
+                                        $cleanLabel = 'Packing QR (Carton Box Assignment)';
                                     } elseif (strpos($perm['name'], 'company.users') !== false || strpos($perm['name'], 'company.payroll') !== false) {
                                         $moduleName = 'HR/Users';
                                         $bgColor = '#6f42c1';

@@ -641,6 +641,42 @@ $router->post('/company/dispatch/shipments/{id}/status', [\App\Controllers\Dispa
        ->middleware(PermissionMiddleware::class)
        ->permission('company.dispatch.manage');
 
+// ==================== PACKING QR MODULE ROUTES ====================
+$router->get('/company/packing-qr', [\App\Controllers\PackingQrController::class, 'index'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.packing.qr');
+
+$router->get('/company/packing-qr/assign/{id}', [\App\Controllers\PackingQrController::class, 'showAssign'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.packing.qr');
+
+$router->get('/company/packing-qr/api/eligible-products', [\App\Controllers\PackingQrController::class, 'getEligibleProducts'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.packing.qr');
+
+$router->post('/company/packing-qr/api/scan-product', [\App\Controllers\PackingQrController::class, 'scanProduct'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.packing.qr');
+
+$router->post('/company/packing-qr/api/assign-bulk', [\App\Controllers\PackingQrController::class, 'assignBulkProducts'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.packing.qr');
+
+$router->post('/company/packing-qr/api/remove-product', [\App\Controllers\PackingQrController::class, 'removeProductFromCarton'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.packing.qr');
+
+$router->get('/company/packing-qr/traceability', [\App\Controllers\PackingQrController::class, 'showTraceability'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.packing.qr');
+
 $router->get('/company/production/stage/{id}/live-api', [\App\Controllers\ProductionController::class, 'stageLiveApi'])
        ->middleware(AuthMiddleware::class)
        ->middleware(PermissionMiddleware::class)
