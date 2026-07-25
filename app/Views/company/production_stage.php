@@ -1,13 +1,27 @@
 <?php
     $tzStr = $tenantTimezone ?? 'Asia/Kolkata';
+
+    $queryParams = array_filter([
+        'filter_stage' => $filterStage ?? '',
+        'filter_status' => $filterStatus ?? '',
+        'filter_operator' => $filterOperator ?? '',
+        'filter_date' => $filterDate ?? '',
+        'search' => $filterSearch ?? ''
+    ]);
+    $filterQueryStr = http_build_query($queryParams);
+    $exportUrl = base_url('company/production/stage/' . $order['id'] . '/export') . ($filterQueryStr ? '?' . $filterQueryStr : '');
 ?>
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
         <a href="<?= base_url('company/production/orders') ?>" class="btn btn-sm btn-light border mb-2"><i class="fa-solid fa-arrow-left me-1"></i> Back to Batches</a>
-        <h3 class="fw-bold">WIP Operations Stage Tracker</h3>
-        <p class="text-secondary m-0">Order: <strong class="font-monospace"><?= htmlspecialchars($order['production_no']) ?></strong> | Style: <strong><?= htmlspecialchars($order['style_no']) ?> (<?= htmlspecialchars($order['style_name']) ?>)</strong></p>
+        <h3 class="fw-bold m-0">WIP Operations Stage Tracker</h3>
+        <p class="text-secondary m-0 mt-1">Order: <strong class="font-monospace"><?= htmlspecialchars($order['production_no']) ?></strong> | Style: <strong><?= htmlspecialchars($order['style_no']) ?> (<?= htmlspecialchars($order['style_name']) ?>)</strong></p>
     </div>
-    <div class="d-flex align-items-center gap-2">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <a href="<?= base_url('company/production/stage/' . $order['id'] . '/live-report') ?>" target="_blank" class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold d-flex align-items-center" style="background: linear-gradient(135deg, #2563eb, #1d4ed8); border: none;">
+            <span class="spinner-grow spinner-grow-sm text-danger me-2" role="status" style="width: 10px; height: 10px;"></span>
+            <i class="fa-solid fa-desktop me-2"></i> Stage Live Report
+        </a>
         <span class="badge bg-primary p-2.5 rounded-pill"><i class="fa-solid fa-bullseye me-1"></i> Target Contract: <?= number_format($order['target_qty']) ?> pcs</span>
         <?php if (\App\Core\Auth::hasPermission('company.production.manage')): ?>
             <button type="button" class="btn btn-danger rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#completeBatchModal">
@@ -16,8 +30,6 @@
         <?php endif; ?>
     </div>
 </div>
-
-
 
 <div class="row g-4">
     <!-- Live WIP Pipelines (Request 4: X-Axis Tech Pack Stage Order) -->
@@ -189,16 +201,54 @@
                             <i class="fa-solid fa-trash-can me-1"></i> Clear All Logs
                         </button>
                     <?php endif; ?>
-                    <a href="<?= base_url('company/production/stage/' . $order['id'] . '/live-report') ?>" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill fw-bold">
-                        <i class="fa-solid fa-chart-line me-1"></i> Stage Live Report
-                    </a>
-                    <a href="<?= base_url('company/production/stage/' . $order['id'] . '/export') ?>" class="btn btn-sm btn-outline-success rounded-pill fw-bold">
+                    <a href="<?= $exportUrl ?>" class="btn btn-sm btn-outline-success rounded-pill fw-bold">
                         <i class="fa-solid fa-file-excel me-1"></i> Export History (Excel)
                     </a>
                 </div>
             </div>
             <div class="pepp-card-body p-0">
-                <div class="table-responsive border-0">
+                <!-- Activity Feed Filter Bar -->
+                <div class="p-3 bg-light border-bottom">
+                    <form method="GET" action="<?= base_url('company/production/stage/' . $order['id']) ?>" id="activityFilterForm" class="row g-2 align-items-center">
+                        <div class="col-md-2 col-6">
+                            <select name="filter_stage" class="form-select form-select-sm text-dark" onchange="this.form.submit()">
+                                <option value="">-- All Stages --</option>
+                                <?php foreach ($stagesList as $stg): ?>
+                                    <option value="<?= $stg ?>" <?= (($filterStage ?? '') === $stg) ? 'selected' : '' ?>><?= str_replace('_', ' ', ucfirst($stg)) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-2 col-6">
+                            <select name="filter_status" class="form-select form-select-sm text-dark" onchange="this.form.submit()">
+                                <option value="">-- All Statuses --</option>
+                                <option value="pass" <?= (($filterStatus ?? '') === 'pass') ? 'selected' : '' ?>>PASS (Output)</option>
+                                <option value="fail" <?= (($filterStatus ?? '') === 'fail') ? 'selected' : '' ?>>FAIL (Defect/Waste)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 col-6">
+                            <select name="filter_operator" class="form-select form-select-sm text-dark" onchange="this.form.submit()">
+                                <option value="">-- All Operators --</option>
+                                <?php foreach ($employees as $emp): ?>
+                                    <option value="<?= $emp['id'] ?>" <?= (($filterOperator ?? 0) == $emp['id']) ? 'selected' : '' ?>><?= htmlspecialchars($emp['name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-2 col-6">
+                            <input type="date" name="filter_date" class="form-control form-control-sm text-dark" value="<?= htmlspecialchars($filterDate ?? '') ?>" onchange="this.form.submit()" placeholder="Select Date">
+                        </div>
+                        <div class="col-md-3 col-10">
+                            <div class="input-group input-group-sm">
+                                <input type="text" name="search" class="form-control text-dark" value="<?= htmlspecialchars($filterSearch ?? '') ?>" placeholder="Search Tag / Operator / Machine...">
+                                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-magnifying-glass"></i></button>
+                            </div>
+                        </div>
+                        <div class="col-md-1 col-2 text-end">
+                            <?php if (!empty($filterStage) || !empty($filterStatus) || !empty($filterOperator) || !empty($filterDate) || !empty($filterSearch)): ?>
+                                <a href="<?= base_url('company/production/stage/' . $order['id']) ?>" class="btn btn-sm btn-outline-secondary w-100" title="Clear Filters"><i class="fa-solid fa-rotate-left"></i></a>
+                            <?php endif; ?>
+                        </div>
+                    </form>
+                </div>
                     <table class="table pepp-table mb-0">
                         <thead>
                             <tr>
@@ -371,19 +421,20 @@
                 </div>
                 <!-- Pagination Controls -->
                 <?php if (isset($totalPages) && $totalPages > 1): ?>
+                <?php $pageQuery = $filterQueryStr ? '&' . $filterQueryStr : ''; ?>
                 <div class="card-footer bg-white border-top py-3">
                     <nav aria-label="Page navigation" class="m-0">
                         <ul class="pagination pagination-sm justify-content-center m-0">
                             <li class="page-item <?= ($currentPage <= 1) ? 'disabled' : '' ?>">
-                                <a class="page-link rounded-pill-start px-3" href="?page=<?= $currentPage - 1 ?>"><i class="fa-solid fa-angle-left"></i></a>
+                                <a class="page-link rounded-pill-start px-3" href="?page=<?= $currentPage - 1 ?><?= $pageQuery ?>"><i class="fa-solid fa-angle-left"></i></a>
                             </li>
                             <?php for ($i = 1; $i <= $totalPages; $i++): ?>
                                 <li class="page-item <?= ($i === $currentPage) ? 'active' : '' ?>">
-                                    <a class="page-link px-3" href="?page=<?= $i ?>"><?= $i ?></a>
+                                    <a class="page-link px-3" href="?page=<?= $i ?><?= $pageQuery ?>"><?= $i ?></a>
                                 </li>
                             <?php endfor; ?>
                             <li class="page-item <?= ($currentPage >= $totalPages) ? 'disabled' : '' ?>">
-                                <a class="page-link rounded-pill-end px-3" href="?page=<?= $currentPage + 1 ?>"><i class="fa-solid fa-angle-right"></i></a>
+                                <a class="page-link rounded-pill-end px-3" href="?page=<?= $currentPage + 1 ?><?= $pageQuery ?>"><i class="fa-solid fa-angle-right"></i></a>
                             </li>
                         </ul>
                     </nav>

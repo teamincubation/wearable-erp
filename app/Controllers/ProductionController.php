@@ -113,9 +113,52 @@ class ProductionController extends Controller {
         $limit = 30;
         $offset = ($page - 1) * $limit;
 
+        // Filter variables for Real-Time Activity Feed & Export
+        $filterStage = trim((string)$request->get('filter_stage'));
+        $filterStatus = strtolower(trim((string)$request->get('filter_status')));
+        $filterOperator = (int)$request->get('filter_operator');
+        $filterDate = trim((string)$request->get('filter_date'));
+        $filterSearch = trim((string)($request->get('search') ?: $request->get('q')));
+
+        $where = ["psl.production_order_id = ?", "psl.company_id = ?"];
+        $params = [(int)$id, $companyId];
+
+        if (!empty($filterStage)) {
+            $where[] = "psl.stage = ?";
+            $params[] = $filterStage;
+        }
+
+        if ($filterStatus === 'pass') {
+            $where[] = "psl.qty_out > 0";
+        } elseif ($filterStatus === 'fail') {
+            $where[] = "(psl.qty_out = 0 OR psl.waste_qty > 0)";
+        }
+
+        if ($filterOperator > 0) {
+            $where[] = "psl.employee_id = ?";
+            $params[] = $filterOperator;
+        }
+
+        if (!empty($filterDate)) {
+            $where[] = "(DATE(psl.created_at) = ? OR DATE(psl.start_time) = ?)";
+            $params[] = $filterDate;
+            $params[] = $filterDate;
+        }
+
+        if (!empty($filterSearch)) {
+            $where[] = "(psl.qr_code LIKE ? OR psl.stage LIKE ? OR u.name LIKE ? OR m.name LIKE ?)";
+            $searchParam = "%{$filterSearch}%";
+            $params[] = $searchParam;
+            $params[] = $searchParam;
+            $params[] = $searchParam;
+            $params[] = $searchParam;
+        }
+
+        $whereClause = implode(" AND ", $where);
+
         // Get total logs count for pagination controls
-        $stmtCount = $db->prepare("SELECT COUNT(*) FROM production_stage_logs WHERE production_order_id = ? AND company_id = ?");
-        $stmtCount->execute([$id, $companyId]);
+        $stmtCount = $db->prepare("SELECT COUNT(*) FROM production_stage_logs psl LEFT JOIN users u ON psl.employee_id = u.id LEFT JOIN machines m ON psl.machine_id = m.id WHERE {$whereClause}");
+        $stmtCount->execute($params);
         $totalLogs = (int)$stmtCount->fetchColumn();
         $totalPages = max(1, (int)ceil($totalLogs / $limit));
 
@@ -136,10 +179,10 @@ class ProductionController extends Controller {
                              LEFT JOIN machines m ON psl.machine_id = m.id
                              LEFT JOIN users u ON psl.employee_id = u.id
                              LEFT JOIN users u_edit ON psl.edited_by = u_edit.id
-                             WHERE psl.production_order_id = ? AND psl.company_id = ?
+                             WHERE {$whereClause}
                              ORDER BY psl.id DESC
                              LIMIT {$limit} OFFSET {$offset}");
-        $stmt->execute([$id, $companyId]);
+        $stmt->execute($params);
         $history = $stmt->fetchAll() ?: [];
 
         // Fetch machines & employees
@@ -172,7 +215,12 @@ class ProductionController extends Controller {
             'batchStagesObj' => $batchStagesObj,
             'tenantTimezone' => $tenantTimezone,
             'currentPage' => $page,
-            'totalPages' => $totalPages
+            'totalPages' => $totalPages,
+            'filterStage' => $filterStage,
+            'filterStatus' => $filterStatus,
+            'filterOperator' => $filterOperator,
+            'filterDate' => $filterDate,
+            'filterSearch' => $filterSearch
         ]);
     }
 
@@ -999,16 +1047,60 @@ class ProductionController extends Controller {
             return;
         }
 
-        // Fetch all logs in ASCENDING order (oldest first)
+        // Filter variables for Export
+        $filterStage = trim((string)$request->get('filter_stage'));
+        $filterStatus = strtolower(trim((string)$request->get('filter_status')));
+        $filterOperator = (int)$request->get('filter_operator');
+        $filterDate = trim((string)$request->get('filter_date'));
+        $filterSearch = trim((string)($request->get('search') ?: $request->get('q')));
+
+        $where = ["psl.production_order_id = ?", "psl.company_id = ?"];
+        $params = [(int)$id, $companyId];
+
+        if (!empty($filterStage)) {
+            $where[] = "psl.stage = ?";
+            $params[] = $filterStage;
+        }
+
+        if ($filterStatus === 'pass') {
+            $where[] = "psl.qty_out > 0";
+        } elseif ($filterStatus === 'fail') {
+            $where[] = "(psl.qty_out = 0 OR psl.waste_qty > 0)";
+        }
+
+        if ($filterOperator > 0) {
+            $where[] = "psl.employee_id = ?";
+            $params[] = $filterOperator;
+        }
+
+        if (!empty($filterDate)) {
+            $where[] = "(DATE(psl.created_at) = ? OR DATE(psl.start_time) = ?)";
+            $params[] = $filterDate;
+            $params[] = $filterDate;
+        }
+
+        if (!empty($filterSearch)) {
+            $where[] = "(psl.qr_code LIKE ? OR psl.stage LIKE ? OR u.name LIKE ? OR m.name LIKE ?)";
+            $searchParam = "%{$filterSearch}%";
+            $params[] = $searchParam;
+            $params[] = $searchParam;
+            $params[] = $searchParam;
+            $params[] = $searchParam;
+        }
+
+        $whereClause = implode(" AND ", $where);
+
+        // Fetch logs matching filters in ASCENDING order (oldest first)
         $stmt = $db->prepare("
-            SELECT psl.*, m.name as machine_name, u.name as employee_name
+            SELECT psl.*, m.name as machine_name, u.name as employee_name, u_edit.name as edited_by_name
             FROM production_stage_logs psl
             LEFT JOIN machines m ON psl.machine_id = m.id
             LEFT JOIN users u ON psl.employee_id = u.id
-            WHERE psl.production_order_id = ? AND psl.company_id = ?
+            LEFT JOIN users u_edit ON psl.edited_by = u_edit.id
+            WHERE {$whereClause}
             ORDER BY psl.id ASC
         ");
-        $stmt->execute([$id, $companyId]);
+        $stmt->execute($params);
         $logs = $stmt->fetchAll() ?: [];
 
         $filename = "production_logs_" . strtolower(str_replace(' ', '_', $orderNo)) . "_" . date('Ymd_His') . ".csv";
