@@ -230,8 +230,8 @@
                             <?php foreach ($cartons as $c): 
                                 $statusBadge = match($c['status']) {
                                     'packed' => '<span class="badge bg-primary">Packed / Sealed</span>',
-                                    'dispatched' => '<span class="badge bg-warning text-dark">Dispatched</span>',
-                                    'delivered' => '<span class="badge bg-success">Delivered</span>',
+                                    'dispatched' => '<span class="badge bg-warning text-dark"><i class="fa-solid fa-truck-fast me-1"></i> Dispatched</span>',
+                                    'delivered' => '<span class="badge bg-success"><i class="fa-solid fa-circle-check me-1"></i> Item Moved</span>',
                                     default => '<span class="badge bg-secondary">Draft</span>'
                                 };
                                 $destLabel = ($c['destination_type'] === 'client') ? ($c['client_name'] ?: 'Client Direct') : (($c['destination_type'] === 'warehouse') ? ($c['warehouse_name'] ?: 'Company Warehouse') : 'Unassigned');
@@ -254,11 +254,20 @@
                                         <span class="badge bg-light text-dark border font-monospace fs-6 px-2.5 py-1"><?= number_format($c['total_items_qty']) ?> pcs</span>
                                     </td>
                                     <td class="font-monospace small">
-                                        G: <?= number_format($c['gross_weight_kg'], 2) ?> kg<br>
-                                        N: <?= number_format($c['net_weight_kg'], 2) ?> kg
+                                        <?php if ((float)$c['gross_weight_kg'] > 0 || (float)$c['net_weight_kg'] > 0): ?>
+                                            G: <?= number_format($c['gross_weight_kg'], 2) ?> kg<br>
+                                            N: <?= number_format($c['net_weight_kg'], 2) ?> kg
+                                        <?php else: ?>
+                                            <span class="text-muted italic">N/A</span>
+                                        <?php endif; ?>
                                     </td>
-                                    <td class="font-monospace small"><?= number_format($c['volume_cbm'], 3) ?> m³</td>
-                                    <td><?= $statusBadge ?></td>
+                                    <td class="font-monospace small"><?= (float)$c['volume_cbm'] > 0 ? number_format($c['volume_cbm'], 3) . ' m³' : '<span class="text-muted">N/A</span>' ?></td>
+                                    <td>
+                                        <?= $statusBadge ?>
+                                        <?php if (!empty($c['tracking_no'])): ?>
+                                            <small class="d-block font-monospace text-primary mt-1" style="font-size: 10px;">Track: <?= htmlspecialchars($c['tracking_no']) ?></small>
+                                        <?php endif; ?>
+                                    </td>
                                     <td>
                                         <span class="badge bg-light text-secondary border"><?= htmlspecialchars($destLabel) ?></span>
                                         <?php if (!empty($c['shipment_no'])): ?>
@@ -266,6 +275,30 @@
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-end">
+                                        <?php if (\App\Core\Auth::hasPermission('company.dispatch.manage')): ?>
+                                            <?php if ($c['status'] === 'packed'): ?>
+                                                <form action="<?= base_url('company/dispatch/cartons/' . $c['id'] . '/status') ?>" method="POST" class="d-inline" onsubmit="return confirm('Confirm dispatch for carton <?= htmlspecialchars($c['carton_no']) ?>?\nTracking ID will be set to: <?= htmlspecialchars($c['carton_no']) ?>');">
+                                                    <?= \App\Core\Session::csrfField() ?>
+                                                    <input type="hidden" name="status" value="dispatched">
+                                                    <button type="submit" class="btn btn-sm btn-outline-warning rounded-pill px-2.5 me-1 fw-bold" title="Click to mark as Dispatched">
+                                                        <i class="fa-solid fa-truck-fast me-1"></i> Dispatch Status
+                                                    </button>
+                                                </form>
+                                            <?php elseif ($c['status'] === 'dispatched'): ?>
+                                                <form action="<?= base_url('company/dispatch/cartons/' . $c['id'] . '/status') ?>" method="POST" class="d-inline" onsubmit="return confirm('Confirm item moved / delivered for carton <?= htmlspecialchars($c['carton_no']) ?>?');">
+                                                    <?= \App\Core\Session::csrfField() ?>
+                                                    <input type="hidden" name="status" value="delivered">
+                                                    <button type="submit" class="btn btn-sm btn-info text-white rounded-pill px-2.5 me-1 fw-bold" title="Tracking ID: <?= htmlspecialchars($c['tracking_no'] ?: $c['carton_no']) ?> (Click to mark Item Moved / Delivered)">
+                                                        <i class="fa-solid fa-location-dot me-1"></i> Item Moved
+                                                    </button>
+                                                </form>
+                                            <?php else: ?>
+                                                <span class="badge bg-success-subtle text-success border px-2.5 py-1.5 me-1" title="Item Delivered at destination">
+                                                    <i class="fa-solid fa-circle-check me-1"></i> Delivered (Moved)
+                                                </span>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
+
                                         <a href="<?= base_url('company/dispatch/cartons/print?carton_id=' . $c['id']) ?>" target="_blank" class="btn btn-sm btn-outline-dark rounded-pill px-2.5 me-1" title="Print QR Label">
                                             <i class="fa-solid fa-print"></i>
                                         </a>
@@ -312,7 +345,7 @@
                         <select id="pack_batch_select" class="form-select text-dark" onchange="updatePackBatchInfo(this)" required>
                             <option value="">-- Choose Production Batch --</option>
                             <?php foreach ($allBatches as $b): ?>
-                                <option value="<?= $b['production_order_id'] ?>" data-no="<?= htmlspecialchars($b['production_no']) ?>" data-unpacked="<?= max(0, $b['finished_output_qty'] - $b['packed_in_cartons_qty']) ?>">
+                                <option value="<?= $b['production_order_id'] ?>" data-no="<?= htmlspecialchars($b['production_no']) ?>" data-unpacked="<?= max(0, $b['finished_output_qty'] - $b['packed_in_cartons_qty']) ?>" data-buyer-id="<?= $b['buyer_id'] ?? '' ?>">
                                     Batch: <?= htmlspecialchars($b['production_no']) ?> (Style: <?= htmlspecialchars($b['style_no']) ?>)
                                 </option>
                             <?php endforeach; ?>
@@ -326,7 +359,7 @@
                         </div>
                         <div class="col-6">
                             <label class="form-label small fw-bold">Destination Type</label>
-                            <select name="destination_type" class="form-select text-dark">
+                            <select name="destination_type" id="pack_dest_type" class="form-select text-dark" onchange="togglePackDestFields(this)">
                                 <option value="unassigned">Unassigned (In-Factory)</option>
                                 <option value="client">Client / Buyer</option>
                                 <option value="warehouse">Company Warehouse</option>
@@ -334,18 +367,48 @@
                         </div>
                     </div>
 
-                    <div class="row g-2 mb-3">
+                    <!-- Dynamic Sub-dropdown for Client / Buyer -->
+                    <div class="mb-3 d-none" id="pack_client_wrapper">
+                        <label class="form-label small fw-bold">Select Client / Buyer <span class="text-danger">*</span></label>
+                        <select name="client_id" id="pack_client_id" class="form-select text-dark">
+                            <option value="">-- Choose Client / Buyer --</option>
+                            <?php foreach ($buyers as $b): ?>
+                                <option value="<?= $b['id'] ?>"><?= htmlspecialchars($b['name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <!-- Dynamic Sub-dropdown for Company Warehouse -->
+                    <div class="mb-3 d-none" id="pack_warehouse_wrapper">
+                        <label class="form-label small fw-bold">Select Company Warehouse <span class="text-danger">*</span></label>
+                        <select name="warehouse_id" id="pack_warehouse_id" class="form-select text-dark">
+                            <option value="">-- Choose Warehouse --</option>
+                            <?php foreach ($warehouses as $w): ?>
+                                <option value="<?= $w['id'] ?>"><?= htmlspecialchars($w['name']) ?> (<?= htmlspecialchars($w['code']) ?>)</option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <!-- Weight & Volume Toggle -->
+                    <div class="form-check form-switch mb-3 p-2.5 bg-light rounded-3 border d-flex align-items-center">
+                        <input class="form-check-input ms-0 me-2 fs-5" type="checkbox" role="switch" id="toggle_weight_details" name="include_weight_details" value="1" onchange="toggleWeightFields(this)">
+                        <label class="form-check-label small fw-bold text-dark m-0 cursor-pointer" for="toggle_weight_details">
+                            <i class="fa-solid fa-weight-hanging me-1 text-primary"></i> Add Weight & Volume Details (Optional)
+                        </label>
+                    </div>
+
+                    <div class="row g-2 mb-3 d-none" id="weight_fields_wrapper">
                         <div class="col-4">
                             <label class="form-label small fw-bold">Gross Wt (kg)</label>
-                            <input type="number" step="0.01" name="gross_weight_kg" class="form-control" value="0.00" min="0">
+                            <input type="number" step="0.01" name="gross_weight_kg" class="form-control font-monospace" value="0.00" min="0">
                         </div>
                         <div class="col-4">
                             <label class="form-label small fw-bold">Net Wt (kg)</label>
-                            <input type="number" step="0.01" name="net_weight_kg" class="form-control" value="0.00" min="0">
+                            <input type="number" step="0.01" name="net_weight_kg" class="form-control font-monospace" value="0.00" min="0">
                         </div>
                         <div class="col-4">
                             <label class="form-label small fw-bold">Volume (CBM)</label>
-                            <input type="number" step="0.001" name="volume_cbm" class="form-control" value="0.000" min="0">
+                            <input type="number" step="0.001" name="volume_cbm" class="form-control font-monospace" value="0.000" min="0">
                         </div>
                     </div>
 
@@ -476,7 +539,10 @@
     function openPackModal(orderId, prodNo, unpackedQty) {
         document.getElementById('pack_order_id').value = orderId;
         const selectEl = document.getElementById('pack_batch_select');
-        if (selectEl) selectEl.value = orderId;
+        if (selectEl) {
+            selectEl.value = orderId;
+            updatePackBatchInfo(selectEl);
+        }
         const qtyEl = document.getElementById('pack_total_qty');
         if (qtyEl && unpackedQty > 0) qtyEl.value = unpackedQty;
         
@@ -490,6 +556,45 @@
             document.getElementById('pack_order_id').value = selectedOpt.value;
             const unpacked = parseInt(selectedOpt.getAttribute('data-unpacked')) || 1;
             document.getElementById('pack_total_qty').value = unpacked > 0 ? unpacked : 1;
+
+            // Auto-select client/buyer if mapped to this batch
+            const buyerId = selectedOpt.getAttribute('data-buyer-id');
+            if (buyerId) {
+                const destTypeEl = document.getElementById('pack_dest_type');
+                const clientSelectEl = document.getElementById('pack_client_id');
+                if (destTypeEl && clientSelectEl) {
+                    destTypeEl.value = 'client';
+                    clientSelectEl.value = buyerId;
+                    togglePackDestFields(destTypeEl);
+                }
+            }
+        }
+    }
+
+    function togglePackDestFields(selectEl) {
+        const clientWrap = document.getElementById('pack_client_wrapper');
+        const whWrap = document.getElementById('pack_warehouse_wrapper');
+        if (!clientWrap || !whWrap) return;
+
+        if (selectEl.value === 'client') {
+            whWrap.classList.add('d-none');
+            clientWrap.classList.remove('d-none');
+        } else if (selectEl.value === 'warehouse') {
+            clientWrap.classList.add('d-none');
+            whWrap.classList.remove('d-none');
+        } else {
+            clientWrap.classList.add('d-none');
+            whWrap.classList.add('d-none');
+        }
+    }
+
+    function toggleWeightFields(toggleEl) {
+        const wrapper = document.getElementById('weight_fields_wrapper');
+        if (!wrapper) return;
+        if (toggleEl.checked) {
+            wrapper.classList.remove('d-none');
+        } else {
+            wrapper.classList.add('d-none');
         }
     }
 

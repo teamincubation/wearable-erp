@@ -88,6 +88,15 @@ class DispatchController extends Controller {
                 ");
             } catch (\Exception $ex) {}
         }
+
+        // Auto-heal tracking_no column in cartons table
+        try {
+            $db->query("SELECT tracking_no FROM cartons LIMIT 1");
+        } catch (\Exception $e) {
+            try {
+                $db->exec("ALTER TABLE `cartons` ADD COLUMN `tracking_no` VARCHAR(100) DEFAULT NULL AFTER `qr_code_data`");
+            } catch (\Exception $ex) {}
+        }
     }
 
     /**
@@ -235,13 +244,14 @@ class DispatchController extends Controller {
         $db = Database::getInstance();
 
         $productionOrderId = (int)$request->get('production_order_id');
-        $grossWeight = (float)($request->get('gross_weight_kg') ?: 0.0);
-        $netWeight = (float)($request->get('net_weight_kg') ?: 0.0);
-        $volumeCbm = (float)($request->get('volume_cbm') ?: 0.0);
+        $includeWeights = (bool)$request->get('include_weight_details');
+        $grossWeight = $includeWeights ? (float)($request->get('gross_weight_kg') ?: 0.0) : 0.00;
+        $netWeight = $includeWeights ? (float)($request->get('net_weight_kg') ?: 0.0) : 0.00;
+        $volumeCbm = $includeWeights ? (float)($request->get('volume_cbm') ?: 0.0) : 0.000;
         $notes = trim((string)$request->get('notes'));
         $destinationType = trim((string)($request->get('destination_type') ?: 'unassigned'));
-        $clientId = $request->get('client_id') ? (int)$request->get('client_id') : null;
-        $warehouseId = $request->get('warehouse_id') ? (int)$request->get('warehouse_id') : null;
+        $clientId = ($destinationType === 'client' && $request->get('client_id')) ? (int)$request->get('client_id') : null;
+        $warehouseId = ($destinationType === 'warehouse' && $request->get('warehouse_id')) ? (int)$request->get('warehouse_id') : null;
 
         // Breakdown items array (e.g. sizes and quantities)
         $itemsJson = $request->get('items_json');
@@ -587,6 +597,51 @@ class DispatchController extends Controller {
         } catch (\Exception $e) {
             $db->rollBack();
             Session::setFlash('error', 'Failed to update shipment status: ' . $e->getMessage());
+        }
+
+        $this->redirect('company/dispatch');
+    }
+
+    /**
+     * Quick Action: Update Carton Dispatch Status & Tracking ID
+     * POST /company/dispatch/cartons/{id}/status
+     */
+    public function updateCartonStatus(Request $request, Response $response, string $id): void {
+        self::ensureTablesExist();
+        $companyId = Session::get('company_id');
+        $userId = Session::get('user_id');
+        $db = Database::getInstance();
+
+        $cartonId = (int)$id;
+        $targetStatus = trim((string)$request->get('status')); // 'dispatched' or 'delivered'
+
+        $stmtCtn = $db->prepare("SELECT * FROM cartons WHERE id = ? AND company_id = ? LIMIT 1");
+        $stmtCtn->execute([$cartonId, $companyId]);
+        $carton = $stmtCtn->fetch();
+
+        if (!$carton) {
+            Session::setFlash('error', 'Carton record not found.');
+            $this->redirect('company/dispatch');
+            return;
+        }
+
+        try {
+            if ($targetStatus === 'dispatched') {
+                $trackingNo = $carton['carton_no']; // Carton QR code number as tracking ID
+                $stmtUpd = $db->prepare("UPDATE cartons SET status = 'dispatched', tracking_no = ? WHERE id = ? AND company_id = ?");
+                $stmtUpd->execute([$trackingNo, $cartonId, $companyId]);
+                
+                AuditLog::log($companyId, $userId, 'dispatch_carton', 'Carton', $cartonId, null, null, "Dispatched carton {$carton['carton_no']} with Tracking ID {$trackingNo}");
+                Session::setFlash('success', "Carton package '{$carton['carton_no']}' marked as DISPATCHED! Tracking ID: {$trackingNo}");
+            } elseif ($targetStatus === 'delivered') {
+                $stmtUpd = $db->prepare("UPDATE cartons SET status = 'delivered' WHERE id = ? AND company_id = ?");
+                $stmtUpd->execute([$cartonId, $companyId]);
+                
+                AuditLog::log($companyId, $userId, 'deliver_carton', 'Carton', $cartonId, null, null, "Updated carton {$carton['carton_no']} status to Item Moved (Delivered at destination)");
+                Session::setFlash('success', "Carton package '{$carton['carton_no']}' status updated to ITEM MOVED (Delivered at destination)!");
+            }
+        } catch (\Exception $e) {
+            Session::setFlash('error', 'Failed to update carton status: ' . $e->getMessage());
         }
 
         $this->redirect('company/dispatch');

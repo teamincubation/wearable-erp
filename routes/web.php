@@ -618,6 +618,12 @@ $router->post('/company/dispatch/cartons/{id}/reopen', [\App\Controllers\Dispatc
        ->middleware(PermissionMiddleware::class)
        ->permission('company.dispatch.manage');
 
+$router->post('/company/dispatch/cartons/{id}/status', [\App\Controllers\DispatchController::class, 'updateCartonStatus'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.dispatch.manage');
+
 $router->get('/company/dispatch/cartons/print', [\App\Controllers\DispatchController::class, 'printCartonQr'])
        ->middleware(AuthMiddleware::class)
        ->middleware(PermissionMiddleware::class)

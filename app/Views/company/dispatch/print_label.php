@@ -141,20 +141,30 @@
 
             <!-- Footer Metrics -->
             <div class="border-top pt-2 mt-2">
-                <div class="row text-center font-monospace" style="font-size: 11px;">
-                    <div class="col-4 border-end">
-                        <small class="text-muted d-block" style="font-size: 9px;">TOTAL PCS</small>
-                        <strong class="fs-6 text-dark"><?= number_format($c['total_pcs']) ?></strong>
+                <?php 
+                    $hasWeights = ((float)($c['gross_weight_kg'] ?? 0) > 0 || (float)($c['net_weight_kg'] ?? 0) > 0);
+                ?>
+                <?php if ($hasWeights): ?>
+                    <div class="row text-center font-monospace" style="font-size: 11px;">
+                        <div class="col-4 border-end">
+                            <small class="text-muted d-block" style="font-size: 9px;">TOTAL PCS</small>
+                            <strong class="fs-6 text-dark"><?= number_format($c['total_pcs']) ?></strong>
+                        </div>
+                        <div class="col-4 border-end">
+                            <small class="text-muted d-block" style="font-size: 9px;">GROSS WT</small>
+                            <strong class="fs-6 text-dark"><?= number_format($c['gross_weight_kg'], 2) ?> kg</strong>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted d-block" style="font-size: 9px;">NET WT</small>
+                            <strong class="fs-6 text-dark"><?= number_format($c['net_weight_kg'], 2) ?> kg</strong>
+                        </div>
                     </div>
-                    <div class="col-4 border-end">
-                        <small class="text-muted d-block" style="font-size: 9px;">GROSS WT</small>
-                        <strong class="fs-6 text-dark"><?= number_format($c['gross_weight_kg'], 2) ?> kg</strong>
+                <?php else: ?>
+                    <div class="text-center font-monospace" style="font-size: 11px;">
+                        <small class="text-muted d-block" style="font-size: 9px;">TOTAL QUANTITY</small>
+                        <strong class="fs-5 text-dark"><?= number_format($c['total_pcs']) ?> PCS</strong>
                     </div>
-                    <div class="col-4">
-                        <small class="text-muted d-block" style="font-size: 9px;">NET WT</small>
-                        <strong class="fs-6 text-dark"><?= number_format($c['net_weight_kg'], 2) ?> kg</strong>
-                    </div>
-                </div>
+                <?php endif; ?>
                 <div class="text-center text-muted font-monospace mt-2" style="font-size: 9px;">
                     Packed Date: <?= date('d M Y, h:i A', strtotime($c['created_at'])) ?>
                 </div>
