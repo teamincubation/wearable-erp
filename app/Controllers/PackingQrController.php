@@ -191,7 +191,7 @@ class PackingQrController extends Controller {
         // Fetch Carton Details
         $stmtCtn = $db->prepare("
             SELECT c.*,
-                   pro.production_no, pro.target_qty, s.style_no, s.name as style_name, s.category as style_category, po.po_no as buyer_po_no,
+                   pro.production_no, po.quantity as target_qty, s.style_no, s.name as style_name, s.category as style_category, po.po_no as buyer_po_no,
                    b.name as client_name, w.name as warehouse_name,
                    shp.shipment_no, shp.status as shipment_status
             FROM cartons c
