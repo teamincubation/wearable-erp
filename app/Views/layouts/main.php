@@ -70,7 +70,7 @@ $defaultMenu = [
     'tally' => ['name' => 'Tally Integration', 'icon' => 'fa-solid fa-file-excel', 'url' => 'company/tally/vouchers', 'permission' => 'company.tally.export', 'active_check' => 'company/tally'],
     'logs' => ['name' => 'Audit History', 'icon' => 'fa-solid fa-list-check', 'url' => 'company/logs', 'permission' => 'company.logs', 'active_check' => 'company/logs'],
     'settings' => ['name' => 'ERP Settings', 'icon' => 'fa-solid fa-sliders', 'url' => 'company/settings', 'permission' => 'company.settings', 'active_check' => 'company/settings'],
-    'rfid_tracking' => ['name' => 'QR Code Scanner', 'icon' => 'fa-solid fa-mobile-screen-button', 'url' => 'company/production/qr-tracking', 'permission' => 'company.production.rfid_tracking', 'active_check' => 'company/production/qr-tracking']
+    'rfid_tracking' => ['name' => 'Production QR', 'icon' => 'fa-solid fa-mobile-screen-button', 'url' => 'company/production/qr-tracking', 'permission' => 'company.production.rfid_tracking', 'active_check' => 'company/production/qr-tracking']
 ];
 
 $orderedMenuKeys = array_merge($savedOrder, array_diff(array_keys($defaultMenu), $savedOrder));

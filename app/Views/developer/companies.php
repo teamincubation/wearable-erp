@@ -258,9 +258,9 @@
                                                             $textColor = '#ffffff';
 
                                                             if ($perm['name'] === 'company.production.rfid_tracking') {
-                                                                $moduleName = 'QR Scanner';
+                                                                $moduleName = 'Production QR';
                                                                 $bgColor = '#00acb5';
-                                                                $cleanLabel = 'QR Code Scanner (Mobile & Floor)';
+                                                                $cleanLabel = 'Production QR (Mobile & Floor Scanner)';
                                                             } elseif (strpos($perm['name'], 'company.users') !== false || strpos($perm['name'], 'company.payroll') !== false) {
                                                                 $moduleName = 'HR/Users';
                                                                 $bgColor = '#6f42c1';
@@ -506,9 +506,9 @@
                                     $textColor = '#ffffff';
 
                                     if ($perm['name'] === 'company.production.rfid_tracking') {
-                                        $moduleName = 'QR Scanner';
+                                        $moduleName = 'Production QR';
                                         $bgColor = '#00acb5';
-                                        $cleanLabel = 'QR Code Scanner (Mobile & Floor)';
+                                        $cleanLabel = 'Production QR (Mobile & Floor Scanner)';
                                     } elseif (strpos($perm['name'], 'company.users') !== false || strpos($perm['name'], 'company.payroll') !== false) {
                                         $moduleName = 'HR/Users';
                                         $bgColor = '#6f42c1';
