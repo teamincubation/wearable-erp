@@ -652,9 +652,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
         fetch("<?= base_url('company/production/qr-tracking/verify') ?>", {
             method: 'POST',
-            body: formData
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
         })
-        .then(res => res.json())
+        .then(res => res.text().then(text => {
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                console.error("Non-JSON server response:", text);
+                throw new Error("Server returned an invalid verification format.");
+            }
+        }))
         .then(data => {
             loader.remove();
             if (data.success) {
@@ -672,18 +682,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 showScanPopup();
             } else {
                 hideScanPopup();
-                if (data.already_validated) {
+                if (data.failed_unit) {
+                    showAlertBanner("FAILED UNIT REJECTED", data.message || "This unit failed inspection and cannot proceed.", false);
+                } else if (data.already_validated) {
                     showAlertBanner("ALREADY VALIDATED IN THIS STAGE", data.message, true);
                 } else {
-                    showAlertBanner("SEQUENCE ORDER MISMATCH", data.message, false);
+                    showAlertBanner("SEQUENCE / TAG ERROR", data.message || "QR Code verification failed.", false);
                 }
             }
         })
         .catch(err => {
             loader.remove();
             hideScanPopup();
-            console.error(err);
-            showAlertBanner("CONNECTION ERROR", "Unable to connect to verification server. Please check internet connection.", false);
+            console.error("Verification error:", err);
+            showAlertBanner("VERIFICATION ERROR", err.message || "Verification request failed. Please try again.", false);
         });
     }
 
@@ -709,9 +721,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
         fetch("<?= base_url('company/production/qr-tracking/log') ?>", {
             method: 'POST',
-            body: formData
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
         })
-        .then(res => res.json())
+        .then(res => res.text().then(text => {
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                console.error("Non-JSON log response:", text);
+                throw new Error("Server returned an invalid response.");
+            }
+        }))
         .then(data => {
             if (data.success) {
                 scanCount++;
@@ -734,13 +756,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } else {
                 hideScanPopup();
-                showAlertBanner("LOGGING FAILED", data.message, false);
+                if (data.failed_unit) {
+                    showAlertBanner("FAILED UNIT REJECTED", data.message, false);
+                } else {
+                    showAlertBanner("LOGGING FAILED", data.message || "Failed to log QR activity.", false);
+                }
             }
         })
         .catch(err => {
             console.error(err);
             hideScanPopup();
-            showAlertBanner("CONNECTION FAILURE", "Failed to communicate with production server.", false);
+            showAlertBanner("SCAN LOG ERROR", err.message || "Failed to communicate with production server.", false);
         })
         .finally(() => {
             passBtn.disabled = false;
