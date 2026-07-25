@@ -84,7 +84,7 @@ class PackingQrController extends Controller {
             } catch (\PDOException $e) {}
         }
 
-        // Auto-heal production_stage_logs columns for qr_code and scanned_qr_code compatibility
+        // Auto-heal production_stage_logs columns for qr_code, scanned_qr_code, employee_id, and operator_id compatibility
         try {
             $chkQr = $db->query("SHOW COLUMNS FROM `production_stage_logs` LIKE 'qr_code'");
             if (!$chkQr || $chkQr->rowCount() === 0) {
@@ -96,6 +96,20 @@ class PackingQrController extends Controller {
             $chkSqr = $db->query("SHOW COLUMNS FROM `production_stage_logs` LIKE 'scanned_qr_code'");
             if (!$chkSqr || $chkSqr->rowCount() === 0) {
                 $db->exec("ALTER TABLE `production_stage_logs` ADD COLUMN `scanned_qr_code` VARCHAR(150) DEFAULT NULL AFTER `qr_code`");
+            }
+        } catch (\PDOException $e) {}
+
+        try {
+            $chkEmp = $db->query("SHOW COLUMNS FROM `production_stage_logs` LIKE 'employee_id'");
+            if (!$chkEmp || $chkEmp->rowCount() === 0) {
+                $db->exec("ALTER TABLE `production_stage_logs` ADD COLUMN `employee_id` INT DEFAULT NULL");
+            }
+        } catch (\PDOException $e) {}
+
+        try {
+            $chkOp = $db->query("SHOW COLUMNS FROM `production_stage_logs` LIKE 'operator_id'");
+            if (!$chkOp || $chkOp->rowCount() === 0) {
+                $db->exec("ALTER TABLE `production_stage_logs` ADD COLUMN `operator_id` INT DEFAULT NULL AFTER `employee_id`");
             }
         } catch (\PDOException $e) {}
     }
@@ -601,8 +615,8 @@ class PackingQrController extends Controller {
             ");
 
             $stmtStageLog = $db->prepare("
-                INSERT INTO production_stage_logs (company_id, production_order_id, stage, operator_id, qty_in, qty_out, qr_code, scanned_qr_code, notes, created_at)
-                VALUES (?, ?, 'carton_assignment', ?, 1, 1, ?, ?, ?, NOW())
+                INSERT INTO production_stage_logs (company_id, production_order_id, stage, employee_id, operator_id, qty_in, qty_out, qr_code, scanned_qr_code, notes, created_at)
+                VALUES (?, ?, 'carton_assignment', ?, ?, 1, 1, ?, ?, ?, NOW())
             ");
 
             $addedCount = 0;
@@ -618,7 +632,7 @@ class PackingQrController extends Controller {
                 }
 
                 $stmtInsItem->execute([$cartonId, $carton['production_order_id'], $cleanQr, $cleanQr, $userId]);
-                $stmtStageLog->execute([$companyId, $carton['production_order_id'], $userId, $cleanQr, $cleanQr, "Assigned to Carton {$carton['carton_no']} ({$assignmentMode})"]);
+                $stmtStageLog->execute([$companyId, $carton['production_order_id'], $userId, $userId, $cleanQr, $cleanQr, "Assigned to Carton {$carton['carton_no']} ({$assignmentMode})"]);
                 $addedCount++;
             }
 
@@ -749,7 +763,7 @@ class PackingQrController extends Controller {
                     $stmtTimeline = $db->prepare("
                         SELECT psl.*, u.name as operator_name 
                         FROM production_stage_logs psl
-                        LEFT JOIN users u ON psl.operator_id = u.id
+                        LEFT JOIN users u ON (psl.employee_id = u.id OR psl.operator_id = u.id)
                         WHERE psl.company_id = ? AND (psl.scanned_qr_code = ? OR psl.qr_code = ?)
                         ORDER BY psl.id ASC
                     ");
