@@ -119,17 +119,40 @@ class ProductionController extends Controller {
         $totalLogs = (int)$stmtCount->fetchColumn();
         $totalPages = max(1, (int)ceil($totalLogs / $limit));
 
+        // Self-healing database check for production_stage_logs edit tracking columns
+        try {
+            $db->query("SELECT edited_by FROM production_stage_logs LIMIT 1");
+        } catch (\Exception $e) {
+            try {
+                $db->exec("ALTER TABLE production_stage_logs ADD COLUMN edited_by INT NULL DEFAULT NULL AFTER created_by");
+                $db->exec("ALTER TABLE production_stage_logs ADD COLUMN edited_at TIMESTAMP NULL DEFAULT NULL AFTER edited_by");
+                $db->exec("ALTER TABLE production_stage_logs ADD COLUMN edit_remarks VARCHAR(255) NULL DEFAULT NULL AFTER edited_at");
+            } catch (\Exception $ex) {}
+        }
+
         // Fetch stage history logs page-wise
-        $stmt = $db->prepare("SELECT psl.*, m.name as machine_name, u.name as employee_name, ed.name as editor_name
-                             FROM production_stage_logs psl
-                             LEFT JOIN machines m ON psl.machine_id = m.id
-                             LEFT JOIN users u ON psl.employee_id = u.id
-                             LEFT JOIN users ed ON psl.edited_by = ed.id
-                             WHERE psl.production_order_id = ? AND psl.company_id = ?
-                             ORDER BY psl.id DESC
-                             LIMIT {$limit} OFFSET {$offset}");
-        $stmt->execute([$id, $companyId]);
-        $history = $stmt->fetchAll() ?: [];
+        try {
+            $stmt = $db->prepare("SELECT psl.*, m.name as machine_name, u.name as employee_name, ed.name as editor_name
+                                 FROM production_stage_logs psl
+                                 LEFT JOIN machines m ON psl.machine_id = m.id
+                                 LEFT JOIN users u ON psl.employee_id = u.id
+                                 LEFT JOIN users ed ON psl.edited_by = ed.id
+                                 WHERE psl.production_order_id = ? AND psl.company_id = ?
+                                 ORDER BY psl.id DESC
+                                 LIMIT {$limit} OFFSET {$offset}");
+            $stmt->execute([$id, $companyId]);
+            $history = $stmt->fetchAll() ?: [];
+        } catch (\Exception $e) {
+            $stmt = $db->prepare("SELECT psl.*, m.name as machine_name, u.name as employee_name
+                                 FROM production_stage_logs psl
+                                 LEFT JOIN machines m ON psl.machine_id = m.id
+                                 LEFT JOIN users u ON psl.employee_id = u.id
+                                 WHERE psl.production_order_id = ? AND psl.company_id = ?
+                                 ORDER BY psl.id DESC
+                                 LIMIT {$limit} OFFSET {$offset}");
+            $stmt->execute([$id, $companyId]);
+            $history = $stmt->fetchAll() ?: [];
+        }
 
         // Fetch machines & employees
         $machineModel = new Machine();
@@ -1072,17 +1095,32 @@ class ProductionController extends Controller {
         $tenantTimezone = $stmtComp->fetchColumn() ?: 'Asia/Kolkata';
 
         // Fetch the 15 most recent activity logs for live ticker
-        $stmtLogs = $db->prepare("
-            SELECT psl.*, u.name as employee_name, m.name as machine_name
-            FROM production_stage_logs psl
-            LEFT JOIN users u ON psl.employee_id = u.id
-            LEFT JOIN machines m ON psl.machine_id = m.id
-            WHERE psl.production_order_id = ? AND psl.company_id = ?
-            ORDER BY psl.id DESC
-            LIMIT 15
-        ");
-        $stmtLogs->execute([$id, $companyId]);
-        $recentLogs = $stmtLogs->fetchAll() ?: [];
+        try {
+            $stmtLogs = $db->prepare("
+                SELECT psl.*, u.name as employee_name, m.name as machine_name, ed.name as editor_name
+                FROM production_stage_logs psl
+                LEFT JOIN users u ON psl.employee_id = u.id
+                LEFT JOIN machines m ON psl.machine_id = m.id
+                LEFT JOIN users ed ON psl.edited_by = ed.id
+                WHERE psl.production_order_id = ? AND psl.company_id = ?
+                ORDER BY psl.id DESC
+                LIMIT 15
+            ");
+            $stmtLogs->execute([$id, $companyId]);
+            $recentLogs = $stmtLogs->fetchAll() ?: [];
+        } catch (\Exception $e) {
+            $stmtLogs = $db->prepare("
+                SELECT psl.*, u.name as employee_name, m.name as machine_name
+                FROM production_stage_logs psl
+                LEFT JOIN users u ON psl.employee_id = u.id
+                LEFT JOIN machines m ON psl.machine_id = m.id
+                WHERE psl.production_order_id = ? AND psl.company_id = ?
+                ORDER BY psl.id DESC
+                LIMIT 15
+            ");
+            $stmtLogs->execute([$id, $companyId]);
+            $recentLogs = $stmtLogs->fetchAll() ?: [];
+        }
 
         $this->renderView('company/production_stage_live', [
             'title' => "Live Monitor: {$order['production_no']} | ERP",
@@ -1133,18 +1171,32 @@ class ProductionController extends Controller {
         $stmtComp->execute([$companyId]);
         $tenantTimezone = $stmtComp->fetchColumn() ?: 'Asia/Kolkata';
 
-        $stmtLogs = $db->prepare("
-            SELECT psl.*, u.name as employee_name, m.name as machine_name, ed.name as editor_name
-            FROM production_stage_logs psl
-            LEFT JOIN users u ON psl.employee_id = u.id
-            LEFT JOIN machines m ON psl.machine_id = m.id
-            LEFT JOIN users ed ON psl.edited_by = ed.id
-            WHERE psl.production_order_id = ? AND psl.company_id = ?
-            ORDER BY psl.id DESC
-            LIMIT 15
-        ");
-        $stmtLogs->execute([$id, $companyId]);
-        $recentLogs = $stmtLogs->fetchAll() ?: [];
+        try {
+            $stmtLogs = $db->prepare("
+                SELECT psl.*, u.name as employee_name, m.name as machine_name, ed.name as editor_name
+                FROM production_stage_logs psl
+                LEFT JOIN users u ON psl.employee_id = u.id
+                LEFT JOIN machines m ON psl.machine_id = m.id
+                LEFT JOIN users ed ON psl.edited_by = ed.id
+                WHERE psl.production_order_id = ? AND psl.company_id = ?
+                ORDER BY psl.id DESC
+                LIMIT 15
+            ");
+            $stmtLogs->execute([$id, $companyId]);
+            $recentLogs = $stmtLogs->fetchAll() ?: [];
+        } catch (\Exception $e) {
+            $stmtLogs = $db->prepare("
+                SELECT psl.*, u.name as employee_name, m.name as machine_name
+                FROM production_stage_logs psl
+                LEFT JOIN users u ON psl.employee_id = u.id
+                LEFT JOIN machines m ON psl.machine_id = m.id
+                WHERE psl.production_order_id = ? AND psl.company_id = ?
+                ORDER BY psl.id DESC
+                LIMIT 15
+            ");
+            $stmtLogs->execute([$id, $companyId]);
+            $recentLogs = $stmtLogs->fetchAll() ?: [];
+        }
 
         foreach ($recentLogs as &$log) {
             $log['formatted_time'] = \App\Helpers\TimezoneHelper::formatTenantTime($log['created_at'] ?? 'now', $tenantTimezone, 'h:i:s A');
@@ -1428,17 +1480,30 @@ class ProductionController extends Controller {
         $tzStr = $stmtComp->fetchColumn() ?: 'Asia/Kolkata';
 
         // Find stage logs matching QR code or batch/serial
-        $stmtLogs = $db->prepare("
-            SELECT psl.*, u.name as operator_name, r.name as operator_role, ed.name as editor_name
-            FROM production_stage_logs psl
-            LEFT JOIN users u ON psl.employee_id = u.id
-            LEFT JOIN roles r ON u.role_id = r.id
-            LEFT JOIN users ed ON psl.edited_by = ed.id
-            WHERE psl.company_id = ? AND (psl.qr_code = ? OR psl.qr_code LIKE ?)
-            ORDER BY psl.id ASC
-        ");
-        $stmtLogs->execute([$companyId, $qrCode, "%{$qrCode}%"]);
-        $logs = $stmtLogs->fetchAll() ?: [];
+        try {
+            $stmtLogs = $db->prepare("
+                SELECT psl.*, u.name as operator_name, r.name as operator_role, ed.name as editor_name
+                FROM production_stage_logs psl
+                LEFT JOIN users u ON psl.employee_id = u.id
+                LEFT JOIN roles r ON u.role_id = r.id
+                LEFT JOIN users ed ON psl.edited_by = ed.id
+                WHERE psl.company_id = ? AND (psl.qr_code = ? OR psl.qr_code LIKE ?)
+                ORDER BY psl.id ASC
+            ");
+            $stmtLogs->execute([$companyId, $qrCode, "%{$qrCode}%"]);
+            $logs = $stmtLogs->fetchAll() ?: [];
+        } catch (\Exception $e) {
+            $stmtLogs = $db->prepare("
+                SELECT psl.*, u.name as operator_name, r.name as operator_role
+                FROM production_stage_logs psl
+                LEFT JOIN users u ON psl.employee_id = u.id
+                LEFT JOIN roles r ON u.role_id = r.id
+                WHERE psl.company_id = ? AND (psl.qr_code = ? OR psl.qr_code LIKE ?)
+                ORDER BY psl.id ASC
+            ");
+            $stmtLogs->execute([$companyId, $qrCode, "%{$qrCode}%"]);
+            $logs = $stmtLogs->fetchAll() ?: [];
+        }
 
         if (empty($logs) && $batchId > 0) {
             $stmtLogs2 = $db->prepare("
