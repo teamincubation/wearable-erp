@@ -300,10 +300,19 @@ class ApiController extends Controller {
     }
 
     /**
-     * Helper: Convert any WIP stage input into a standardized system key (e.g. "#1 Cutting" -> "cutting")
+     * Helper: Convert any WIP stage input into a standardized system key (e.g. "#1 Cutting" -> "cutting", "Stage 1" -> "stage_1")
      */
     public function toStageKey(string $input): string {
-        $clean = preg_replace('/^(#|\d+\.|\d+\s*-\s*|\d+\s*:\s*|Stage\s*\d+\s*:?\s*)/i', '', trim($input));
+        $input = trim($input);
+        if (empty($input)) {
+            return 'general';
+        }
+        // Only strip leading prefix like "#1 " or "1. " if followed by non-digit letters
+        $clean = preg_replace('/^(#|\d+[\.\-\:]\s*)/i', '', $input);
+        $clean = trim((string)$clean);
+        if (empty($clean)) {
+            $clean = $input;
+        }
         $key = strtolower(trim((string)preg_replace('/[^a-zA-Z0-9]+/', '_', $clean), '_'));
         return !empty($key) ? $key : 'general';
     }
@@ -452,7 +461,8 @@ class ApiController extends Controller {
         }
 
         $companyId = (int)$userData['company_id'];
-        $userId = (int)($userData['id'] ?? $userData['user_id'] ?? 0);
+        $rawUserId = (int)($userData['user_id'] ?? $userData['id'] ?? 0);
+        $userId = ($rawUserId > 0) ? $rawUserId : null;
 
         $db = Database::getInstance();
 
@@ -462,8 +472,21 @@ class ApiController extends Controller {
         $companyTz = $stmtTz->fetchColumn() ?: 'Asia/Kolkata';
         date_default_timezone_set($companyTz);
 
+        // Auto-heal production_stage_logs.stage column to VARCHAR(100) to allow any WIP stage key
+        try {
+            $db->exec("ALTER TABLE `production_stage_logs` MODIFY COLUMN `stage` VARCHAR(100) NOT NULL");
+        } catch (\Exception $e) {}
+
+        // Auto-heal production_stage_logs.qr_code column
+        try {
+            $checkQrCode = $db->query("SHOW COLUMNS FROM `production_stage_logs` LIKE 'qr_code'");
+            if (!$checkQrCode || $checkQrCode->rowCount() === 0) {
+                $db->exec("ALTER TABLE `production_stage_logs` ADD COLUMN `qr_code` VARCHAR(100) DEFAULT NULL");
+            }
+        } catch (\Exception $e) {}
+
         $qrCode = trim((string)($request->get('qr_code') ?: $request->get('qr', '')));
-        $rawStage = trim((string)($request->get('stage_key') ?: $request->get('stage') ?: $request->get('stage_name', '')));
+        $rawStage = trim((string)($request->get('raw_stage') ?: $request->get('stage') ?: $request->get('stage_key') ?: $request->get('stage_name', '')));
         $stageKey = $this->toStageKey($rawStage);
         
         $status = strtolower(trim((string)$request->get('status', 'pass')));
