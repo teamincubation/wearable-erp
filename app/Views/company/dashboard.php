@@ -8,6 +8,55 @@
     </div>
 </div>
 
+<!-- MINIMALISTIC & HIGH-ATTENTION QR CODE TRACKING BAR -->
+<div class="pepp-card p-3 mb-4" style="background: #0f172a; border-radius: 16px; border: 1px solid #1e293b;">
+    <form id="track-qr-unit-form" class="row align-items-center g-2">
+        <div class="col-md-4 col-12">
+            <div class="d-flex align-items-center gap-2.5 ps-2">
+                <div class="bg-primary text-white d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; min-width: 38px; font-size: 1.1rem; border-radius: 12px; background: #2563eb !important;">
+                    <i class="fa-solid fa-qrcode"></i>
+                </div>
+                <div>
+                    <h6 class="fw-bold text-white m-0 font-outfit" style="font-size: 14px;">Track Unit & Carton Status</h6>
+                    <span class="text-white-50 small" style="font-size: 11px;">Instant Product QR & Carton Box lifecycle lookup</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-8">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text border-end-0 bg-transparent text-primary" style="border-color: #334155;">
+                    <i class="fa-solid fa-barcode"></i>
+                </span>
+                <input type="text" id="track-qr-unit-input" class="form-control font-monospace fw-bold ps-1 bg-dark text-white border-secondary" placeholder="Scan or type Product QR (e.g. B2507002-XXL-0001 or Carton ID)..." required>
+            </div>
+        </div>
+        <div class="col-md-2 col-4 text-end pe-3">
+            <button type="submit" id="track-qr-unit-btn" class="btn btn-primary btn-sm w-100 fw-bold rounded-pill shadow-sm" style="font-size: 12px; padding: 8px 14px;">
+                <i class="fa-solid fa-magnifying-glass me-1"></i> Track Unit
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Track QR Unit Lifecycle Modal -->
+<div class="modal fade" id="trackQrUnitModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content text-white" style="background: #090d16; border: 1px solid #1e293b; border-radius: 20px;">
+            <div class="modal-header border-bottom border-secondary py-3 px-4" style="border-color: rgba(255,255,255,0.08) !important;">
+                <h6 class="modal-title fw-bold text-white font-outfit d-flex align-items-center">
+                    <i class="fa-solid fa-route text-primary me-2"></i> Product & Carton Lifecycle Tracking
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 text-start" id="track-qr-modal-body">
+            </div>
+            <div class="modal-footer border-top border-secondary py-2.5 px-4" style="border-color: rgba(255,255,255,0.08) !important;">
+                <button type="button" class="btn btn-outline-light btn-sm rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Stats widgets -->
 <div class="row g-4 mb-5">
     <div class="col-md-3">
@@ -204,5 +253,170 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         }
     });
+
+    // Track QR Unit Form Event on Main Dashboard
+    const trackForm = document.getElementById('track-qr-unit-form');
+    const trackInput = document.getElementById('track-qr-unit-input');
+    const trackModalEl = document.getElementById('trackQrUnitModal');
+    const trackModalBody = document.getElementById('track-qr-modal-body');
+
+    if (trackForm && trackInput) {
+        trackForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const qrCode = trackInput.value.trim();
+            if (!qrCode) return;
+
+            const modal = new bootstrap.Modal(trackModalEl);
+            trackModalBody.innerHTML = `
+                <div class="text-center py-4">
+                    <span class="spinner-border text-primary" role="status"></span>
+                    <p class="mt-2 text-white-50 small font-monospace">Fetching complete lifecycle history for <strong>${qrCode}</strong>...</p>
+                </div>
+            `;
+            modal.show();
+
+            fetch(`<?= base_url('company/production/track-qr-unit') ?>?qr_code=${encodeURIComponent(qrCode)}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.logs && data.logs.length > 0) {
+                        let cartonCardHtml = '';
+                        if (data.carton_info) {
+                            const c = data.carton_info;
+                            let statusBadge = `<span class="badge bg-primary text-white px-3 py-1.5 rounded-pill"><i class="fa-solid fa-boxes-packing me-1"></i> ${c.status_label}</span>`;
+                            if (c.status === 'delivered') {
+                                statusBadge = `<span class="badge bg-success text-white px-3 py-1.5 rounded-pill"><i class="fa-solid fa-circle-check me-1"></i> Delivered</span>`;
+                            } else if (c.status === 'dispatched') {
+                                statusBadge = `<span class="badge bg-warning text-dark px-3 py-1.5 rounded-pill"><i class="fa-solid fa-truck-fast me-1"></i> Dispatched ${c.shipment_no ? '(' + c.shipment_no + ')' : ''}</span>`;
+                            }
+
+                            cartonCardHtml = `
+                                <div class="p-3 rounded-3 mb-3 font-monospace" style="background: #1e293b; border: 1px solid #334155; color: #f8fafc;">
+                                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2 pb-2 border-bottom" style="border-color: rgba(255,255,255,0.1) !important;">
+                                        <div>
+                                            <span class="badge bg-primary text-white font-monospace fs-6 px-2.5 py-1 me-2" style="background: #2563eb !important;">
+                                                <i class="fa-solid fa-box-archive me-1"></i> ${c.carton_no}
+                                            </span>
+                                            <span class="badge bg-info-subtle text-info border border-info-subtle font-monospace" style="font-size: 11px;">
+                                                <i class="fa-solid fa-location-dot me-1"></i> Dest: ${c.destination}
+                                            </span>
+                                        </div>
+                                        <div>${statusBadge}</div>
+                                    </div>
+                                    <div class="row g-2" style="font-size: 11.5px; color: #cbd5e1;">
+                                        <div class="col-12 col-md-6">
+                                            <i class="fa-solid fa-calendar-check text-primary me-1"></i> <strong>Carton Packed:</strong> ${c.packed_at_formatted || 'N/A'}
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                            <i class="fa-solid fa-truck text-warning me-1"></i> <strong>Shipment:</strong> ${c.shipment_no || 'Pending Shipment'}
+                                        </div>
+                                        ${c.courier_details ? `
+                                            <div class="col-12 col-md-6">
+                                                <i class="fa-solid fa-route text-info me-1"></i> <strong>Courier / Vehicle:</strong> ${c.courier_details}
+                                            </div>
+                                        ` : ''}
+                                        ${c.tracking_no ? `
+                                            <div class="col-12 col-md-6">
+                                                <i class="fa-solid fa-barcode text-success me-1"></i> <strong>Tracking ID:</strong> ${c.tracking_no}
+                                            </div>
+                                        ` : ''}
+                                        ${c.dispatched_at_formatted ? `
+                                            <div class="col-12 col-md-6">
+                                                <i class="fa-solid fa-clock text-muted me-1"></i> <strong>Dispatch Date:</strong> ${c.dispatched_at_formatted}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            cartonCardHtml = `
+                                <div class="p-2.5 rounded-3 mb-3 font-monospace small" style="background: rgba(51, 65, 85, 0.4); border: 1px solid #334155; color: #94a3b8;">
+                                    <i class="fa-solid fa-box-open text-warning me-1.5"></i> <strong>Carton Assignment:</strong> Not yet linked to any sealed carton box.
+                                </div>
+                            `;
+                        }
+
+                        let html = `
+                            <div class="p-3 rounded-3 mb-3" style="background: #0f172a; border: 1px solid #1e293b;">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <span class="badge bg-primary text-white font-monospace fw-bold me-2 px-2.5 py-1" style="font-size: 11px; background: #2563eb !important; color: #ffffff !important;">QR / CODE</span>
+                                        <strong class="font-monospace fs-5 text-white fw-bold" style="color: #ffffff !important; letter-spacing: 0.05em;">${data.qr_code}</strong>
+                                    </div>
+                                    <span class="badge bg-success text-white px-3 py-1.5 rounded-pill fw-bold" style="font-size: 12px; background: #10b981 !important; color: #ffffff !important;">
+                                        <i class="fa-solid fa-check-double me-1"></i> ${data.total_stages} Stages Tracked
+                                    </span>
+                                </div>
+                            </div>
+                            ${cartonCardHtml}
+                            <div class="table-responsive border-0" style="background: #0f172a; border-radius: 12px;">
+                                <table class="table table-hover align-middle mb-0" style="font-size: 12.5px; background-color: #0f172a !important; color: #f8fafc !important; --bs-table-bg: #0f172a; --bs-table-color: #f8fafc;">
+                                    <thead>
+                                        <tr style="background-color: #1e293b !important; color: #94a3b8 !important;">
+                                            <th style="background-color: #1e293b !important; color: #94a3b8 !important; padding: 12px 14px;">WIP STAGE</th>
+                                            <th style="background-color: #1e293b !important; color: #94a3b8 !important; padding: 12px 14px;">STATUS</th>
+                                            <th style="background-color: #1e293b !important; color: #94a3b8 !important; padding: 12px 14px;">UPDATED BY (OPERATOR)</th>
+                                            <th style="background-color: #1e293b !important; color: #94a3b8 !important; padding: 12px 14px;">LOGGED DATE & TIME</th>
+                                            <th style="background-color: #1e293b !important; color: #94a3b8 !important; padding: 12px 14px;">DURATION</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody style="background-color: #0f172a !important;">
+                        `;
+
+                        data.logs.forEach(l => {
+                            const badge = l.status === 'PASS' ? 'bg-success' : 'bg-danger';
+                            let editNotice = '';
+                            if (l.edited_by_name && l.edited_at_formatted) {
+                                editNotice = `
+                                    <div class="mt-1.5 p-1.5 rounded font-monospace" style="background: rgba(234, 179, 8, 0.15); border: 1px solid rgba(234, 179, 8, 0.35); color: #facc15 !important; font-size: 11px; line-height: 1.3;">
+                                        <i class="fa-solid fa-pen-to-square me-1 text-warning"></i> <strong>Edited</strong> by <span class="text-white">${l.edited_by_name}</span> on ${l.edited_at_formatted}${l.edit_remarks ? ' - "' + l.edit_remarks + '"' : ''}
+                                    </div>
+                                `;
+                            }
+                            html += `
+                                <tr>
+                                    <td style="background-color: #0f172a !important; color: #38bdf8 !important; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                                        <strong class="font-monospace text-uppercase" style="color: #38bdf8 !important; font-weight: 700;">${l.stage}</strong>
+                                        ${editNotice}
+                                    </td>
+                                    <td style="background-color: #0f172a !important; border-bottom: 1px solid rgba(255,255,255,0.06);"><span class="badge ${badge} text-white font-monospace px-2.5 py-1" style="color: #ffffff !important; font-weight: 700;">${l.status}</span></td>
+                                    <td style="background-color: #0f172a !important; color: #ffffff !important; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                                        <div class="fw-bold text-white" style="color: #ffffff !important;">${l.operator_name}</div>
+                                        <small style="color: #94a3b8 !important; font-size: 11px;">${l.operator_role}</small>
+                                    </td>
+                                    <td style="background-color: #0f172a !important; color: #ffffff !important; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                                        <div class="fw-bold font-monospace text-white" style="color: #ffffff !important;">${l.updated_at}</div>
+                                        <small style="color: #94a3b8 !important; font-size: 11px;">${l.time_ago}</small>
+                                    </td>
+                                    <td style="background-color: #0f172a !important; border-bottom: 1px solid rgba(255,255,255,0.06);"><span class="badge text-white font-monospace" style="color: #ffffff !important; background: #334155 !important;">${l.duration}</span></td>
+                                </tr>
+                            `;
+                        });
+
+                        html += `
+                                    </tbody>
+                                </table>
+                            </div>
+                        `;
+                        trackModalBody.innerHTML = html;
+                    } else {
+                        trackModalBody.innerHTML = `
+                            <div class="alert alert-warning text-center py-4 my-2" style="background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.3); color: #f59e0b;">
+                                <i class="fa-solid fa-circle-exclamation fs-2 mb-2 text-warning"></i>
+                                <h6 class="fw-bold text-white">No Stage History Logs Found</h6>
+                                <p class="small text-dash-sub mb-0">No operational logs recorded yet for item tag <strong>${qrCode}</strong>.</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    trackModalBody.innerHTML = `
+                        <div class="alert alert-danger text-center py-3 my-2">
+                            <i class="fa-solid fa-triangle-exclamation me-1"></i> Failed to communicate with production tracking server.
+                        </div>
+                    `;
+                });
+        });
+    }
 });
 </script>
