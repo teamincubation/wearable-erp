@@ -240,7 +240,7 @@
                         <span class="text-dash-sub small fw-bold text-uppercase d-block" style="font-size: 0.68rem; letter-spacing: 0.05em;">LATEST LIVE SCAN UPDATE</span>
                         <?php if ($latestLog): ?>
                             <?php $timeAgoStr = \App\Helpers\TimezoneHelper::timeAgo($latestLog['created_at'] ?? 'now'); ?>
-                            <span class="badge bg-primary bg-opacity-20 text-primary font-monospace" style="font-size: 9.5px;"><?= $timeAgoStr ?></span>
+                            <span class="badge bg-primary text-white font-monospace px-2 py-0.5" style="font-size: 10px; color: #ffffff !important; background-color: #2563eb !important;"><?= $timeAgoStr ?></span>
                         <?php endif; ?>
                     </div>
                     <?php if ($latestLog): ?>
@@ -601,7 +601,7 @@
                             latestScanContainer.innerHTML = `
                                 <div class="d-flex justify-content-between align-items-center mb-1">
                                     <span class="text-dash-sub small fw-bold text-uppercase d-block" style="font-size: 0.68rem; letter-spacing: 0.05em;">LATEST LIVE SCAN UPDATE</span>
-                                    <span class="badge bg-primary bg-opacity-20 text-primary font-monospace" style="font-size: 9.5px;">${log.time_ago}</span>
+                                    <span class="badge bg-primary text-white font-monospace px-2 py-0.5" style="font-size: 10px; color: #ffffff !important; background-color: #2563eb !important;">${log.time_ago}</span>
                                 </div>
                                 <h6 class="m-0 fw-bold font-outfit text-white text-truncate" style="font-size: 14px;">
                                     Stage: <span class="text-uppercase font-monospace text-primary">${log.stage_clean}</span>
