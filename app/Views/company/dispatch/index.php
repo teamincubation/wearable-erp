@@ -159,10 +159,10 @@
 
                                 if ($packedQty == 0) {
                                     $pStatusBadge = '<span class="badge bg-secondary">Unpacked</span>';
-                                } elseif ($packedQty < $targetQty) {
-                                    $pStatusBadge = '<span class="badge bg-warning text-dark">Partially Packed</span>';
-                                } else {
+                                } elseif ($unpackedBal <= 0) {
                                     $pStatusBadge = '<span class="badge bg-success">Fully Packed</span>';
+                                } else {
+                                    $pStatusBadge = '<span class="badge bg-warning text-dark">Partially Packed</span>';
                                 }
                             ?>
                                 <tr>

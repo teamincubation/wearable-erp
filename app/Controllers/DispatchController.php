@@ -142,10 +142,12 @@ class DispatchController extends Controller {
             if (!empty($filterBuyer) && (int)$b['buyer_id'] !== (int)$filterBuyer) return false;
             
             $packedQty = (int)$b['packed_in_cartons_qty'];
-            $targetQty = (int)$b['target_qty'];
+            $finishedQty = (int)$b['finished_output_qty'];
+            $unpackedBal = max(0, $finishedQty - $packedQty);
+
             if ($filterPacking === 'unpacked' && $packedQty > 0) return false;
-            if ($filterPacking === 'partially_packed' && ($packedQty == 0 || $packedQty >= $targetQty)) return false;
-            if ($filterPacking === 'fully_packed' && $packedQty < $targetQty) return false;
+            if ($filterPacking === 'partially_packed' && ($packedQty == 0 || $unpackedBal <= 0)) return false;
+            if ($filterPacking === 'fully_packed' && ($packedQty == 0 || $unpackedBal > 0)) return false;
 
             if (!empty($search)) {
                 $q = strtolower($search);
