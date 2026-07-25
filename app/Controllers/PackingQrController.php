@@ -81,6 +81,21 @@ class PackingQrController extends Controller {
                 }
             } catch (\PDOException $e) {}
         }
+
+        // Auto-heal production_stage_logs columns for qr_code and scanned_qr_code compatibility
+        try {
+            $chkQr = $db->query("SHOW COLUMNS FROM `production_stage_logs` LIKE 'qr_code'");
+            if (!$chkQr || $chkQr->rowCount() === 0) {
+                $db->exec("ALTER TABLE `production_stage_logs` ADD COLUMN `qr_code` VARCHAR(150) DEFAULT NULL");
+            }
+        } catch (\PDOException $e) {}
+
+        try {
+            $chkSqr = $db->query("SHOW COLUMNS FROM `production_stage_logs` LIKE 'scanned_qr_code'");
+            if (!$chkSqr || $chkSqr->rowCount() === 0) {
+                $db->exec("ALTER TABLE `production_stage_logs` ADD COLUMN `scanned_qr_code` VARCHAR(150) DEFAULT NULL AFTER `qr_code`");
+            }
+        } catch (\PDOException $e) {}
     }
 
     /**
@@ -300,12 +315,15 @@ class PackingQrController extends Controller {
 
             // 2. Fetch all logged product stage QRs for this batch
             $stmtLogs = $db->prepare("
-                SELECT psl.id, psl.scanned_qr_code, psl.stage, psl.qty_out, psl.created_at
+                SELECT psl.id, COALESCE(psl.scanned_qr_code, psl.qr_code) as scanned_qr_code, psl.stage, psl.qty_out, psl.created_at
                 FROM production_stage_logs psl
                 WHERE psl.company_id = ? 
                   AND psl.production_order_id = ?
-                  AND psl.scanned_qr_code IS NOT NULL 
-                  AND psl.scanned_qr_code != ''
+                  AND (
+                      (psl.scanned_qr_code IS NOT NULL AND psl.scanned_qr_code != '')
+                      OR
+                      (psl.qr_code IS NOT NULL AND psl.qr_code != '')
+                  )
                 ORDER BY psl.id ASC
             ");
             $stmtLogs->execute([$companyId, $prodOrderId]);
@@ -453,15 +471,15 @@ class PackingQrController extends Controller {
 
         // Rule 1 & 2: Product QR exists for tenant company
         $stmtLog = $db->prepare("
-            SELECT psl.*, pro.production_no, pro.id as prod_order_id, s.style_no, s.name as style_name, po.po_no as buyer_po_no
+            SELECT psl.*, COALESCE(psl.scanned_qr_code, psl.qr_code) as scanned_qr_code, pro.production_no, pro.id as prod_order_id, s.style_no, s.name as style_name, po.po_no as buyer_po_no
             FROM production_stage_logs psl
             JOIN production_orders pro ON psl.production_order_id = pro.id
             LEFT JOIN buyer_pos po ON pro.po_id = po.id
             LEFT JOIN styles s ON po.style_id = s.id
-            WHERE psl.scanned_qr_code = ? AND psl.company_id = ?
+            WHERE (psl.scanned_qr_code = ? OR psl.qr_code = ?) AND psl.company_id = ?
             ORDER BY psl.id DESC LIMIT 1
         ");
-        $stmtLog->execute([$productQr, $companyId]);
+        $stmtLog->execute([$productQr, $productQr, $companyId]);
         $product = $stmtLog->fetch();
 
         if (!$product) {
@@ -606,8 +624,8 @@ class PackingQrController extends Controller {
             ");
 
             $stmtStageLog = $db->prepare("
-                INSERT INTO production_stage_logs (company_id, production_order_id, stage, operator_id, qty_in, qty_out, scanned_qr_code, notes, created_at)
-                VALUES (?, ?, 'carton_assignment', ?, 1, 1, ?, ?, NOW())
+                INSERT INTO production_stage_logs (company_id, production_order_id, stage, operator_id, qty_in, qty_out, qr_code, scanned_qr_code, notes, created_at)
+                VALUES (?, ?, 'carton_assignment', ?, 1, 1, ?, ?, ?, NOW())
             ");
 
             $addedCount = 0;
@@ -623,7 +641,7 @@ class PackingQrController extends Controller {
                 }
 
                 $stmtInsItem->execute([$cartonId, $carton['production_order_id'], $cleanQr, $userId]);
-                $stmtStageLog->execute([$companyId, $carton['production_order_id'], $userId, $cleanQr, "Assigned to Carton {$carton['carton_no']} ({$assignmentMode})"]);
+                $stmtStageLog->execute([$companyId, $carton['production_order_id'], $userId, $cleanQr, $cleanQr, "Assigned to Carton {$carton['carton_no']} ({$assignmentMode})"]);
                 $addedCount++;
             }
 
@@ -717,7 +735,7 @@ class PackingQrController extends Controller {
                 $stmtItems = $db->prepare("
                     SELECT ci.*, psl.created_at as production_date
                     FROM carton_items ci
-                    LEFT JOIN production_stage_logs psl ON ci.product_qr_code = psl.scanned_qr_code AND psl.stage = 'packing'
+                    LEFT JOIN production_stage_logs psl ON (ci.product_qr_code = psl.scanned_qr_code OR ci.product_qr_code = psl.qr_code) AND psl.stage = 'packing'
                     WHERE ci.carton_id = ?
                     ORDER BY ci.id DESC
                 ");
@@ -728,7 +746,7 @@ class PackingQrController extends Controller {
             } else {
                 // Search as Product QR Code
                 $stmtProd = $db->prepare("
-                    SELECT psl.*, pro.production_no, s.style_no, s.name as style_name, po.po_no as buyer_po_no,
+                    SELECT psl.*, COALESCE(psl.scanned_qr_code, psl.qr_code) as scanned_qr_code, pro.production_no, s.style_no, s.name as style_name, po.po_no as buyer_po_no,
                            ci.carton_id, c.carton_no, c.status as carton_status, c.created_at as carton_packed_at,
                            b.name as client_name, w.name as warehouse_name,
                            shp.shipment_no, shp.status as shipment_status
@@ -736,16 +754,16 @@ class PackingQrController extends Controller {
                     JOIN production_orders pro ON psl.production_order_id = pro.id
                     LEFT JOIN buyer_pos po ON pro.po_id = po.id
                     LEFT JOIN styles s ON po.style_id = s.id
-                    LEFT JOIN carton_items ci ON psl.scanned_qr_code = ci.product_qr_code
+                    LEFT JOIN carton_items ci ON (psl.scanned_qr_code = ci.product_qr_code OR psl.qr_code = ci.product_qr_code)
                     LEFT JOIN cartons c ON ci.carton_id = c.id
                     LEFT JOIN contacts b ON c.client_id = b.id
                     LEFT JOIN warehouses w ON c.warehouse_id = w.id
                     LEFT JOIN shipment_cartons sc ON c.id = sc.carton_id
                     LEFT JOIN shipments shp ON sc.shipment_id = shp.id
-                    WHERE psl.company_id = ? AND psl.scanned_qr_code = ?
+                    WHERE psl.company_id = ? AND (psl.scanned_qr_code = ? OR psl.qr_code = ?)
                     ORDER BY psl.id DESC LIMIT 1
                 ");
-                $stmtProd->execute([$companyId, $query]);
+                $stmtProd->execute([$companyId, $query, $query]);
                 $productMatch = $stmtProd->fetch();
 
                 if ($productMatch) {
@@ -755,10 +773,10 @@ class PackingQrController extends Controller {
                         SELECT psl.*, u.name as operator_name 
                         FROM production_stage_logs psl
                         LEFT JOIN users u ON psl.operator_id = u.id
-                        WHERE psl.company_id = ? AND psl.scanned_qr_code = ?
+                        WHERE psl.company_id = ? AND (psl.scanned_qr_code = ? OR psl.qr_code = ?)
                         ORDER BY psl.id ASC
                     ");
-                    $stmtTimeline->execute([$companyId, $query]);
+                    $stmtTimeline->execute([$companyId, $query, $query]);
                     $productMatch['timeline'] = $stmtTimeline->fetchAll() ?: [];
 
                     $searchResult = $productMatch;
