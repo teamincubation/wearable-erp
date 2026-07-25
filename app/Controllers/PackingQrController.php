@@ -459,16 +459,6 @@ class PackingQrController extends Controller {
         $sessionCount = count($scannedSessionQrs);
         $totalProjected = $currentQty + $sessionCount + 1;
 
-        // Rule 0: Capacity Check
-        if ($totalProjected > $maxCap) {
-            echo json_encode([
-                'success' => false,
-                'error_code' => 'CAPACITY_EXCEEDED',
-                'message' => "Carton capacity limit reached ({$maxCap} pcs). Cannot accept more products."
-            ]);
-            return;
-        }
-
         // Rule 1 & 2: Product QR exists for tenant company
         $stmtLog = $db->prepare("
             SELECT psl.*, COALESCE(psl.scanned_qr_code, psl.qr_code) as scanned_qr_code, pro.production_no, pro.id as prod_order_id, s.style_no, s.name as style_name, po.po_no as buyer_po_no
@@ -607,12 +597,6 @@ class PackingQrController extends Controller {
         $maxCap = max(1, (int)($carton['max_capacity_pcs'] ?: 50));
         $currentQty = (int)$carton['current_assigned_qty'];
         $newCount = count($productQrs);
-
-        if ($currentQty + $newCount > $maxCap) {
-            $overage = ($currentQty + $newCount) - $maxCap;
-            echo json_encode(['success' => false, 'message' => "Cannot assign {$newCount} items. Carton capacity exceeded by {$overage} pcs."]);
-            return;
-        }
 
         try {
             $db->beginTransaction();
