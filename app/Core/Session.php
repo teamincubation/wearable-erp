@@ -11,33 +11,49 @@ class Session {
      */
     public static function start(): void {
         if (session_status() === PHP_SESSION_NONE) {
+            $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
+                       (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ||
+                       (!empty($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443);
+
+            $secure = defined('SESSION_SECURE') ? SESSION_SECURE : $isHttps;
+            $lifetime = defined('SESSION_LIFETIME') ? SESSION_LIFETIME : 7200;
+            $httponly = defined('SESSION_HTTPONLY') ? SESSION_HTTPONLY : true;
+            $samesite = defined('SESSION_SAMESITE') ? SESSION_SAMESITE : 'Lax';
+
             // Configure cookie parameters for security
             session_set_cookie_params([
-                'lifetime' => SESSION_LIFETIME,
+                'lifetime' => $lifetime,
                 'path' => '/',
                 'domain' => '', // Empty dynamically defaults to current host
-                'secure' => SESSION_SECURE,
-                'httponly' => SESSION_HTTPONLY,
-                'samesite' => SESSION_SAMESITE
+                'secure' => $secure,
+                'httponly' => $httponly,
+                'samesite' => $samesite
             ]);
 
             session_start();
         }
 
-        // Auto-regenerate session periodically to prevent session fixation (e.g., every 30 minutes)
+        // Auto-initialize CSRF token if missing
+        if (!isset($_SESSION['csrf_token']) || empty($_SESSION['csrf_token'])) {
+            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        }
+
+        // Periodically refresh session timestamp
         if (!isset($_SESSION['last_regeneration'])) {
-            self::regenerate();
+            $_SESSION['last_regeneration'] = time();
         } elseif (time() - $_SESSION['last_regeneration'] > 1800) {
             self::regenerate();
         }
     }
 
     /**
-     * Regenerate session ID and update timestamp
+     * Regenerate session ID and update timestamp safely
      */
     public static function regenerate(): void {
-        session_regenerate_id(true);
-        $_SESSION['last_regeneration'] = time();
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_regenerate_id(false);
+            $_SESSION['last_regeneration'] = time();
+        }
     }
 
     /**

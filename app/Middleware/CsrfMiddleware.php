@@ -16,14 +16,17 @@ class CsrfMiddleware extends Middleware {
             $token = $request->get('csrf_token') ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? null;
 
             if (!Session::validateCsrf($token)) {
+                // Refresh CSRF token for next request
+                Session::remove('csrf_token');
+                Session::csrfToken();
+
                 if ($request->isAjax()) {
                     $response->json(['error' => 'Security Error: CSRF token mismatch.'], 403);
                     return false;
                 }
 
                 Session::setFlash('error', 'Security Notice: Session expired or CSRF token mismatch. Please try again.');
-                $referer = $_SERVER['HTTP_REFERER'] ?? base_url('login');
-                $response->redirect($referer);
+                $response->redirect(base_url('login'));
                 return false;
             }
         }

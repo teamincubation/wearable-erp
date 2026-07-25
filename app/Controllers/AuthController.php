@@ -24,6 +24,9 @@ class AuthController extends Controller {
             return;
         }
 
+        // Initialize fresh CSRF token for login page render
+        Session::csrfToken();
+
         $this->renderView('auth/login', [
             'title' => 'Login | Wearable ERP SaaS Portal'
         ], 'auth');

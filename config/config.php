@@ -11,7 +11,10 @@ define('APP_KEY', 'base64:75wE63wZt75oGq4KWwiNfLec5x9f4aHw8Gvq4Z4XpP0='); // Enc
 
 // Session configuration
 define('SESSION_LIFETIME', 7200); // 2 hours
-define('SESSION_SECURE', false);  // Set to true in HTTPS production
+$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
+           (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ||
+           (!empty($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443);
+define('SESSION_SECURE', $isHttps);
 define('SESSION_HTTPONLY', true);
 define('SESSION_SAMESITE', 'Lax');
 
