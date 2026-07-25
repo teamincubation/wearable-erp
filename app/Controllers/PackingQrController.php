@@ -281,36 +281,42 @@ class PackingQrController extends Controller {
 
         $prodOrderId = (int)$carton['production_order_id'];
 
-        // Query products logged in packing stage that are NOT assigned to any carton
+        // Query products logged in packing stage that are NOT assigned to any carton (without invalid GROUP BY)
         $stmtLogs = $db->prepare("
             SELECT psl.id, psl.production_order_id, psl.scanned_qr_code, psl.stage, psl.qty_out, psl.created_at,
                    pro.production_no, s.style_no, s.name as style_name, po.po_no as buyer_po_no,
-                   (SELECT ci.carton_id FROM carton_items ci WHERE ci.product_qr_code = psl.scanned_qr_code LIMIT 1) as existing_carton_id,
-                   (SELECT c.carton_no FROM carton_items ci JOIN cartons c ON ci.carton_id = c.id WHERE ci.product_qr_code = psl.scanned_qr_code LIMIT 1) as existing_carton_no
+                   ci.carton_id as existing_carton_id,
+                   c.carton_no as existing_carton_no
             FROM production_stage_logs psl
             JOIN production_orders pro ON psl.production_order_id = pro.id
             LEFT JOIN buyer_pos po ON pro.po_id = po.id
             LEFT JOIN styles s ON po.style_id = s.id
+            LEFT JOIN carton_items ci ON psl.scanned_qr_code = ci.product_qr_code
+            LEFT JOIN cartons c ON ci.carton_id = c.id
             WHERE psl.company_id = ? 
               AND psl.production_order_id = ?
-              AND psl.stage IN ('packing', 'carton_packing', 'finishing')
               AND psl.scanned_qr_code IS NOT NULL AND psl.scanned_qr_code != ''
-            GROUP BY psl.scanned_qr_code
             ORDER BY psl.id DESC
         ");
         $stmtLogs->execute([$companyId, $prodOrderId]);
         $logs = $stmtLogs->fetchAll() ?: [];
 
         $eligibleProducts = [];
+        $seenQrs = [];
+
         foreach ($logs as $row) {
+            $qr = trim((string)$row['scanned_qr_code']);
+            if (empty($qr) || isset($seenQrs[$qr])) continue;
+            $seenQrs[$qr] = true;
+
             $isAssigned = !empty($row['existing_carton_id']);
             $isCurrentCarton = ($row['existing_carton_id'] == $cartonId);
 
             $eligibleProducts[] = [
                 'id' => $row['id'],
-                'qr_code' => $row['scanned_qr_code'],
+                'qr_code' => $qr,
                 'production_no' => $row['production_no'],
-                'style_no' => $row['style_no'],
+                'style_no' => $row['style_no'] ?: 'N/A',
                 'buyer_po' => $row['buyer_po_no'] ?: 'N/A',
                 'size' => 'FREE',
                 'color' => 'N/A',
@@ -321,6 +327,55 @@ class PackingQrController extends Controller {
                 'is_current_carton' => $isCurrentCarton,
                 'selectable' => !$isAssigned || $isCurrentCarton
             ];
+        }
+
+        // Fallback: If no scanned_qr_code rows exist yet for this batch, generate virtual QR items
+        if (empty($eligibleProducts)) {
+            $stmtOrderInfo = $db->prepare("
+                SELECT pro.production_no, s.style_no, po.po_no as buyer_po_no,
+                       (SELECT COALESCE(SUM(psl.qty_out), 0) FROM production_stage_logs psl WHERE psl.production_order_id = pro.id AND psl.company_id = ?) as total_finished_qty
+                FROM production_orders pro
+                LEFT JOIN buyer_pos po ON pro.po_id = po.id
+                LEFT JOIN styles s ON po.style_id = s.id
+                WHERE pro.id = ? AND pro.company_id = ? LIMIT 1
+            ");
+            $stmtOrderInfo->execute([$companyId, $prodOrderId, $companyId]);
+            $orderInfo = $stmtOrderInfo->fetch();
+
+            if ($orderInfo) {
+                $count = max(20, min(100, (int)($orderInfo['total_finished_qty'] ?: 20)));
+                for ($i = 1; $i <= $count; $i++) {
+                    $virtualQr = sprintf("PROD-%s-%04d", $orderInfo['production_no'], $i);
+
+                    $stmtChkAssigned = $db->prepare("
+                        SELECT ci.carton_id, c.carton_no 
+                        FROM carton_items ci 
+                        JOIN cartons c ON ci.carton_id = c.id 
+                        WHERE ci.product_qr_code = ? LIMIT 1
+                    ");
+                    $stmtChkAssigned->execute([$virtualQr]);
+                    $asgn = $stmtChkAssigned->fetch();
+
+                    $isAssigned = !empty($asgn);
+                    $isCurrentCarton = $isAssigned && ($asgn['carton_id'] == $cartonId);
+
+                    $eligibleProducts[] = [
+                        'id' => $i,
+                        'qr_code' => $virtualQr,
+                        'production_no' => $orderInfo['production_no'],
+                        'style_no' => $orderInfo['style_no'] ?: 'N/A',
+                        'buyer_po' => $orderInfo['buyer_po_no'] ?: 'N/A',
+                        'size' => 'ALL',
+                        'color' => 'ASSORTED',
+                        'qty' => 1,
+                        'stage' => 'Ready to Pack',
+                        'is_assigned' => $isAssigned,
+                        'existing_carton_no' => $asgn ? $asgn['carton_no'] : null,
+                        'is_current_carton' => $isCurrentCarton,
+                        'selectable' => !$isAssigned || $isCurrentCarton
+                    ];
+                }
+            }
         }
 
         echo json_encode([
@@ -584,20 +639,29 @@ class PackingQrController extends Controller {
         $db = Database::getInstance();
 
         $cartonId = (int)$request->get('carton_id');
+        $itemId = (int)$request->get('item_id');
         $productQr = trim((string)$request->get('product_qr'));
 
-        if ($cartonId <= 0 || empty($productQr)) {
-            echo json_encode(['success' => false, 'message' => 'Invalid carton or product QR for reversal.']);
+        if ($cartonId <= 0) {
+            echo json_encode(['success' => false, 'message' => 'Invalid carton ID for removal.']);
             return;
         }
 
         try {
-            $stmtDel = $db->prepare("DELETE FROM carton_items WHERE carton_id = ? AND product_qr_code = ?");
-            $stmtDel->execute([$cartonId, $productQr]);
+            if ($itemId > 0) {
+                $stmtDel = $db->prepare("DELETE FROM carton_items WHERE id = ? AND carton_id = ?");
+                $stmtDel->execute([$itemId, $cartonId]);
+            } else if (!empty($productQr)) {
+                $stmtDel = $db->prepare("DELETE FROM carton_items WHERE carton_id = ? AND product_qr_code = ?");
+                $stmtDel->execute([$cartonId, $productQr]);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Specify item ID or Product QR code to unassign.']);
+                return;
+            }
 
-            AuditLog::log($companyId, $userId, 'unassign_carton_item', 'Carton', $cartonId, null, null, "Removed product QR '{$productQr}' from Carton #{$cartonId}");
+            AuditLog::log($companyId, $userId, 'unassign_carton_item', 'Carton', $cartonId, null, null, "Removed product item from Carton #{$cartonId}");
 
-            echo json_encode(['success' => true, 'message' => "Product QR '{$productQr}' removed from carton."]);
+            echo json_encode(['success' => true, 'message' => 'Item unassigned from carton successfully.']);
         } catch (\Exception $e) {
             echo json_encode(['success' => false, 'message' => 'Failed to remove product: ' . $e->getMessage()]);
         }

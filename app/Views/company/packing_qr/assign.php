@@ -266,18 +266,24 @@
                     </thead>
                     <tbody>
                         <?php if (!empty($assignedItems)): ?>
-                            <?php foreach ($assignedItems as $ai): ?>
+                            <?php foreach ($assignedItems as $ai): 
+                                $itemQr = !empty($ai['product_qr_code']) ? (string)$ai['product_qr_code'] : ('ITEM-' . $ai['id']);
+                                $assignedByName = !empty($ai['assigned_by_name']) ? (string)$ai['assigned_by_name'] : 'Admin';
+                                $sizeVal = !empty($ai['size']) ? (string)$ai['size'] : 'FREE';
+                                $colorVal = !empty($ai['color']) ? (string)$ai['color'] : 'N/A';
+                                $assignedDate = !empty($ai['assigned_at']) ? date('d M Y, h:i A', strtotime($ai['assigned_at'])) : (!empty($ai['created_at']) ? date('d M Y, h:i A', strtotime($ai['created_at'])) : 'N/A');
+                            ?>
                                 <tr>
                                     <td class="ps-4">
-                                        <strong class="font-monospace text-primary"><?= htmlspecialchars($ai['product_qr_code'] ?: 'N/A') ?></strong>
+                                        <strong class="font-monospace text-primary"><?= htmlspecialchars($itemQr) ?></strong>
                                     </td>
                                     <td><span class="font-monospace text-dark fw-bold"><?= htmlspecialchars($carton['production_no']) ?></span></td>
-                                    <td><span class="badge bg-light text-dark border font-monospace"><?= htmlspecialchars($ai['size']) ?> / <?= htmlspecialchars($ai['color']) ?></span></td>
-                                    <td><span class="badge bg-success-subtle text-success border font-monospace"><?= number_format($ai['qty']) ?> pcs</span></td>
-                                    <td class="font-monospace small"><?= htmlspecialchars($ai['assigned_by_name'] ?: 'Admin') ?></td>
-                                    <td class="font-monospace small text-muted"><?= date('d M Y, h:i A', strtotime($ai['assigned_at'])) ?></td>
+                                    <td><span class="badge bg-light text-dark border font-monospace"><?= htmlspecialchars($sizeVal) ?> / <?= htmlspecialchars($colorVal) ?></span></td>
+                                    <td><span class="badge bg-success-subtle text-success border font-monospace"><?= number_format((int)($ai['qty'] ?: 1)) ?> pcs</span></td>
+                                    <td class="font-monospace small"><?= htmlspecialchars($assignedByName) ?></td>
+                                    <td class="font-monospace small text-muted"><?= htmlspecialchars($assignedDate) ?></td>
                                     <td class="text-end pe-4">
-                                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2.5" title="Remove / Unassign from Carton" onclick="removeProductFromCarton('<?= htmlspecialchars($ai['product_qr_code']) ?>')">
+                                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3" title="Remove / Unassign from Carton" onclick="removeProductFromCarton('<?= htmlspecialchars($itemQr) ?>', <?= (int)$ai['id'] ?>)">
                                             <i class="fa-solid fa-trash-can me-1"></i> Unassign
                                         </button>
                                     </td>
@@ -567,13 +573,13 @@
         .catch(err => alert('Network error finalizing session.'));
     }
 
-    function removeProductFromCarton(qrCode) {
-        if (!confirm(`Authorised Reversal: Are you sure you want to unassign Product QR '${qrCode}' from Carton ${CARTON_NO}?`)) return;
+    function removeProductFromCarton(qrCode, itemId) {
+        if (!confirm(`Authorised Reversal: Are you sure you want to unassign item '${qrCode}' from Carton ${CARTON_NO}?`)) return;
 
         fetch('<?= base_url('company/packing-qr/api/remove-product') ?>', {
             method: 'POST',
             headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-            body: `carton_id=${CARTON_ID}&product_qr=${encodeURIComponent(qrCode)}`
+            body: `carton_id=${CARTON_ID}&item_id=${itemId || 0}&product_qr=${encodeURIComponent(qrCode || '')}`
         })
         .then(res => res.json())
         .then(data => {
