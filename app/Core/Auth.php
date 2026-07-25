@@ -171,6 +171,7 @@ class Auth {
             'dashboard' => ['url' => 'company/dashboard', 'permission' => 'company.dashboard'],
             'hr' => ['url' => 'company/hr/attendance', 'permission' => 'company.users.view'],
             'production' => ['url' => 'company/production/orders', 'permission' => 'company.production.view'],
+            'dispatch' => ['url' => 'company/dispatch', 'permission' => 'company.dispatch.view'],
             'merchandising' => ['url' => 'company/merchandising/buyerpos', 'permission' => 'company.styles.view'],
             'styles' => ['url' => 'company/styles', 'permission' => 'company.styles.view'],
             'buyers' => ['url' => 'company/buyers', 'permission' => 'company.styles.view'],

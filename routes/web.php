@@ -600,6 +600,41 @@ $router->get('/company/production/stage/{id}/live-report', [\App\Controllers\Pro
        ->middleware(PermissionMiddleware::class)
        ->permission('company.production.view');
 
+// Finished Goods Dispatch & Packing Hub
+$router->get('/company/dispatch', [\App\Controllers\DispatchController::class, 'index'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.dispatch.view');
+
+$router->post('/company/dispatch/cartons/create', [\App\Controllers\DispatchController::class, 'createCarton'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.dispatch.manage');
+
+$router->post('/company/dispatch/cartons/{id}/reopen', [\App\Controllers\DispatchController::class, 'reopenCarton'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.dispatch.manage');
+
+$router->get('/company/dispatch/cartons/print', [\App\Controllers\DispatchController::class, 'printCartonQr'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.dispatch.view');
+
+$router->post('/company/dispatch/shipments/create', [\App\Controllers\DispatchController::class, 'createShipment'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.dispatch.manage');
+
+$router->post('/company/dispatch/shipments/{id}/status', [\App\Controllers\DispatchController::class, 'updateShipmentStatus'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.dispatch.manage');
+
 $router->get('/company/production/stage/{id}/live-api', [\App\Controllers\ProductionController::class, 'stageLiveApi'])
        ->middleware(AuthMiddleware::class)
        ->middleware(PermissionMiddleware::class)

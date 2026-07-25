@@ -566,12 +566,14 @@ INSERT INTO `permissions` (`id`, `name`, `description`, `module`) VALUES
 (21, 'company.production.view', 'View production orders and stage trackers', 'tenant'),
 (22, 'company.production.manage', 'Start and log production order activities', 'tenant'),
 (23, 'company.payroll.manage', 'Process monthly payroll and employee attendance', 'tenant'),
-(24, 'company.tally.export', 'Generate and download Tally financial vouchers', 'tenant')
+(24, 'company.tally.export', 'Generate and download Tally financial vouchers', 'tenant'),
+(25, 'company.dispatch.view', 'View finished goods dispatch and packing hub', 'tenant'),
+(26, 'company.dispatch.manage', 'Manage carton packing, printing QR labels, and dispatching shipments', 'tenant')
 ON DUPLICATE KEY UPDATE `name` = VALUES(`name`);
 
 -- 27. MAP NEW PERMISSIONS TO COMPANY ADMIN (ROLE ID 2)
 INSERT IGNORE INTO `role_permissions` (`role_id`, `permission_id`) VALUES
-(2, 17), (2, 18), (2, 19), (2, 20), (2, 21), (2, 22), (2, 23), (2, 24);
+(2, 17), (2, 18), (2, 19), (2, 20), (2, 21), (2, 22), (2, 23), (2, 24), (2, 25), (2, 26);
 
 -- 28. BOM CATEGORIES TABLE
 CREATE TABLE IF NOT EXISTS `bom_categories` (
