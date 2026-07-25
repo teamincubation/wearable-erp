@@ -246,6 +246,16 @@
                                         <td><span class="badge bg-light text-secondary"><?= $h['duration_minutes'] ?> mins</span></td>
                                         <td>
                                             <strong class="text-dark font-monospace" style="font-size: 12px;"><?= $dtH->format('d M Y, h:i A') ?></strong>
+                                            <?php if (!empty($h['edited_by_name']) || !empty($h['edited_at'])): ?>
+                                                <?php
+                                                $dtEdit = !empty($h['edited_at']) ? new \DateTime($h['edited_at'], new \DateTimeZone('UTC')) : null;
+                                                if ($dtEdit) { try { $dtEdit->setTimezone(new \DateTimeZone($tzStr)); } catch (\Exception $e) {} }
+                                                $editTimeStr = $dtEdit ? $dtEdit->format('d M Y, h:i A') : '';
+                                                ?>
+                                                <small class="d-block font-monospace mt-1" style="color: #d97706; font-size: 11px; line-height: 1.3;">
+                                                    <i class="fa-solid fa-pen-to-square me-1"></i> Edited by <strong><?= htmlspecialchars($h['edited_by_name'] ?: 'Admin') ?></strong><?= $editTimeStr ? ' on ' . $editTimeStr : '' ?><?= !empty($h['edit_remarks']) ? ' &mdash; &ldquo;' . htmlspecialchars($h['edit_remarks']) . '&rdquo;' : '' ?>
+                                                </small>
+                                            <?php endif; ?>
                                         </td>
                                         <td class="text-end">
                                             <?php if (\App\Core\Auth::hasPermission('company.production.manage')): ?>
@@ -328,6 +338,10 @@
                                                                             <label class="form-label small fw-bold">End Time</label>
                                                                             <input type="time" name="end_time" class="form-control text-dark" value="<?= $h['end_time'] ? date('H:i', strtotime($h['end_time'])) : date('H:i') ?>" required>
                                                                         </div>
+                                                                    </div>
+                                                                    <div class="mb-3">
+                                                                        <label class="form-label small fw-bold text-dark">Edit Remarks / Reason <span class="text-muted fw-normal">(Optional)</span></label>
+                                                                        <input type="text" name="edit_remarks" class="form-control text-dark" value="<?= htmlspecialchars($h['edit_remarks'] ?? '') ?>" placeholder="e.g. Changed status to PASS after quality re-inspection">
                                                                     </div>
                                                                 </div>
                                                                 <div class="modal-footer">

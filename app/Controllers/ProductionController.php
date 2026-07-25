@@ -119,11 +119,23 @@ class ProductionController extends Controller {
         $totalLogs = (int)$stmtCount->fetchColumn();
         $totalPages = max(1, (int)ceil($totalLogs / $limit));
 
+        // Auto-heal edited_by, edited_at, edit_remarks columns in production_stage_logs
+        try {
+            $db->query("SELECT edited_by FROM production_stage_logs LIMIT 1");
+        } catch (\Exception $e) {
+            try {
+                $db->exec("ALTER TABLE `production_stage_logs` ADD COLUMN `edited_by` INT DEFAULT NULL AFTER `created_at`");
+                $db->exec("ALTER TABLE `production_stage_logs` ADD COLUMN `edited_at` DATETIME DEFAULT NULL AFTER `edited_by`");
+                $db->exec("ALTER TABLE `production_stage_logs` ADD COLUMN `edit_remarks` VARCHAR(255) DEFAULT NULL AFTER `edited_at`");
+            } catch (\Exception $ex) {}
+        }
+
         // Fetch stage history logs page-wise
-        $stmt = $db->prepare("SELECT psl.*, m.name as machine_name, u.name as employee_name
+        $stmt = $db->prepare("SELECT psl.*, m.name as machine_name, u.name as employee_name, u_edit.name as edited_by_name
                              FROM production_stage_logs psl
                              LEFT JOIN machines m ON psl.machine_id = m.id
                              LEFT JOIN users u ON psl.employee_id = u.id
+                             LEFT JOIN users u_edit ON psl.edited_by = u_edit.id
                              WHERE psl.production_order_id = ? AND psl.company_id = ?
                              ORDER BY psl.id DESC
                              LIMIT {$limit} OFFSET {$offset}");
@@ -279,9 +291,12 @@ class ProductionController extends Controller {
         $end = strtotime($endTimeDate);
         $durationMinutes = $end > $start ? (int)(($end - $start) / 60) : 0;
 
+        $editRemarks = trim((string)$request->get('edit_remarks'));
+
         try {
             $stmtUpdate = $db->prepare("UPDATE production_stage_logs 
-                                        SET stage = ?, machine_id = ?, employee_id = ?, qty_in = ?, qty_out = ?, waste_qty = ?, start_time = ?, end_time = ?, duration_minutes = ?
+                                        SET stage = ?, machine_id = ?, employee_id = ?, qty_in = ?, qty_out = ?, waste_qty = ?, start_time = ?, end_time = ?, duration_minutes = ?,
+                                            edited_by = ?, edited_at = UTC_TIMESTAMP(), edit_remarks = ?
                                         WHERE id = ? AND company_id = ?");
             $stmtUpdate->execute([
                 $stage,
@@ -293,11 +308,13 @@ class ProductionController extends Controller {
                 $startTimeDate,
                 $endTimeDate,
                 $durationMinutes,
+                $userId,
+                !empty($editRemarks) ? $editRemarks : null,
                 (int)$id,
                 $companyId
             ]);
 
-            AuditLog::log($companyId, $userId, 'edit_production_stage_log', 'ProductionStageLog', (int)$id, null, null, "Edited stage {$stage} activity for log id {$id}");
+            AuditLog::log($companyId, $userId, 'edit_production_stage_log', 'ProductionStageLog', (int)$id, null, null, "Edited stage {$stage} activity for log id {$id}" . (!empty($editRemarks) ? " (Remarks: {$editRemarks})" : ""));
             Session::setFlash('success', "Stage log entry updated successfully.");
         } catch (\Exception $e) {
             Session::setFlash('error', 'Failed to update stage log: ' . $e->getMessage());
@@ -1083,10 +1100,11 @@ class ProductionController extends Controller {
 
         // Fetch the 15 most recent activity logs for live ticker
         $stmtLogs = $db->prepare("
-            SELECT psl.*, u.name as employee_name, m.name as machine_name
+            SELECT psl.*, u.name as employee_name, m.name as machine_name, u_edit.name as edited_by_name
             FROM production_stage_logs psl
             LEFT JOIN users u ON psl.employee_id = u.id
             LEFT JOIN machines m ON psl.machine_id = m.id
+            LEFT JOIN users u_edit ON psl.edited_by = u_edit.id
             WHERE psl.production_order_id = ? AND psl.company_id = ?
             ORDER BY psl.id DESC
             LIMIT 15
@@ -1144,10 +1162,11 @@ class ProductionController extends Controller {
         $tenantTimezone = $stmtComp->fetchColumn() ?: 'Asia/Kolkata';
 
         $stmtLogs = $db->prepare("
-            SELECT psl.*, u.name as employee_name, m.name as machine_name
+            SELECT psl.*, u.name as employee_name, m.name as machine_name, u_edit.name as edited_by_name
             FROM production_stage_logs psl
             LEFT JOIN users u ON psl.employee_id = u.id
             LEFT JOIN machines m ON psl.machine_id = m.id
+            LEFT JOIN users u_edit ON psl.edited_by = u_edit.id
             WHERE psl.production_order_id = ? AND psl.company_id = ?
             ORDER BY psl.id DESC
             LIMIT 15
@@ -1160,6 +1179,7 @@ class ProductionController extends Controller {
             $log['formatted_datetime'] = \App\Helpers\TimezoneHelper::formatTenantTime($log['created_at'] ?? 'now', $tenantTimezone, 'd M, h:i A');
             $log['time_ago'] = \App\Helpers\TimezoneHelper::timeAgo($log['created_at'] ?? 'now');
             $log['stage_clean'] = str_replace('_', ' ', $log['stage']);
+            $log['edited_at_formatted'] = !empty($log['edited_at']) ? \App\Helpers\TimezoneHelper::formatTenantTime($log['edited_at'], $tenantTimezone, 'd M Y, h:i A') : null;
         }
         unset($log);
 
@@ -1434,10 +1454,11 @@ class ProductionController extends Controller {
 
         // Find stage logs matching QR code or batch/serial
         $stmtLogs = $db->prepare("
-            SELECT psl.*, u.name as operator_name, r.name as operator_role
+            SELECT psl.*, u.name as operator_name, r.name as operator_role, u_edit.name as edited_by_name
             FROM production_stage_logs psl
             LEFT JOIN users u ON psl.employee_id = u.id
             LEFT JOIN roles r ON u.role_id = r.id
+            LEFT JOIN users u_edit ON psl.edited_by = u_edit.id
             WHERE psl.company_id = ? AND (psl.qr_code = ? OR psl.qr_code LIKE ?)
             ORDER BY psl.id ASC
         ");
@@ -1446,10 +1467,11 @@ class ProductionController extends Controller {
 
         if (empty($logs) && $batchId > 0) {
             $stmtLogs2 = $db->prepare("
-                SELECT psl.*, u.name as operator_name, r.name as operator_role
+                SELECT psl.*, u.name as operator_name, r.name as operator_role, u_edit.name as edited_by_name
                 FROM production_stage_logs psl
                 LEFT JOIN users u ON psl.employee_id = u.id
                 LEFT JOIN roles r ON u.role_id = r.id
+                LEFT JOIN users u_edit ON psl.edited_by = u_edit.id
                 WHERE psl.company_id = ? AND psl.production_order_id = ? AND psl.qr_code LIKE ?
                 ORDER BY psl.id ASC
             ");
@@ -1464,16 +1486,24 @@ class ProductionController extends Controller {
                 $dt->setTimezone(new \DateTimeZone($tzStr));
             } catch (\Exception $ex) {}
 
+            $dtEdit = !empty($l['edited_at']) ? new \DateTime($l['edited_at'], new \DateTimeZone('UTC')) : null;
+            if ($dtEdit) {
+                try { $dtEdit->setTimezone(new \DateTimeZone($tzStr)); } catch (\Exception $ex) {}
+            }
+
             $formattedLogs[] = [
                 'stage' => str_replace('_', ' ', strtoupper($l['stage'])),
-                'status' => strtoupper($l['status'] ?? 'PASS'),
+                'status' => ((int)($l['qty_out'] ?? 0) === 0 || (int)($l['waste_qty'] ?? 0) > 0) ? 'FAIL' : 'PASS',
                 'operator_name' => $l['operator_name'] ?: 'System Operator',
                 'operator_role' => $l['operator_role'] ?: 'Production Staff',
-                'good_qty' => (int)($l['qty_out'] ?? $l['good_qty'] ?? 1),
-                'waste_qty' => (int)($l['waste_qty'] ?? $l['reject_qty'] ?? 0),
+                'good_qty' => (int)($l['qty_out'] ?? 1),
+                'waste_qty' => (int)($l['waste_qty'] ?? 0),
                 'updated_at' => $dt->format('d M Y, h:i A'),
                 'time_ago' => \App\Helpers\TimezoneHelper::timeAgo($l['created_at'] ?? 'now'),
-                'duration' => !empty($l['duration_seconds']) ? round($l['duration_seconds'] / 60, 1) . ' mins' : 'N/A'
+                'duration' => !empty($l['duration_minutes']) ? $l['duration_minutes'] . ' mins' : '1 mins',
+                'edited_by_name' => $l['edited_by_name'] ?? null,
+                'edited_at_formatted' => $dtEdit ? $dtEdit->format('d M Y, h:i A') : null,
+                'edit_remarks' => $l['edit_remarks'] ?? null
             ];
         }
 
