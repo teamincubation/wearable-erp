@@ -19,9 +19,42 @@
 $rawSizes = !empty($style['size_range']) ? explode(',', $style['size_range']) : [];
 $sizes = array_values(array_filter(array_map('trim', $rawSizes)));
 
-// Receive categories & stock items directly from controller (fetched from Current Stock Levels in company/inventory/balances)
-$stockCategories = $stock_categories ?? [];
-$stockItemsByCategory = $stock_items_by_category ?? [];
+// Parse available inventory stock categories strictly from tenant's Centralized Inventory Master (company/inventory/balances)
+$stockCategories = array_values(array_unique(array_filter(array_map('trim', $inventory_categories ?? []))));
+
+// Preserve any previously saved BOM category on existing rows so historical records remain fully visible
+if (!empty($bom_list)) {
+    foreach ($bom_list as $bItem) {
+        if (!empty($bItem['item_type'])) {
+            $savedCat = trim($bItem['item_type']);
+            if ($savedCat !== '' && !in_array($savedCat, $stockCategories)) {
+                $stockCategories[] = $savedCat;
+            }
+        }
+    }
+}
+sort($stockCategories);
+$stockCategories = array_values(array_unique(array_filter($stockCategories)));
+
+$stockItemsByCategory = [];
+foreach ($stockCategories as $catName) {
+    $stockItemsByCategory[$catName] = [];
+}
+
+if (!empty($stock_summary)) {
+    foreach ($stock_summary as $stk) {
+        $cType = !empty($stk['item_type']) ? trim($stk['item_type']) : '';
+        $iName = !empty($stk['item_name']) ? trim($stk['item_name']) : '';
+        if ($cType !== '' && $iName !== '') {
+            if (!isset($stockItemsByCategory[$cType])) {
+                $stockItemsByCategory[$cType] = [];
+            }
+            if (!in_array($iName, $stockItemsByCategory[$cType])) {
+                $stockItemsByCategory[$cType][] = $iName;
+            }
+        }
+    }
+}
 ?>
 
 <form id="techpackForm" action="<?= base_url('company/styles/techpack/' . $techpack['id']) ?>" method="POST">
@@ -157,8 +190,9 @@ $stockItemsByCategory = $stock_items_by_category ?? [];
                                                         <?php foreach ($stockCategories as $cat): ?>
                                                             <option value="<?= htmlspecialchars($cat) ?>" <?= (strcasecmp($cat, $bom['item_type'] ?? '') === 0) ? 'selected' : '' ?>><?= htmlspecialchars($cat) ?></option>
                                                         <?php endforeach; ?>
+                                                    <?php else: ?>
+                                                        <option value="" disabled selected>No Stock Categories (Add in Inventory Balances)</option>
                                                     <?php endif; ?>
-                                                    <option value="__add_custom_category__">+ Add Custom Category / Type...</option>
                                                 </select>
                                             </td>
                                             <td>
@@ -332,36 +366,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function handleCustomCategorySelection(catSel, nameInput) {
-        if (catSel.value === '__add_custom_category__') {
-            const customCat = prompt("Enter custom Category / Material Type name:");
-            if (customCat && customCat.trim()) {
-                const trimmedCat = customCat.trim();
-                const newOpt = document.createElement('option');
-                newOpt.value = trimmedCat;
-                newOpt.textContent = trimmedCat;
-                newOpt.selected = true;
-                
-                const customOptionEl = catSel.querySelector('option[value="__add_custom_category__"]');
-                if (customOptionEl) {
-                    catSel.insertBefore(newOpt, customOptionEl);
-                } else {
-                    catSel.appendChild(newOpt);
-                }
-                
-                if (!stockCatList.includes(trimmedCat)) {
-                    stockCatList.push(trimmedCat);
-                }
-                populateRowDatalist(catSel, nameInput);
-            } else {
-                catSel.selectedIndex = 0;
-                populateRowDatalist(catSel, nameInput);
-            }
-        } else {
-            populateRowDatalist(catSel, nameInput);
-        }
-    }
-
     function bindCategoryCascades() {
         document.querySelectorAll('#bomTable tbody tr').forEach(row => {
             const catSel = row.querySelector('.bom-cat-select');
@@ -371,7 +375,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!catSel.dataset.bound) {
                     catSel.dataset.bound = 'true';
                     catSel.addEventListener('change', function() {
-                        handleCustomCategorySelection(catSel, nameInput);
+                        populateRowDatalist(catSel, nameInput);
                     });
                 }
             }
@@ -391,10 +395,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             let catOptionsHtml = '';
-            stockCatList.forEach(c => {
-                catOptionsHtml += `<option value="${c}">${c}</option>`;
-            });
-            catOptionsHtml += `<option value="__add_custom_category__">+ Add Custom Category / Type...</option>`;
+            if (stockCatList && stockCatList.length > 0) {
+                stockCatList.forEach(c => {
+                    catOptionsHtml += `<option value="${c}">${c}</option>`;
+                });
+            } else {
+                catOptionsHtml = `<option value="" disabled selected>No Stock Categories (Add in Inventory Balances)</option>`;
+            }
 
             const newRow = document.createElement('tr');
             newRow.innerHTML = `

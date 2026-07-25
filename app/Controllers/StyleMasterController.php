@@ -207,69 +207,35 @@ class StyleMasterController extends Controller {
         $db = Database::getInstance();
         $companyId = Session::get('company_id');
 
-        // Fetch current stock inventory summary (Current Stock Levels from company/inventory/balances)
+        // Fetch current stock inventory items & categories directly from Centralized Inventory Master (company/inventory/balances)
         $inventoryService = new \App\Services\InventoryService();
         $stockSummary = $inventoryService->getInventorySummary($companyId);
 
-        // Extract unique, non-empty categories (item_type) from Current Stock Levels data
-        $stockLevelCategories = [];
+        // Fetch distinct inventory item types/categories from inventory ledger
+        $stmtInvCat = $db->prepare("
+            SELECT DISTINCT TRIM(item_type) as cat_name 
+            FROM inventory_transactions 
+            WHERE company_id = ? 
+              AND item_type IS NOT NULL 
+              AND TRIM(item_type) != '' 
+            ORDER BY TRIM(item_type) ASC
+        ");
+        $stmtInvCat->execute([$companyId]);
+        $inventoryCategories = $stmtInvCat->fetchAll(\PDO::FETCH_COLUMN) ?: [];
+
+        // Merge any distinct item_types from live stock summary
         if (!empty($stockSummary)) {
             foreach ($stockSummary as $stk) {
                 if (!empty($stk['item_type'])) {
                     $cType = trim($stk['item_type']);
-                    if ($cType !== '' && !in_array($cType, $stockLevelCategories)) {
-                        $stockLevelCategories[] = $cType;
+                    if ($cType !== '' && !in_array($cType, $inventoryCategories)) {
+                        $inventoryCategories[] = $cType;
                     }
                 }
             }
         }
-
-        // Fetch master BOM categories from Master Data Hub
-        $stmtCat = $db->prepare("SELECT name FROM bom_categories WHERE company_id = ? AND deleted_at IS NULL ORDER BY name ASC");
-        $stmtCat->execute([$companyId]);
-        $bomCategories = $stmtCat->fetchAll(\PDO::FETCH_COLUMN) ?: [];
-
-        // Fetch distinct item_type categories from inventory_transactions
-        $stmtInvCat = $db->prepare("SELECT DISTINCT item_type FROM inventory_transactions WHERE company_id = ? AND item_type IS NOT NULL AND item_type != '' ORDER BY item_type ASC");
-        $stmtInvCat->execute([$companyId]);
-        $invItemTypes = $stmtInvCat->fetchAll(\PDO::FETCH_COLUMN) ?: [];
-
-        // Combine categories dynamically (Prioritize Current Stock Levels first)
-        $stockCategories = array_values(array_unique(array_filter(array_merge(
-            $stockLevelCategories,
-            $bomCategories,
-            $invItemTypes
-        ))));
-
-        // Also ensure any category already saved in this Tech Pack's BOM is present
-        if (!empty($bomList)) {
-            foreach ($bomList as $bRow) {
-                if (!empty($bRow['item_type']) && !in_array($bRow['item_type'], $stockCategories)) {
-                    $stockCategories[] = trim($bRow['item_type']);
-                }
-            }
-        }
-
-        // Map live stock items from Current Stock Levels by Category
-        $stockItemsByCategory = [];
-        foreach ($stockCategories as $catName) {
-            $stockItemsByCategory[$catName] = [];
-        }
-
-        if (!empty($stockSummary)) {
-            foreach ($stockSummary as $stk) {
-                $cType = !empty($stk['item_type']) ? trim($stk['item_type']) : '';
-                $iName = !empty($stk['item_name']) ? trim($stk['item_name']) : '';
-                if ($cType !== '' && $iName !== '') {
-                    if (!isset($stockItemsByCategory[$cType])) {
-                        $stockItemsByCategory[$cType] = [];
-                    }
-                    if (!in_array($iName, $stockItemsByCategory[$cType])) {
-                        $stockItemsByCategory[$cType][] = $iName;
-                    }
-                }
-            }
-        }
+        sort($inventoryCategories);
+        $inventoryCategories = array_values(array_unique(array_filter($inventoryCategories)));
 
         $companyWipStages = CompanyController::getCompanyWipStages($companyId);
         $styleStages = json_decode($techpack['stages_json'] ?? '[]', true) ?: [];
@@ -281,10 +247,7 @@ class StyleMasterController extends Controller {
             'bom_list' => $bomList,
             'size_guide' => $sizeGuide,
             'stock_summary' => $stockSummary,
-            'stock_categories' => $stockCategories,
-            'stock_items_by_category' => $stockItemsByCategory,
-            'bom_categories' => $bomCategories,
-            'inv_item_types' => $invItemTypes,
+            'inventory_categories' => $inventoryCategories,
             'company_wip_stages' => $companyWipStages,
             'style_stages' => $styleStages
         ]);
