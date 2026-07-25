@@ -116,38 +116,13 @@ class ProductionService {
 
         $wip = [];
         foreach ($stages as $s) {
-            $rawStage = trim((string)$s['stage']);
-            if (empty($rawStage)) continue;
-
-            $data = [
+            // WIP at a stage = Qty In - Qty Out - Waste Qty
+            $wip[$s['stage']] = [
                 'in' => (int) $s['total_in'],
                 'out' => (int) $s['total_out'],
                 'waste' => (int) $s['total_waste'],
                 'wip_balance' => (int) ($s['total_in'] - $s['total_out'] - $s['total_waste'])
             ];
-
-            // Normalize key e.g. "#1 Cutting" -> "cutting", "Stage 1" -> "stage_1"
-            $cleanKey = strtolower(trim((string)preg_replace('/[^a-zA-Z0-9]+/', '_', preg_replace('/^(#|\d+[\.\-\:]\s*|(Stage|Step)\s*\d+[\.\-\:\)]?\s*)/i', '', $rawStage)), '_'));
-
-            $keysToMap = array_filter(array_unique([
-                $rawStage,
-                strtolower($rawStage),
-                strtoupper($rawStage),
-                str_replace('_', ' ', $rawStage),
-                str_replace(' ', '_', strtolower($rawStage)),
-                $cleanKey
-            ]));
-
-            foreach ($keysToMap as $k) {
-                if (!isset($wip[$k])) {
-                    $wip[$k] = $data;
-                } else {
-                    $wip[$k]['in'] += $data['in'];
-                    $wip[$k]['out'] += $data['out'];
-                    $wip[$k]['waste'] += $data['waste'];
-                    $wip[$k]['wip_balance'] += $data['wip_balance'];
-                }
-            }
         }
 
         return $wip;
