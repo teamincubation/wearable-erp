@@ -71,7 +71,7 @@
             <div class="pepp-card-header d-flex justify-content-between align-items-center">
                 <div>
                     <h5 class="pepp-card-title m-0"><i class="fa-solid fa-list-check text-primary me-2"></i> WIP Operational Stages Configuration</h5>
-                    <small class="text-secondary">Manage company manufacturing stages, execution sequence numbers, and custom processes</small>
+                    <small class="text-secondary">Manage company manufacturing stages and custom processes</small>
                 </div>
                 <button type="button" class="btn btn-sm btn-pepp-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#addWipStageModal">
                     <i class="fa-solid fa-plus-circle me-1"></i> Add New WIP Stage
@@ -82,7 +82,6 @@
                     <table class="table pepp-table mb-0 align-middle">
                         <thead>
                             <tr class="bg-light">
-                                <th>Order #</th>
                                 <th>Stage Display Name</th>
                                 <th>System Key</th>
                                 <th class="text-end">Actions</th>
@@ -92,9 +91,6 @@
                             <?php if (!empty($companyWipStages)): ?>
                                 <?php foreach ($companyWipStages as $stg): ?>
                                     <tr>
-                                        <td>
-                                            <span class="badge bg-primary text-white font-monospace fs-6 px-2.5 py-1">#<?= (int)$stg['order'] ?></span>
-                                        </td>
                                         <td>
                                             <strong class="text-dark fs-6"><?= htmlspecialchars($stg['name']) ?></strong>
                                         </td>
@@ -114,7 +110,7 @@
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="4" class="text-center py-4 text-secondary">No WIP operational stages configured.</td>
+                                    <td colspan="3" class="text-center py-4 text-secondary">No WIP operational stages configured.</td>
                                 </tr>
                             <?php endif; ?>
                         </tbody>
@@ -244,10 +240,6 @@
                         <input type="text" name="stage_key" class="form-control font-monospace" placeholder="e.g. sublimation_printing">
                         <div class="form-text">Unique system identifier key (lowercase, underscore).</div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold">Execution Sequence Order # <span class="text-danger">*</span></label>
-                        <input type="number" name="stage_order" class="form-control text-dark font-monospace" value="<?= count($companyWipStages ?? []) + 1 ?>" min="1" required>
-                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
@@ -279,10 +271,6 @@
                             <div class="mb-3">
                                 <label class="form-label small fw-bold">System Key</label>
                                 <input type="text" class="form-control font-monospace bg-light" value="<?= htmlspecialchars($stg['key']) ?>" disabled>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label small fw-bold">Execution Sequence Order # <span class="text-danger">*</span></label>
-                                <input type="number" name="stage_order" class="form-control text-dark font-monospace" value="<?= (int)$stg['order'] ?>" min="1" required>
                             </div>
                         </div>
                         <div class="modal-footer">

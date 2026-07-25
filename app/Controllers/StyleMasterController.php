@@ -306,9 +306,8 @@ class StyleMasterController extends Controller {
             }
         }
 
-        // Process mandatory production workflow stage selections and execution order
+        // Process mandatory production workflow stage selections with auto-assigned dynamic sequence order
         $selectedStageKeys = $request->get('selected_stages') ?: [];
-        $stageOrdersInput = $request->get('stage_order') ?: [];
 
         $companyStages = CompanyController::getCompanyWipStages(Session::get('company_id'));
         $companyStageMap = [];
@@ -317,19 +316,15 @@ class StyleMasterController extends Controller {
         }
 
         $styleStages = [];
+        $seqOrder = 1;
         foreach ($selectedStageKeys as $key) {
-            $orderVal = (int)($stageOrdersInput[$key] ?? count($styleStages) + 1);
             $nameVal = $companyStageMap[$key] ?? ucwords(str_replace('_', ' ', $key));
             $styleStages[] = [
                 'key' => $key,
                 'name' => $nameVal,
-                'order' => $orderVal > 0 ? $orderVal : count($styleStages) + 1
+                'order' => $seqOrder++
             ];
         }
-
-        usort($styleStages, function($a, $b) {
-            return $a['order'] <=> $b['order'];
-        });
 
         $printingSpecs = trim($request->get('printing_specs'));
         $embroiderySpecs = trim($request->get('embroidery_specs'));

@@ -104,7 +104,7 @@ if (!empty($stock_summary)) {
                 <div class="pepp-card-header bg-light d-flex justify-content-between align-items-center">
                     <div>
                         <h5 class="pepp-card-title m-0 text-primary"><i class="fa-solid fa-route text-primary me-2"></i> Mandatory Production Workflow Stages & Order Sequence <span class="text-danger">*</span></h5>
-                        <small class="text-secondary">Select required operational stages for this style and assign their strict execution order numbers</small>
+                        <small class="text-secondary">Select operational stages for this style to automatically assign their execution order sequence.</small>
                     </div>
                     <span class="badge bg-primary text-white">Style Workflow Compliance</span>
                 </div>
@@ -115,40 +115,40 @@ if (!empty($stock_summary)) {
                     </p>
                     
                     <?php 
-                    $activeStyleStageKeys = !empty($style_stages) ? array_column($style_stages, 'key') : [];
-                    $styleStageOrderMap = [];
+                    $activeStyleStageKeys = [];
                     if (!empty($style_stages)) {
-                        foreach ($style_stages as $stgItem) {
-                            $styleStageOrderMap[$stgItem['key']] = $stgItem['order'];
-                        }
+                        $activeStyleStageKeys = array_column($style_stages, 'key');
+                    } else if (!empty($company_wip_stages)) {
+                        $activeStyleStageKeys = array_column($company_wip_stages, 'key');
                     }
                     ?>
                     
-                    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
-                        <?php if (!empty($company_wip_stages)): ?>
-                            <?php foreach ($company_wip_stages as $cStg): ?>
-                                <?php 
-                                $isSel = in_array($cStg['key'], $activeStyleStageKeys) || empty($style_stages);
-                                $orderVal = $styleStageOrderMap[$cStg['key']] ?? $cStg['order'];
-                                ?>
-                                <div class="col">
-                                    <div class="p-3 border rounded h-100 <?= $isSel ? 'bg-light border-primary' : 'bg-white' ?>">
-                                        <div class="form-check d-flex align-items-center justify-content-between mb-2">
-                                            <div>
-                                                <input class="form-check-input stage-checkbox me-2" type="checkbox" name="selected_stages[]" value="<?= htmlspecialchars($cStg['key']) ?>" id="tech-stage-<?= htmlspecialchars($cStg['key']) ?>" <?= $isSel ? 'checked' : '' ?>>
-                                                <label class="form-check-label fw-bold text-dark" for="tech-stage-<?= htmlspecialchars($cStg['key']) ?>">
-                                                    <?= htmlspecialchars($cStg['name']) ?>
-                                                </label>
+                    <div id="stageWorkflowContainer" data-initial-stages='<?= json_encode($activeStyleStageKeys) ?>'>
+                        <div id="selectedStagesInputsContainer"></div>
+                        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
+                            <?php if (!empty($company_wip_stages)): ?>
+                                <?php foreach ($company_wip_stages as $cStg): ?>
+                                    <?php 
+                                    $isSel = in_array($cStg['key'], $activeStyleStageKeys);
+                                    ?>
+                                    <div class="col">
+                                        <div class="p-3 border rounded h-100 stage-card <?= $isSel ? 'bg-light border-primary shadow-sm' : 'bg-white border-light' ?>" style="cursor: pointer; transition: all 0.2s ease;">
+                                            <div class="d-flex align-items-center justify-content-between mb-0">
+                                                <div class="form-check m-0 d-flex align-items-center">
+                                                    <input class="form-check-input stage-checkbox me-2" type="checkbox" value="<?= htmlspecialchars($cStg['key']) ?>" id="tech-stage-<?= htmlspecialchars($cStg['key']) ?>" data-stage-key="<?= htmlspecialchars($cStg['key']) ?>" <?= $isSel ? 'checked' : '' ?>>
+                                                    <label class="form-check-label fw-bold text-dark user-select-none" for="tech-stage-<?= htmlspecialchars($cStg['key']) ?>">
+                                                        <?= htmlspecialchars($cStg['name']) ?>
+                                                    </label>
+                                                </div>
+                                                <span class="badge stage-order-badge font-monospace px-2.5 py-1.5 fs-6 <?= $isSel ? 'bg-primary text-white' : 'bg-light text-muted border' ?>" id="stage-badge-<?= htmlspecialchars($cStg['key']) ?>">
+                                                    --
+                                                </span>
                                             </div>
                                         </div>
-                                        <div class="d-flex align-items-center mt-2">
-                                            <span class="small text-secondary me-2">Order #:</span>
-                                            <input type="number" name="stage_order[<?= htmlspecialchars($cStg['key']) ?>]" class="form-control form-control-sm font-monospace text-center w-50" value="<?= (int)$orderVal ?>" min="1">
-                                        </div>
                                     </div>
-                                </div>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -474,6 +474,96 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     bindRemoveButtons();
+
+    // Dynamic WIP Stage Selection & Auto Sequence Order
+    const stageContainer = document.getElementById('stageWorkflowContainer');
+    if (stageContainer) {
+        let selectedStageKeys = [];
+        try {
+            selectedStageKeys = JSON.parse(stageContainer.getAttribute('data-initial-stages') || '[]');
+        } catch (e) {
+            selectedStageKeys = [];
+        }
+
+        const stageCheckboxes = document.querySelectorAll('.stage-checkbox');
+        const hiddenInputsContainer = document.getElementById('selectedStagesInputsContainer');
+
+        function updateStageSequence() {
+            if (hiddenInputsContainer) {
+                hiddenInputsContainer.innerHTML = '';
+            }
+
+            stageCheckboxes.forEach(function(chk) {
+                const key = chk.getAttribute('data-stage-key') || chk.value;
+                const card = chk.closest('.stage-card');
+                const badge = document.getElementById('stage-badge-' + key);
+                const index = selectedStageKeys.indexOf(key);
+
+                if (index !== -1) {
+                    chk.checked = true;
+                    if (card) {
+                        card.classList.remove('bg-white', 'border-light');
+                        card.classList.add('bg-light', 'border-primary', 'shadow-sm');
+                    }
+                    if (badge) {
+                        badge.textContent = '#' + (index + 1);
+                        badge.className = 'badge stage-order-badge font-monospace px-2.5 py-1.5 fs-6 bg-primary text-white';
+                    }
+                } else {
+                    chk.checked = false;
+                    if (card) {
+                        card.classList.remove('bg-light', 'border-primary', 'shadow-sm');
+                        card.classList.add('bg-white', 'border-light');
+                    }
+                    if (badge) {
+                        badge.textContent = '--';
+                        badge.className = 'badge stage-order-badge font-monospace px-2.5 py-1.5 fs-6 bg-light text-muted border';
+                    }
+                }
+            });
+
+            // Re-create hidden inputs in exact selected sequence order
+            if (hiddenInputsContainer) {
+                selectedStageKeys.forEach(function(key) {
+                    const hid = document.createElement('input');
+                    hid.type = 'hidden';
+                    hid.name = 'selected_stages[]';
+                    hid.value = key;
+                    hiddenInputsContainer.appendChild(hid);
+                });
+            }
+        }
+
+        stageCheckboxes.forEach(function(chk) {
+            chk.addEventListener('change', function() {
+                const key = this.getAttribute('data-stage-key') || this.value;
+                if (this.checked) {
+                    if (selectedStageKeys.indexOf(key) === -1) {
+                        selectedStageKeys.push(key);
+                    }
+                } else {
+                    const idx = selectedStageKeys.indexOf(key);
+                    if (idx !== -1) {
+                        selectedStageKeys.splice(idx, 1);
+                    }
+                }
+                updateStageSequence();
+            });
+
+            const card = chk.closest('.stage-card');
+            if (card) {
+                card.addEventListener('click', function(e) {
+                    if (e.target.tagName.toLowerCase() === 'input' || e.target.tagName.toLowerCase() === 'label') {
+                        return;
+                    }
+                    chk.checked = !chk.checked;
+                    chk.dispatchEvent(new Event('change'));
+                });
+            }
+        });
+
+        updateStageSequence();
+    }
 });
 </script>
 
