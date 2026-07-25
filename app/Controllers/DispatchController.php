@@ -662,7 +662,18 @@ class DispatchController extends Controller {
 
         try {
             if ($targetStatus === 'dispatched') {
-                $trackingNo = $carton['carton_no']; // Carton QR code number as tracking ID
+                // Verify that this carton is linked to a shipment consignment
+                $stmtCheckShp = $db->prepare("SELECT shipment_id FROM shipment_cartons WHERE carton_id = ? LIMIT 1");
+                $stmtCheckShp->execute([$cartonId]);
+                $shipmentId = $stmtCheckShp->fetchColumn();
+
+                if (!$shipmentId) {
+                    Session::setFlash('error', "Carton '{$carton['carton_no']}' cannot be dispatched directly without a shipment. Please create a shipment consignment first to link this carton.");
+                    $this->redirect('company/dispatch');
+                    return;
+                }
+
+                $trackingNo = !empty($carton['tracking_no']) ? $carton['tracking_no'] : $carton['carton_no'];
                 $stmtUpd = $db->prepare("UPDATE cartons SET status = 'dispatched', tracking_no = ? WHERE id = ? AND company_id = ?");
                 $stmtUpd->execute([$trackingNo, $cartonId, $companyId]);
                 

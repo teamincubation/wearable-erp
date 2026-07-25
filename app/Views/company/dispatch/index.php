@@ -277,13 +277,21 @@
                                     <td class="text-end">
                                         <?php if (\App\Core\Auth::hasPermission('company.dispatch.manage')): ?>
                                             <?php if ($c['status'] === 'packed'): ?>
-                                                <form action="<?= base_url('company/dispatch/cartons/' . $c['id'] . '/status') ?>" method="POST" class="d-inline" onsubmit="return confirm('Confirm dispatch for carton <?= htmlspecialchars($c['carton_no']) ?>?\nTracking ID will be set to: <?= htmlspecialchars($c['carton_no']) ?>');">
-                                                    <?= \App\Core\Session::csrfField() ?>
-                                                    <input type="hidden" name="status" value="dispatched">
-                                                    <button type="submit" class="btn btn-sm btn-outline-warning rounded-pill px-2.5 me-1 fw-bold" title="Click to mark as Dispatched">
+                                                <?php if (empty($c['shipment_id'])): ?>
+                                                    <button type="button" class="btn btn-sm btn-outline-warning rounded-pill px-2.5 me-1 fw-bold" 
+                                                            onclick="openShipmentModalForCarton(<?= $c['id'] ?>, '<?= htmlspecialchars($c['carton_no']) ?>', '<?= htmlspecialchars($c['destination_type']) ?>', <?= (int)($c['client_id'] ?? 0) ?>, <?= (int)($c['warehouse_id'] ?? 0) ?>)"
+                                                            title="Create Shipment Consignment first to dispatch">
                                                         <i class="fa-solid fa-truck-fast me-1"></i> Dispatch Status
                                                     </button>
-                                                </form>
+                                                <?php else: ?>
+                                                    <form action="<?= base_url('company/dispatch/cartons/' . $c['id'] . '/status') ?>" method="POST" class="d-inline" onsubmit="return confirm('Confirm dispatch for carton <?= htmlspecialchars($c['carton_no']) ?>?\nTracking ID: <?= htmlspecialchars($c['tracking_no'] ?: $c['carton_no']) ?>');">
+                                                        <?= \App\Core\Session::csrfField() ?>
+                                                        <input type="hidden" name="status" value="dispatched">
+                                                        <button type="submit" class="btn btn-sm btn-outline-warning rounded-pill px-2.5 me-1 fw-bold" title="Click to mark as Dispatched">
+                                                            <i class="fa-solid fa-truck-fast me-1"></i> Dispatch Status
+                                                        </button>
+                                                    </form>
+                                                <?php endif; ?>
                                             <?php elseif ($c['status'] === 'dispatched'): ?>
                                                 <form action="<?= base_url('company/dispatch/cartons/' . $c['id'] . '/status') ?>" method="POST" class="d-inline" onsubmit="return confirm('Confirm item moved / delivered for carton <?= htmlspecialchars($c['carton_no']) ?>?');">
                                                     <?= \App\Core\Session::csrfField() ?>
@@ -444,6 +452,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body text-start">
+                    <div id="shipment_notice_alert" class="alert alert-info py-2 px-3 mb-3 rounded-3 small font-monospace d-none"></div>
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label class="form-label small fw-bold">Shipment Destination Type <span class="text-danger">*</span></label>
@@ -656,6 +665,49 @@
             whWrap.classList.add('d-none');
             clientWrap.classList.remove('d-none');
         }
+    }
+
+    function openShipmentModalForCarton(cartonId, cartonNo, destType, clientId, warehouseId) {
+        const modalEl = document.getElementById('createShipmentModal');
+        if (!modalEl) return;
+
+        const noticeEl = document.getElementById('shipment_notice_alert');
+        if (noticeEl) {
+            noticeEl.innerHTML = `<i class="fa-solid fa-circle-info me-1"></i> <strong>Shipment Consignment Required:</strong> Please complete consignment details below to dispatch carton <strong>${cartonNo}</strong>.`;
+            noticeEl.classList.remove('d-none');
+        }
+
+        const destSelect = document.getElementById('shipment_dest_type');
+        if (destSelect) {
+            if (destType === 'warehouse') {
+                destSelect.value = 'warehouse';
+                toggleShipmentDestFields(destSelect);
+                if (warehouseId > 0) {
+                    const whSelect = modalEl.querySelector('select[name="warehouse_id"]');
+                    if (whSelect) whSelect.value = warehouseId;
+                }
+            } else {
+                destSelect.value = 'client';
+                toggleShipmentDestFields(destSelect);
+                if (clientId > 0) {
+                    const clientSelect = modalEl.querySelector('select[name="client_id"]');
+                    if (clientSelect) clientSelect.value = clientId;
+                }
+            }
+        }
+
+        // Check checkbox for this carton ID in the shipment items checklist
+        const checkboxes = modalEl.querySelectorAll('input[name="carton_ids[]"]');
+        checkboxes.forEach(cb => {
+            if (parseInt(cb.value) === parseInt(cartonId)) {
+                cb.checked = true;
+                const tr = cb.closest('tr');
+                if (tr) tr.classList.add('table-warning');
+            }
+        });
+
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
     }
 
     function toggleSelectAllCartons(masterCb) {
