@@ -370,10 +370,11 @@ class PackingQrController extends Controller {
             $eligibleProducts = [];
             $seenQrs = [];
 
-            // Add logged scanned QRs for packing stage
+            // Add logged scanned QRs for packing stage (excluding any synthetic PROD- codes)
             foreach ($logs as $row) {
                 $qr = trim((string)$row['scanned_qr_code']);
                 if (empty($qr) || isset($seenQrs[$qr])) continue;
+                if (str_contains(strtoupper($qr), 'PROD-')) continue; // Exclude PROD- included product QR codes
                 $seenQrs[$qr] = true;
 
                 $asgnInfo = $assignedMap[$qr] ?? null;
@@ -389,34 +390,6 @@ class PackingQrController extends Controller {
                     'size' => 'FREE',
                     'color' => 'N/A',
                     'qty' => max(1, (int)$row['qty_out']),
-                    'stage' => 'Packed',
-                    'is_assigned' => $isAssigned,
-                    'existing_carton_no' => $asgnInfo ? $asgnInfo['carton_no'] : null,
-                    'is_current_carton' => $isCurrentCarton,
-                    'selectable' => !$isAssigned || $isCurrentCarton
-                ];
-            }
-
-            // If packing logs exist without individual scanned QR strings, generate items up to packingCompletedQty ONLY
-            $targetCount = max(count($eligibleProducts), min($batchTotalQty, $packingCompletedQty));
-            for ($i = 1; $i <= $targetCount; $i++) {
-                $virtualQr = sprintf("PROD-%s-%04d", $productionNo, $i);
-                if (isset($seenQrs[$virtualQr])) continue;
-                $seenQrs[$virtualQr] = true;
-
-                $asgnInfo = $assignedMap[$virtualQr] ?? null;
-                $isAssigned = !empty($asgnInfo);
-                $isCurrentCarton = $isAssigned && ($asgnInfo['carton_id'] == $cartonId);
-
-                $eligibleProducts[] = [
-                    'id' => 'v_' . $i,
-                    'qr_code' => $virtualQr,
-                    'production_no' => $productionNo,
-                    'style_no' => $styleNo,
-                    'buyer_po' => $buyerPo,
-                    'size' => 'ALL',
-                    'color' => 'ASSORTED',
-                    'qty' => 1,
                     'stage' => 'Packed',
                     'is_assigned' => $isAssigned,
                     'existing_carton_no' => $asgnInfo ? $asgnInfo['carton_no'] : null,
