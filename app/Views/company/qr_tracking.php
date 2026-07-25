@@ -674,6 +674,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 hideScanPopup();
                 if (data.already_validated) {
                     showAlertBanner("ALREADY VALIDATED IN THIS STAGE", data.message, true);
+                } else if (data.failed_unit) {
+                    showAlertBanner("FAILED / REJECTED UNIT BLOCKED", data.message, false);
                 } else {
                     showAlertBanner("SEQUENCE ORDER MISMATCH", data.message, false);
                 }

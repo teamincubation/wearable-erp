@@ -708,7 +708,7 @@ class ProductionController extends Controller {
             exit;
         }
 
-        // Verify preceding stage order sequence compliance for QR code scan
+        // Verify preceding stage order sequence & quality PASS compliance for QR code scan
         $batchStages = self::getBatchStagesList((int)$batch['id']);
         $stageKeys = array_column($batchStages, 'key');
         $targetIndex = array_search($stage, $stageKeys);
@@ -719,16 +719,33 @@ class ProductionController extends Controller {
                 $precedingName = $batchStages[$i]['name'];
 
                 $stmtCheckPrec = $db->prepare("
-                    SELECT id FROM production_stage_logs 
-                    WHERE company_id = ? AND qr_code = ? AND stage = ? 
-                    LIMIT 1
+                    SELECT id, qty_out, waste_qty 
+                    FROM production_stage_logs 
+                    WHERE company_id = ? AND LOWER(TRIM(qr_code)) = LOWER(TRIM(?)) 
+                      AND (LOWER(TRIM(stage)) = ? OR LOWER(TRIM(stage)) = ?)
+                    ORDER BY id DESC LIMIT 1
                 ");
-                $stmtCheckPrec->execute([$companyId, $qrCode, $precedingKey]);
-                if (!$stmtCheckPrec->fetchColumn()) {
+                $stmtCheckPrec->execute([$companyId, $qrCode, strtolower($precedingKey), strtolower($precedingName)]);
+                $precLog = $stmtCheckPrec->fetch();
+
+                if (!$precLog) {
                     $targetName = isset($batchStages[$targetIndex]['name']) ? $batchStages[$targetIndex]['name'] : strtoupper(str_replace('_', ' ', $stage));
                     echo json_encode([
                         'success' => false,
+                        'sequence_mismatch' => true,
                         'message' => "Order Sequence Error: Unit ({$qrCode}) cannot enter stage '{$targetName}' yet. Preceding stage '{$precedingName}' must be completed first!"
+                    ]);
+                    exit;
+                }
+
+                // Block scanning if unit was marked as FAILED in any preceding stage
+                $isFail = ((int)($precLog['qty_out'] ?? 0) === 0 || (int)($precLog['waste_qty'] ?? 0) > 0);
+                if ($isFail) {
+                    $targetName = isset($batchStages[$targetIndex]['name']) ? $batchStages[$targetIndex]['name'] : strtoupper(str_replace('_', ' ', $stage));
+                    echo json_encode([
+                        'success' => false,
+                        'failed_unit' => true,
+                        'message' => "Quality Gate Blocked: Unit ({$qrCode}) was marked as FAILED in preceding stage '{$precedingName}'. Edit entry in stage log to PASS to unblock."
                     ]);
                     exit;
                 }
@@ -880,6 +897,52 @@ class ProductionController extends Controller {
         if (!empty($sizes) && !isset($sizes[$size])) {
             echo json_encode(['success' => false, 'message' => "Size '{$size}' is not configured for production batch '{$batchNo}'."]);
             exit;
+        }
+
+        // Verify preceding stage order sequence & quality PASS compliance for QR code scan
+        if (!empty($stage) && !empty($batch['id'])) {
+            $batchStages = self::getBatchStagesList((int)$batch['id']);
+            $stageKeys = array_column($batchStages, 'key');
+            $targetIndex = array_search($stage, $stageKeys);
+
+            if ($targetIndex !== false && $targetIndex > 0) {
+                for ($i = 0; $i < $targetIndex; $i++) {
+                    $precedingKey = $batchStages[$i]['key'];
+                    $precedingName = $batchStages[$i]['name'];
+
+                    $stmtCheckPrec = $db->prepare("
+                        SELECT id, qty_out, waste_qty 
+                        FROM production_stage_logs 
+                        WHERE company_id = ? AND LOWER(TRIM(qr_code)) = LOWER(TRIM(?)) 
+                          AND (LOWER(TRIM(stage)) = ? OR LOWER(TRIM(stage)) = ?)
+                        ORDER BY id DESC LIMIT 1
+                    ");
+                    $stmtCheckPrec->execute([$companyId, $qrCode, strtolower($precedingKey), strtolower($precedingName)]);
+                    $precLog = $stmtCheckPrec->fetch();
+
+                    if (!$precLog) {
+                        $targetName = isset($batchStages[$targetIndex]['name']) ? $batchStages[$targetIndex]['name'] : strtoupper(str_replace('_', ' ', $stage));
+                        echo json_encode([
+                            'success' => false,
+                            'sequence_mismatch' => true,
+                            'message' => "Order Sequence Error: Unit ({$qrCode}) cannot enter stage '{$targetName}' yet. Preceding stage '{$precedingName}' must be completed first!"
+                        ]);
+                        exit;
+                    }
+
+                    // Check if unit failed in preceding stage
+                    $isFail = ((int)($precLog['qty_out'] ?? 0) === 0 || (int)($precLog['waste_qty'] ?? 0) > 0);
+                    if ($isFail) {
+                        $targetName = isset($batchStages[$targetIndex]['name']) ? $batchStages[$targetIndex]['name'] : strtoupper(str_replace('_', ' ', $stage));
+                        echo json_encode([
+                            'success' => false,
+                            'failed_unit' => true,
+                            'message' => "Quality Gate Blocked: Unit ({$qrCode}) was marked as FAILED in preceding stage '{$precedingName}'. Edit entry in stage log to PASS to unblock."
+                        ]);
+                        exit;
+                    }
+                }
+            }
         }
 
         // QR Code is active and verified! Return details.

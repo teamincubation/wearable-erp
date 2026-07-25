@@ -558,6 +558,48 @@ class ApiController extends Controller {
             ], 404);
             return;
         }
+        // WIP Stage Sequential Order & Quality PASS Enforcement
+        $batchStagesObj = ProductionController::getBatchStagesList((int)$batch['id']);
+        $stageKeys = array_column($batchStagesObj, 'key');
+        $targetIndex = array_search($stageKey, $stageKeys);
+
+        if ($targetIndex !== false && $targetIndex > 0) {
+            for ($i = 0; $i < $targetIndex; $i++) {
+                $precedingKey = $batchStagesObj[$i]['key'];
+                $precedingName = $batchStagesObj[$i]['name'];
+
+                $stmtCheckPrec = $db->prepare("
+                    SELECT id, qty_out, waste_qty 
+                    FROM production_stage_logs 
+                    WHERE company_id = ? AND LOWER(TRIM(qr_code)) = LOWER(TRIM(?)) 
+                      AND (LOWER(TRIM(stage)) = ? OR LOWER(TRIM(stage)) = ?)
+                    ORDER BY id DESC LIMIT 1
+                ");
+                $stmtCheckPrec->execute([$companyId, $qrCode, strtolower($precedingKey), strtolower($precedingName)]);
+                $precLog = $stmtCheckPrec->fetch();
+
+                if (!$precLog) {
+                    $targetName = $batchStagesObj[$targetIndex]['name'] ?? strtoupper(str_replace('_', ' ', $stageKey));
+                    $response->json([
+                        'status' => 'sequence_error',
+                        'out_of_order' => true,
+                        'message' => "Order Sequence Error: Unit ({$qrCode}) cannot enter stage '{$targetName}' yet. Preceding stage '{$precedingName}' must be completed first!"
+                    ], 409);
+                    return;
+                }
+
+                $isFail = ((int)($precLog['qty_out'] ?? 0) === 0 || (int)($precLog['waste_qty'] ?? 0) > 0);
+                if ($isFail) {
+                    $targetName = $batchStagesObj[$targetIndex]['name'] ?? strtoupper(str_replace('_', ' ', $stageKey));
+                    $response->json([
+                        'status' => 'failed_unit_blocked',
+                        'failed_unit' => true,
+                        'message' => "Quality Blocked: Unit ({$qrCode}) was marked as FAILED in preceding stage '{$precedingName}'. Edit entry in stage log to PASS to unblock."
+                    ], 409);
+                    return;
+                }
+            }
+        }
 
         $qtyIn = 1;
         $qtyOut = ($status === 'pass') ? 1 : 0;
