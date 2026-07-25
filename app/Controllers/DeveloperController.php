@@ -482,6 +482,25 @@ class DeveloperController extends Controller {
                 $stmtFeature->execute([$id, $feat, $expDate, $labelVal]);
             }
 
+            // Sync assigned permissions into role_permissions for Company Admin roles
+            $stmtAdminRoles = $db->prepare("SELECT id FROM roles WHERE company_id = ? AND (name LIKE '%Admin%' OR is_system = 1)");
+            $stmtAdminRoles->execute([(int)$id]);
+            $adminRoleIds = $stmtAdminRoles->fetchAll(\PDO::FETCH_COLUMN) ?: [];
+
+            if (!empty($adminRoleIds) && !empty($assignedPermissions)) {
+                $placeholders = implode(',', array_fill(0, count($assignedPermissions), '?'));
+                $stmtGetPermIds = $db->prepare("SELECT id FROM permissions WHERE name IN ({$placeholders})");
+                $stmtGetPermIds->execute($assignedPermissions);
+                $permIds = $stmtGetPermIds->fetchAll(\PDO::FETCH_COLUMN) ?: [];
+
+                $stmtInsRP = $db->prepare("INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)");
+                foreach ($adminRoleIds as $rId) {
+                    foreach ($permIds as $pId) {
+                        $stmtInsRP->execute([(int)$rId, (int)$pId]);
+                    }
+                }
+            }
+
             $db->commit();
 
             AuditLog::log(null, Session::get('user_id'), 'update_company_details', 'Company', (int)$id, null, null, "Updated company tenant details and super admin credentials for {$name}");

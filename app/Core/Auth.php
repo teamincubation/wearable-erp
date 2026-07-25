@@ -254,6 +254,20 @@ class Auth {
             return true;
         }
 
+        // Company Admins automatically inherit access to all features enabled by the Developer for their company
+        $roleId = Session::get('role_id');
+        if ($roleId && $companyId !== null) {
+            try {
+                $db = Database::getInstance();
+                $stmtRole = $db->prepare("SELECT name, is_system FROM roles WHERE id = ? AND deleted_at IS NULL LIMIT 1");
+                $stmtRole->execute([$roleId]);
+                $roleObj = $stmtRole->fetch();
+                if ($roleObj && (stripos($roleObj['name'], 'Admin') !== false || (int)($roleObj['is_system'] ?? 0) === 1)) {
+                    return true;
+                }
+            } catch (\Exception $ex) {}
+        }
+
         $permissions = Session::get('permissions', []);
         return in_array($permission, $permissions);
     }
@@ -304,15 +318,40 @@ class Auth {
     private static function loadUserPermissions(int $userId): array {
         try {
             $db = Database::getInstance();
+
+            $stmtUser = $db->prepare("
+                SELECT u.company_id, u.role_id, r.name as role_name, r.is_system 
+                FROM users u 
+                LEFT JOIN roles r ON u.role_id = r.id 
+                WHERE u.id = ? AND u.deleted_at IS NULL LIMIT 1
+            ");
+            $stmtUser->execute([$userId]);
+            $userInfo = $stmtUser->fetch();
+
+            if (!$userInfo) {
+                return [];
+            }
+
             $sql = "SELECT p.name FROM permissions p
                     INNER JOIN role_permissions rp ON p.id = rp.permission_id
-                    INNER JOIN users u ON rp.role_id = u.role_id
-                    INNER JOIN roles r ON u.role_id = r.id
-                    WHERE u.id = ? AND u.deleted_at IS NULL AND r.deleted_at IS NULL";
+                    WHERE rp.role_id = ?";
             
             $stmt = $db->prepare($sql);
-            $stmt->execute([$userId]);
-            return $stmt->fetchAll(\PDO::FETCH_COLUMN) ?: [];
+            $stmt->execute([$userInfo['role_id']]);
+            $permissions = $stmt->fetchAll(\PDO::FETCH_COLUMN) ?: [];
+
+            // If user is a Company Admin, automatically grant all features enabled for their tenant company
+            if (!empty($userInfo['company_id']) && (
+                stripos($userInfo['role_name'] ?? '', 'Admin') !== false || 
+                (int)($userInfo['is_system'] ?? 0) === 1
+            )) {
+                $stmtFlags = $db->prepare("SELECT feature_key FROM feature_flags WHERE company_id = ? AND status = 'enabled' AND deleted_at IS NULL");
+                $stmtFlags->execute([$userInfo['company_id']]);
+                $enabledFlags = $stmtFlags->fetchAll(\PDO::FETCH_COLUMN) ?: [];
+                $permissions = array_unique(array_merge($permissions, $enabledFlags));
+            }
+
+            return $permissions;
         } catch (\Exception $e) {
             return [];
         }
