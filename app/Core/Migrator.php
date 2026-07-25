@@ -491,17 +491,6 @@ class Migrator {
                 } catch (\Exception $ex) {}
             }
 
-            // Ensure production_stage_logs has edit audit tracking columns
-            try {
-                $db->query("SELECT edited_by, edited_at, edit_remarks FROM production_stage_logs LIMIT 1");
-            } catch (\Exception $e) {
-                try {
-                    $db->exec("ALTER TABLE production_stage_logs ADD COLUMN edited_by INT NULL DEFAULT NULL AFTER created_by");
-                    $db->exec("ALTER TABLE production_stage_logs ADD COLUMN edited_at TIMESTAMP NULL DEFAULT NULL AFTER edited_by");
-                    $db->exec("ALTER TABLE production_stage_logs ADD COLUMN edit_remarks VARCHAR(255) NULL DEFAULT NULL AFTER edited_at");
-                } catch (\Exception $ex) {}
-            }
-
 
             // Restore foreign key checks
             $db->exec("SET FOREIGN_KEY_CHECKS = 1;");

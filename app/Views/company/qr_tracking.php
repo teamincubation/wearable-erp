@@ -652,16 +652,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         fetch("<?= base_url('company/production/qr-tracking/verify') ?>", {
             method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
+            body: formData
         })
-        .then(res => {
-            return res.json().catch(err => {
-                throw new Error("Unable to parse server response. Please refresh the page.");
-            });
-        })
+        .then(res => res.json())
         .then(data => {
             loader.remove();
             if (data.success) {
@@ -679,21 +672,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 showScanPopup();
             } else {
                 hideScanPopup();
-                const msg = data.message || data.error || "QR Code verification failed.";
-                if (data.failed_unit) {
-                    showAlertBanner("FAILED UNIT REJECTED", msg, false);
-                } else if (data.already_validated) {
-                    showAlertBanner("ALREADY VALIDATED IN THIS STAGE", msg, true);
+                if (data.already_validated) {
+                    showAlertBanner("ALREADY VALIDATED IN THIS STAGE", data.message, true);
                 } else {
-                    showAlertBanner("VERIFICATION REJECTED", msg, false);
+                    showAlertBanner("SEQUENCE ORDER MISMATCH", data.message, false);
                 }
             }
         })
         .catch(err => {
             loader.remove();
             hideScanPopup();
-            console.error("Verification error:", err);
-            showAlertBanner("VERIFICATION ERROR", err.message || "Verification request failed. Please try again.", false);
+            console.error(err);
+            showAlertBanner("CONNECTION ERROR", "Unable to connect to verification server. Please check internet connection.", false);
         });
     }
 
@@ -719,16 +709,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         fetch("<?= base_url('company/production/qr-tracking/log') ?>", {
             method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
+            body: formData
         })
-        .then(res => {
-            return res.json().catch(err => {
-                throw new Error("Unable to parse server response. Please refresh the page.");
-            });
-        })
+        .then(res => res.json())
         .then(data => {
             if (data.success) {
                 scanCount++;
@@ -751,18 +734,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } else {
                 hideScanPopup();
-                const msg = data.message || data.error || "Failed to log QR activity.";
-                if (data.failed_unit) {
-                    showAlertBanner("FAILED UNIT REJECTED", msg, false);
-                } else {
-                    showAlertBanner("LOGGING FAILED", msg, false);
-                }
+                showAlertBanner("LOGGING FAILED", data.message, false);
             }
         })
         .catch(err => {
             console.error(err);
             hideScanPopup();
-            showAlertBanner("SCAN LOG ERROR", err.message || "Failed to communicate with production server.", false);
+            showAlertBanner("CONNECTION FAILURE", "Failed to communicate with production server.", false);
         })
         .finally(() => {
             passBtn.disabled = false;
