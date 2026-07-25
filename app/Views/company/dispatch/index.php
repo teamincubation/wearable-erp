@@ -344,30 +344,24 @@
                         <label class="form-label small fw-bold">Select Production Batch <span class="text-danger">*</span></label>
                         <select id="pack_batch_select" class="form-select text-dark" onchange="updatePackBatchInfo(this)" required>
                             <option value="">-- Choose Production Batch --</option>
-                            <?php foreach ($allBatches as $b): 
-                                $finishedQty = (int)$b['finished_output_qty'];
-                                $packedQty = (int)$b['packed_in_cartons_qty'];
-                                $targetQty = (int)$b['target_qty'];
-                                $unpackedBal = max(0, $finishedQty > 0 ? ($finishedQty - $packedQty) : ($targetQty - $packedQty));
-                            ?>
-                                <option value="<?= $b['production_order_id'] ?>" 
-                                        data-no="<?= htmlspecialchars($b['production_no']) ?>" 
-                                        data-unpacked="<?= $unpackedBal ?>" 
-                                        data-target="<?= $targetQty ?>" 
-                                        data-packed="<?= $packedQty ?>" 
-                                        data-buyer-id="<?= $b['buyer_id'] ?? '' ?>">
-                                    Batch: <?= htmlspecialchars($b['production_no']) ?> (Style: <?= htmlspecialchars($b['style_no']) ?> — Unpacked: <?= $unpackedBal ?> pcs / Target: <?= $targetQty ?> pcs)
+                            <?php foreach ($allBatches as $b): ?>
+                                <option value="<?= $b['production_order_id'] ?>" data-no="<?= htmlspecialchars($b['production_no']) ?>" data-unpacked="<?= max(0, $b['finished_output_qty'] - $b['packed_in_cartons_qty']) ?>" data-buyer-id="<?= $b['buyer_id'] ?? '' ?>">
+                                    Batch: <?= htmlspecialchars($b['production_no']) ?> (Style: <?= htmlspecialchars($b['style_no']) ?>)
                                 </option>
                             <?php endforeach; ?>
                         </select>
                     </div>
 
+                    <div id="pack_fully_packed_alert" class="alert alert-warning py-2 px-3 mb-3 rounded-3 small font-monospace d-none">
+                        <i class="fa-solid fa-triangle-exclamation me-1"></i> This production batch is already fully packed (0 pcs unpacked balance remaining).
+                    </div>
+
                     <div class="row g-2 mb-3">
                         <div class="col-6">
                             <label class="form-label small fw-bold">Total Quantity to Pack (pcs) <span class="text-danger">*</span></label>
-                            <input type="number" name="total_qty" id="pack_total_qty" class="form-control font-monospace" min="1" value="1" oninput="validatePackQty(this)" required>
-                            <small id="pack_qty_help" class="text-primary font-monospace mt-1 d-block" style="font-size: 11px;">
-                                <i class="fa-solid fa-circle-info me-1"></i> Restricted to remaining unpacked balance.
+                            <input type="number" name="total_qty" id="pack_total_qty" class="form-control font-monospace" min="1" max="1" value="1" required oninput="validatePackQty(this)">
+                            <small class="text-muted d-block mt-1" style="font-size: 11px;">
+                                Available Unpacked Balance: <strong id="pack_unpacked_count" class="text-primary font-monospace">0</strong> pcs
                             </small>
                         </div>
                         <div class="col-6">
@@ -432,7 +426,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary px-4 fw-bold"><i class="fa-solid fa-tape me-1"></i> Seal & Generate QR</button>
+                    <button type="submit" id="pack_submit_btn" class="btn btn-primary px-4 fw-bold"><i class="fa-solid fa-tape me-1"></i> Seal & Generate QR</button>
                 </div>
             </div>
         </form>
@@ -549,6 +543,16 @@
 </div>
 
 <script>
+    function validatePackQty(inputEl) {
+        const maxVal = parseInt(inputEl.max);
+        const val = parseInt(inputEl.value) || 0;
+        if (!isNaN(maxVal) && maxVal > 0 && val > maxVal) {
+            inputEl.value = maxVal;
+        } else if (val < 1 && maxVal > 0) {
+            inputEl.value = 1;
+        }
+    }
+
     function openPackModal(orderId, prodNo, unpackedQty) {
         document.getElementById('pack_order_id').value = orderId;
         const selectEl = document.getElementById('pack_batch_select');
@@ -556,8 +560,6 @@
             selectEl.value = orderId;
             updatePackBatchInfo(selectEl);
         }
-        const qtyEl = document.getElementById('pack_total_qty');
-        if (qtyEl && unpackedQty > 0) qtyEl.value = unpackedQty;
         
         const modal = new bootstrap.Modal(document.getElementById('packCartonModal'));
         modal.show();
@@ -565,32 +567,32 @@
 
     function updatePackBatchInfo(selectEl) {
         const selectedOpt = selectEl.options[selectEl.selectedIndex];
-        const qtyInput = document.getElementById('pack_total_qty');
-        const helpEl = document.getElementById('pack_qty_help');
+        const qtyEl = document.getElementById('pack_total_qty');
+        const countEl = document.getElementById('pack_unpacked_count');
+        const alertEl = document.getElementById('pack_fully_packed_alert');
+        const submitBtn = document.getElementById('pack_submit_btn');
 
         if (selectedOpt && selectedOpt.value) {
             document.getElementById('pack_order_id').value = selectedOpt.value;
-            const unpacked = parseInt(selectedOpt.getAttribute('data-unpacked')) || 0;
-            const target = parseInt(selectedOpt.getAttribute('data-target')) || 0;
-            const packed = parseInt(selectedOpt.getAttribute('data-packed')) || 0;
+            const unpackedRaw = selectedOpt.getAttribute('data-unpacked');
+            const unpackedQty = unpackedRaw !== null ? Math.max(0, parseInt(unpackedRaw)) : 0;
 
-            if (qtyInput) {
-                qtyInput.max = unpacked;
-                
-                if (unpacked <= 0) {
-                    qtyInput.value = 0;
-                    qtyInput.setAttribute('disabled', 'disabled');
-                    if (helpEl) {
-                        helpEl.className = 'text-danger font-monospace mt-1 d-block';
-                        helpEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-1"></i> Fully Packed! All ${target} pcs already packed.`;
-                    }
+            if (countEl) countEl.textContent = unpackedQty;
+
+            if (qtyEl) {
+                if (unpackedQty > 0) {
+                    qtyEl.max = unpackedQty;
+                    qtyEl.value = Math.min(qtyEl.value || unpackedQty, unpackedQty);
+                    if (qtyEl.value < 1) qtyEl.value = 1;
+                    qtyEl.disabled = false;
+                    if (submitBtn) submitBtn.disabled = false;
+                    if (alertEl) alertEl.classList.add('d-none');
                 } else {
-                    qtyInput.removeAttribute('disabled');
-                    qtyInput.value = unpacked;
-                    if (helpEl) {
-                        helpEl.className = 'text-primary font-monospace mt-1 d-block';
-                        helpEl.innerHTML = `<i class="fa-solid fa-circle-info me-1"></i> Max allowed to pack: <strong>${unpacked} pcs</strong> (Target: ${target} pcs, Packed: ${packed} pcs)`;
-                    }
+                    qtyEl.max = 0;
+                    qtyEl.value = 0;
+                    qtyEl.disabled = true;
+                    if (submitBtn) submitBtn.disabled = true;
+                    if (alertEl) alertEl.classList.remove('d-none');
                 }
             }
 
@@ -605,16 +607,15 @@
                     togglePackDestFields(destTypeEl);
                 }
             }
-        }
-    }
-
-    function validatePackQty(inputEl) {
-        const maxVal = parseInt(inputEl.max) || 0;
-        const val = parseInt(inputEl.value) || 0;
-        if (maxVal > 0 && val > maxVal) {
-            inputEl.value = maxVal;
-        } else if (val < 1 && maxVal > 0) {
-            inputEl.value = 1;
+        } else {
+            if (qtyEl) {
+                qtyEl.max = 1;
+                qtyEl.value = 1;
+                qtyEl.disabled = false;
+            }
+            if (submitBtn) submitBtn.disabled = false;
+            if (alertEl) alertEl.classList.add('d-none');
+            if (countEl) countEl.textContent = '0';
         }
     }
 
