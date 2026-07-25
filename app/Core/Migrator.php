@@ -154,6 +154,8 @@ class Migrator {
 
             // Auto-heal carton_items table columns for tracking
             $cartonItemCols = [
+                'qr_code' => "VARCHAR(150) DEFAULT NULL",
+                'product_qr_code' => "VARCHAR(150) DEFAULT NULL",
                 'assigned_by' => "INT DEFAULT NULL",
                 'assigned_at' => "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
             ];
@@ -162,6 +164,24 @@ class Migrator {
                     $checkCi = $db->query("SHOW COLUMNS FROM `carton_items` LIKE '{$col}'");
                     if (!$checkCi || $checkCi->rowCount() === 0) {
                         $db->exec("ALTER TABLE `carton_items` ADD COLUMN `{$col}` {$type}");
+                    }
+                } catch (\PDOException $e) {}
+            }
+
+            // Auto-heal production_stage_logs table columns
+            $pslCols = [
+                'qr_code' => "VARCHAR(150) DEFAULT NULL",
+                'scanned_qr_code' => "VARCHAR(150) DEFAULT NULL",
+                'employee_id' => "INT DEFAULT NULL",
+                'operator_id' => "INT DEFAULT NULL",
+                'notes' => "TEXT DEFAULT NULL",
+                'edit_remarks' => "VARCHAR(255) DEFAULT NULL"
+            ];
+            foreach ($pslCols as $col => $type) {
+                try {
+                    $checkPsl = $db->query("SHOW COLUMNS FROM `production_stage_logs` LIKE '{$col}'");
+                    if (!$checkPsl || $checkPsl->rowCount() === 0) {
+                        $db->exec("ALTER TABLE `production_stage_logs` ADD COLUMN `{$col}` {$type}");
                     }
                 } catch (\PDOException $e) {}
             }

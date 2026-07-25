@@ -112,6 +112,20 @@ class PackingQrController extends Controller {
                 $db->exec("ALTER TABLE `production_stage_logs` ADD COLUMN `operator_id` INT DEFAULT NULL AFTER `employee_id`");
             }
         } catch (\PDOException $e) {}
+
+        try {
+            $chkNotes = $db->query("SHOW COLUMNS FROM `production_stage_logs` LIKE 'notes'");
+            if (!$chkNotes || $chkNotes->rowCount() === 0) {
+                $db->exec("ALTER TABLE `production_stage_logs` ADD COLUMN `notes` TEXT DEFAULT NULL");
+            }
+        } catch (\PDOException $e) {}
+
+        try {
+            $chkRem = $db->query("SHOW COLUMNS FROM `production_stage_logs` LIKE 'edit_remarks'");
+            if (!$chkRem || $chkRem->rowCount() === 0) {
+                $db->exec("ALTER TABLE `production_stage_logs` ADD COLUMN `edit_remarks` VARCHAR(255) DEFAULT NULL");
+            }
+        } catch (\PDOException $e) {}
     }
 
     /**
