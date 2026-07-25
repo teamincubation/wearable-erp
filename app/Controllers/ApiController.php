@@ -336,30 +336,16 @@ class ApiController extends Controller {
         }
 
         $db = Database::getInstance();
-
-        // Support ?status=active filter (default for mobile QR scanner)
-        $statusFilter = strtolower(trim((string)$request->get('status', '')));
-
-        $sql = "
+        $stmtBatches = $db->prepare("
             SELECT pro.id, pro.production_no, s.style_no, s.name as style_name, COALESCE(c.name, 'Internal') as buyer_name, pro.status
             FROM production_orders pro
             JOIN buyer_pos po ON pro.po_id = po.id
             JOIN styles s ON po.style_id = s.id
             LEFT JOIN contacts c ON po.buyer_id = c.id
             WHERE pro.company_id = ? AND pro.deleted_at IS NULL
-        ";
-        $params = [$userData['company_id']];
-
-        if ($statusFilter === 'active') {
-            $sql .= " AND pro.status IN ('running', 'in_progress')";
-        } elseif (!empty($statusFilter) && $statusFilter !== 'all') {
-            $sql .= " AND pro.status = ?";
-            $params[] = $statusFilter;
-        }
-
-        $sql .= " ORDER BY pro.id DESC";
-        $stmtBatches = $db->prepare($sql);
-        $stmtBatches->execute($params);
+            ORDER BY pro.id DESC
+        ");
+        $stmtBatches->execute([$userData['company_id']]);
         $batches = $stmtBatches->fetchAll() ?: [];
 
         $response->json([
@@ -446,28 +432,13 @@ class ApiController extends Controller {
             }
         }
 
-        // Return structured {key, name, order} objects for mobile app
-        $structuredStages = [];
-        $order = 1;
-        foreach ($stagesList as $stg) {
-            if (is_string($stg) && !empty(trim($stg))) {
-                $structuredStages[] = [
-                    'key' => $this->toStageKey($stg),
-                    'name' => trim($stg),
-                    'order' => $order++
-                ];
-            } elseif (is_array($stg) && !empty($stg['name'] ?? $stg['key'] ?? '')) {
-                $structuredStages[] = [
-                    'key' => $stg['key'] ?? $this->toStageKey($stg['name'] ?? ''),
-                    'name' => $stg['name'] ?? ucfirst(str_replace('_', ' ', $stg['key'] ?? '')),
-                    'order' => (int)($stg['order'] ?? $order++)
-                ];
-            }
+        if (empty($stagesList)) {
+            $stagesList = ['Cutting', 'Stitching', 'Checking', 'Thread cutting', 'Ironing', 'Packing'];
         }
 
         $response->json([
             'status' => 'success',
-            'data' => $structuredStages
+            'data' => array_values(array_filter($stagesList))
         ], 200);
     }
 
@@ -586,58 +557,6 @@ class ApiController extends Controller {
                 'message' => 'No active production batch order found to associate with this QR scan.'
             ], 404);
             return;
-        }
-
-        // WIP Stage Sequential Order Enforcement (matching web logQrActivity behavior)
-        $stmtStyle = $db->prepare("
-            SELECT s.wip_stages
-            FROM production_orders pro
-            JOIN buyer_pos po ON pro.po_id = po.id
-            JOIN styles s ON po.style_id = s.id
-            WHERE pro.id = ? AND pro.company_id = ?
-            LIMIT 1
-        ");
-        $stmtStyle->execute([$batch['id'], $companyId]);
-        $wipStagesJson = $stmtStyle->fetchColumn();
-        $wipStages = $wipStagesJson ? json_decode($wipStagesJson, true) : [];
-
-        if (is_array($wipStages) && !empty($wipStages)) {
-            $stageKeys = [];
-            $stageNames = [];
-            foreach ($wipStages as $stg) {
-                if (is_string($stg)) {
-                    $stageKeys[] = $this->toStageKey($stg);
-                    $stageNames[] = $stg;
-                } elseif (is_array($stg)) {
-                    $stageKeys[] = $stg['key'] ?? $this->toStageKey($stg['name'] ?? '');
-                    $stageNames[] = $stg['name'] ?? ucfirst(str_replace('_', ' ', $stg['key'] ?? ''));
-                }
-            }
-
-            $targetIndex = array_search($stageKey, $stageKeys);
-            if ($targetIndex !== false && $targetIndex > 0) {
-                for ($i = 0; $i < $targetIndex; $i++) {
-                    $precedingKey = $stageKeys[$i];
-                    $precedingName = $stageNames[$i];
-
-                    $stmtCheckPrec = $db->prepare("
-                        SELECT id FROM production_stage_logs 
-                        WHERE company_id = ? AND LOWER(TRIM(qr_code)) = LOWER(TRIM(?)) 
-                          AND (LOWER(TRIM(stage)) = ? OR LOWER(TRIM(stage)) = ?)
-                        LIMIT 1
-                    ");
-                    $stmtCheckPrec->execute([$companyId, $qrCode, $precedingKey, strtolower(trim($precedingName))]);
-                    if (!$stmtCheckPrec->fetchColumn()) {
-                        $targetName = $stageNames[$targetIndex] ?? strtoupper(str_replace('_', ' ', $stageKey));
-                        $response->json([
-                            'status' => 'sequence_error',
-                            'out_of_order' => true,
-                            'message' => "Order Sequence Error: Unit ({$qrCode}) cannot enter stage '{$targetName}' yet. Preceding stage '{$precedingName}' must be completed first!"
-                        ], 409);
-                        return;
-                    }
-                }
-            }
         }
 
         $qtyIn = 1;
