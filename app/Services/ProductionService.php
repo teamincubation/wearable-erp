@@ -37,6 +37,34 @@ class ProductionService {
         $end = strtotime($endTime);
         $durationMinutes = $end > $start ? (int) (($end - $start) / 60) : 0;
 
+        // Sanitize FK fields to prevent constraint failures
+        $validEmployeeId = null;
+        if (!empty($employeeId) && (int)$employeeId > 0 && (int)$employeeId !== 999999) {
+            $stmtCheck = $this->db->prepare("SELECT id FROM users WHERE id = ? LIMIT 1");
+            $stmtCheck->execute([(int)$employeeId]);
+            if ($stmtCheck->fetchColumn()) {
+                $validEmployeeId = (int)$employeeId;
+            }
+        }
+
+        $validMachineId = null;
+        if (!empty($machineId) && (int)$machineId > 0) {
+            $stmtCheck = $this->db->prepare("SELECT id FROM machines WHERE id = ? LIMIT 1");
+            $stmtCheck->execute([(int)$machineId]);
+            if ($stmtCheck->fetchColumn()) {
+                $validMachineId = (int)$machineId;
+            }
+        }
+
+        $validCreatedBy = null;
+        if (!empty($userId) && (int)$userId > 0 && (int)$userId !== 999999) {
+            $stmtCheck = $this->db->prepare("SELECT id FROM users WHERE id = ? LIMIT 1");
+            $stmtCheck->execute([(int)$userId]);
+            if ($stmtCheck->fetchColumn()) {
+                $validCreatedBy = (int)$userId;
+            }
+        }
+
         $sql = "INSERT INTO production_stage_logs (
                     company_id, production_order_id, stage, machine_id, 
                     employee_id, qty_in, qty_out, waste_qty, 
@@ -48,15 +76,15 @@ class ProductionService {
             $companyId,
             $productionOrderId,
             $stage,
-            $machineId,
-            $employeeId,
+            $validMachineId,
+            $validEmployeeId,
             $qtyIn,
             $qtyOut,
             $wasteQty,
             $startTime,
             $endTime,
             $durationMinutes,
-            $userId
+            $validCreatedBy
         ]);
 
         $logId = (int) $this->db->lastInsertId();

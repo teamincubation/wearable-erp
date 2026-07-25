@@ -341,6 +341,34 @@ class ProductionController extends Controller {
 
         $editRemarks = trim((string)$request->get('edit_remarks'));
 
+        // Sanitize FK fields to prevent integrity constraint failures
+        $validEmployeeId = null;
+        if (!empty($employeeId) && (int)$employeeId > 0 && (int)$employeeId !== 999999) {
+            $stmtCheckUser = $db->prepare("SELECT id FROM users WHERE id = ? LIMIT 1");
+            $stmtCheckUser->execute([(int)$employeeId]);
+            if ($stmtCheckUser->fetchColumn()) {
+                $validEmployeeId = (int)$employeeId;
+            }
+        }
+
+        $validEditedBy = null;
+        if (!empty($userId) && (int)$userId > 0 && (int)$userId !== 999999) {
+            $stmtCheckUser = $db->prepare("SELECT id FROM users WHERE id = ? LIMIT 1");
+            $stmtCheckUser->execute([(int)$userId]);
+            if ($stmtCheckUser->fetchColumn()) {
+                $validEditedBy = (int)$userId;
+            }
+        }
+
+        $validMachineId = null;
+        if (!empty($machineId) && (int)$machineId > 0) {
+            $stmtCheckMachine = $db->prepare("SELECT id FROM machines WHERE id = ? LIMIT 1");
+            $stmtCheckMachine->execute([(int)$machineId]);
+            if ($stmtCheckMachine->fetchColumn()) {
+                $validMachineId = (int)$machineId;
+            }
+        }
+
         try {
             $stmtUpdate = $db->prepare("UPDATE production_stage_logs 
                                         SET stage = ?, machine_id = ?, employee_id = ?, qty_in = ?, qty_out = ?, waste_qty = ?, start_time = ?, end_time = ?, duration_minutes = ?,
@@ -348,15 +376,15 @@ class ProductionController extends Controller {
                                         WHERE id = ? AND company_id = ?");
             $stmtUpdate->execute([
                 $stage,
-                $machineId,
-                $employeeId,
+                $validMachineId,
+                $validEmployeeId,
                 $qtyIn,
                 $qtyOut,
                 $wasteQty,
                 $startTimeDate,
                 $endTimeDate,
                 $durationMinutes,
-                $userId,
+                $validEditedBy,
                 !empty($editRemarks) ? $editRemarks : null,
                 (int)$id,
                 $companyId
@@ -821,8 +849,17 @@ class ProductionController extends Controller {
             }
         }
 
-        // Logged-in user is the operator / employee
+        // Logged-in user is the operator / employee. Sanitize for FK integrity.
         $employeeId = $userId;
+        $validEmployeeId = null;
+        if (!empty($employeeId) && (int)$employeeId > 0 && (int)$employeeId !== 999999) {
+            $stmtCheckUser = $db->prepare("SELECT id FROM users WHERE id = ? LIMIT 1");
+            $stmtCheckUser->execute([(int)$employeeId]);
+            if ($stmtCheckUser->fetchColumn()) {
+                $validEmployeeId = (int)$employeeId;
+            }
+        }
+        $validCreatedBy = $validEmployeeId;
 
         // Map Pass/Fail logic
         $qtyIn = 1;
@@ -845,14 +882,14 @@ class ProductionController extends Controller {
                 $companyId,
                 $batch['id'],
                 $stage,
-                $employeeId,
+                $validEmployeeId,
                 $qtyIn,
                 $qtyOut,
                 $wasteQty,
                 $startTime,
                 $endTime,
                 $durationMinutes,
-                $userId,
+                $validCreatedBy,
                 $qrCode
             ]);
 

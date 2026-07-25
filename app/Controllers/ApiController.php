@@ -610,6 +610,17 @@ class ApiController extends Controller {
         $startTime = date('Y-m-d H:i:s', $nowTs - $durationSeconds);
         $durationMinutes = (int)max(1, ceil($durationSeconds / 60));
 
+        // Sanitize employee_id and created_by to ensure FK constraint integrity
+        $validEmployeeId = null;
+        if (!empty($userId) && (int)$userId > 0 && (int)$userId !== 999999) {
+            $stmtCheckUser = $db->prepare("SELECT id FROM users WHERE id = ? LIMIT 1");
+            $stmtCheckUser->execute([(int)$userId]);
+            if ($stmtCheckUser->fetchColumn()) {
+                $validEmployeeId = (int)$userId;
+            }
+        }
+        $validCreatedBy = $validEmployeeId;
+
         try {
             $stmtLog = $db->prepare("
                 INSERT INTO production_stage_logs 
@@ -620,14 +631,14 @@ class ApiController extends Controller {
                 $companyId,
                 $batch['id'],
                 $stageKey,
-                $userId,
+                $validEmployeeId,
                 $qtyIn,
                 $qtyOut,
                 $wasteQty,
                 $startTime,
                 $endTime,
                 $durationMinutes,
-                $userId,
+                $validCreatedBy,
                 $qrCode
             ]);
 
