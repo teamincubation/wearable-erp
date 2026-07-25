@@ -36,24 +36,35 @@ class TimezoneHelper {
             return 'Just now';
         }
 
-        $timestamp = strtotime($datetime);
+        try {
+            $dt = new DateTime($datetime, new DateTimeZone('UTC'));
+            $timestamp = $dt->getTimestamp();
+        } catch (Exception $e) {
+            $timestamp = strtotime($datetime);
+        }
+
         if (!$timestamp) {
             return 'Just now';
         }
 
-        $difference = time() - $timestamp;
+        $now = time();
+        $difference = $now - $timestamp;
+
+        if ($difference < 0) {
+            return 'Just now';
+        }
 
         if ($difference < 60) {
             return 'Just now';
         } elseif ($difference < 3600) {
-            $mins = max(1, floor($difference / 60));
-            return $mins . ($mins === 1 ? ' min ago' : ' mins ago');
+            $mins = max(1, (int)floor($difference / 60));
+            return $mins === 1 ? '1 min ago' : $mins . ' mins ago';
         } elseif ($difference < 86400) {
-            $hours = floor($difference / 3600);
-            return $hours . ($hours === 1 ? ' hour ago' : ' hours ago');
+            $hours = (int)floor($difference / 3600);
+            return $hours === 1 ? '1 hour ago' : $hours . ' hours ago';
         } elseif ($difference < 2592000) {
-            $days = floor($difference / 86400);
-            return $days . ($days === 1 ? ' day ago' : ' days ago');
+            $days = (int)floor($difference / 86400);
+            return $days === 1 ? '1 day ago' : $days . ' days ago';
         } else {
             return date('d M Y', $timestamp);
         }
