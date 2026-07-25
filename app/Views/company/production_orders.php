@@ -60,10 +60,10 @@
                                 $diffSecs = max(0, time() - $startTs);
                                 $days = floor($diffSecs / 86400);
                                 $hrs = floor(($diffSecs % 86400) / 3600);
-                                $mins = floor(($diffSecs % 3600) / 60);
+                                $mins = sprintf('%02d', floor(($diffSecs % 3600) / 60));
                                 $durationText = ($days > 0 ? "{$days}d " : "") . "{$hrs}h {$mins}m";
                             } elseif ($isStarted) {
-                                $durationText = "0h 0m";
+                                $durationText = "0h 00m";
                             }
                             ?>
                             <tr class="production-table-row" 

@@ -146,7 +146,7 @@ $avgMarginVal = ($totalRevenueVal > 0) ? round(($totalProfitVal / $totalRevenueV
                             $diffSecs = max(0, $endTs - $startTs);
                             $days = floor($diffSecs / 86400);
                             $hrs = floor(($diffSecs % 86400) / 3600);
-                            $mins = floor(($diffSecs % 3600) / 60);
+                            $mins = sprintf('%02d', floor(($diffSecs % 3600) / 60));
                             $durationStr = ($days > 0 ? "{$days}d " : "") . "{$hrs}h {$mins}m";
                             ?>
                             <tr>
@@ -215,7 +215,7 @@ $avgMarginVal = ($totalRevenueVal > 0) ? round(($totalProfitVal / $totalRevenueV
         $diffSecs = max(0, $endTs - $startTs);
         $days = floor($diffSecs / 86400);
         $hrs = floor(($diffSecs % 86400) / 3600);
-        $mins = floor(($diffSecs % 3600) / 60);
+        $mins = sprintf('%02d', floor(($diffSecs % 3600) / 60));
         $durationStr = ($days > 0 ? "{$days}d " : "") . "{$hrs}h {$mins}m";
         ?>
         <div class="modal fade" id="viewBatchDossier-<?= $b['id'] ?>" tabindex="-1" aria-hidden="true">
