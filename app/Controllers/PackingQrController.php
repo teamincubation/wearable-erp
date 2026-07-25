@@ -315,12 +315,23 @@ class PackingQrController extends Controller {
             $buyerPo = $carton['buyer_po_no'] ?: 'N/A';
             $batchTotalQty = max(1, (int)$carton['target_qty']);
 
-            // 2. Fetch all logged product stage QRs for this batch
+            // 2. Fetch total finished/packed quantity from production_stage_logs for this batch
+            $stmtQty = $db->prepare("
+                SELECT COALESCE(SUM(psl.qty_out), 0) 
+                FROM production_stage_logs psl 
+                WHERE psl.production_order_id = ? AND psl.company_id = ? 
+                  AND LOWER(psl.stage) IN ('packing', 'carton_packing', 'finishing', 'qc_pass', 'completed')
+            ");
+            $stmtQty->execute([$prodOrderId, $companyId]);
+            $packingCompletedQty = max(0, (int)$stmtQty->fetchColumn());
+
+            // 3. Fetch logged product stage QRs for packing stage
             $stmtLogs = $db->prepare("
                 SELECT psl.id, COALESCE(psl.scanned_qr_code, psl.qr_code) as scanned_qr_code, psl.stage, psl.qty_out, psl.created_at
                 FROM production_stage_logs psl
                 WHERE psl.company_id = ? 
                   AND psl.production_order_id = ?
+                  AND LOWER(psl.stage) IN ('packing', 'carton_packing', 'finishing', 'qc_pass', 'completed')
                   AND (
                       (psl.scanned_qr_code IS NOT NULL AND psl.scanned_qr_code != '')
                       OR
@@ -359,7 +370,7 @@ class PackingQrController extends Controller {
             $eligibleProducts = [];
             $seenQrs = [];
 
-            // Add logged scanned QRs first
+            // Add logged scanned QRs for packing stage
             foreach ($logs as $row) {
                 $qr = trim((string)$row['scanned_qr_code']);
                 if (empty($qr) || isset($seenQrs[$qr])) continue;
@@ -378,7 +389,7 @@ class PackingQrController extends Controller {
                     'size' => 'FREE',
                     'color' => 'N/A',
                     'qty' => max(1, (int)$row['qty_out']),
-                    'stage' => ucfirst($row['stage']),
+                    'stage' => 'Packed',
                     'is_assigned' => $isAssigned,
                     'existing_carton_no' => $asgnInfo ? $asgnInfo['carton_no'] : null,
                     'is_current_carton' => $isCurrentCarton,
@@ -386,9 +397,9 @@ class PackingQrController extends Controller {
                 ];
             }
 
-            // Ensure all batch products up to batchTotalQty are generated and available to select
-            $totalCountNeeded = max(count($eligibleProducts), min(500, $batchTotalQty));
-            for ($i = 1; $i <= $totalCountNeeded; $i++) {
+            // If packing logs exist without individual scanned QR strings, generate items up to packingCompletedQty ONLY
+            $targetCount = max(count($eligibleProducts), min($batchTotalQty, $packingCompletedQty));
+            for ($i = 1; $i <= $targetCount; $i++) {
                 $virtualQr = sprintf("PROD-%s-%04d", $productionNo, $i);
                 if (isset($seenQrs[$virtualQr])) continue;
                 $seenQrs[$virtualQr] = true;
@@ -406,7 +417,7 @@ class PackingQrController extends Controller {
                     'size' => 'ALL',
                     'color' => 'ASSORTED',
                     'qty' => 1,
-                    'stage' => 'Ready to Pack',
+                    'stage' => 'Packed',
                     'is_assigned' => $isAssigned,
                     'existing_carton_no' => $asgnInfo ? $asgnInfo['carton_no'] : null,
                     'is_current_carton' => $isCurrentCarton,
