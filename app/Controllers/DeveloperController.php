@@ -69,17 +69,25 @@ class DeveloperController extends Controller {
 
         $plans = $db->query("SELECT * FROM subscription_plans WHERE deleted_at IS NULL")->fetchAll();
 
-        // Ensure company.production.rfid_tracking permission exists dynamically
-        $stmtCheckRFID = $db->prepare("SELECT id FROM permissions WHERE name = ?");
-        $stmtCheckRFID->execute(['company.production.rfid_tracking']);
-        $rfidId = $stmtCheckRFID->fetchColumn();
-        if (!$rfidId) {
+        // Ensure required tenant permissions exist dynamically in permissions table
+        $requiredTenantPerms = [
+            ['name' => 'company.production.rfid_tracking', 'description' => 'Access QR Code / RFID Production Scanner page', 'module' => 'tenant'],
+            ['name' => 'company.dispatch.view', 'description' => 'View finished goods dispatch and packing hub', 'module' => 'tenant'],
+            ['name' => 'company.dispatch.manage', 'description' => 'Manage carton packing, printing QR labels, and dispatching shipments', 'module' => 'tenant'],
+            ['name' => 'company.packing.qr', 'description' => 'Access Packing QR Module for Carton Product Assignments', 'module' => 'tenant']
+        ];
+        foreach ($requiredTenantPerms as $permInfo) {
             try {
-                $stmtIns = $db->prepare("INSERT INTO permissions (name, description, module) VALUES (?, ?, ?)");
-                $stmtIns->execute(['company.production.rfid_tracking', 'Access QR Code / RFID Production Scanner page', 'tenant']);
-                $rfidId = $db->lastInsertId();
-                if ($rfidId) {
-                    $db->exec("INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (2, " . (int)$rfidId . ")");
+                $stmtCheck = $db->prepare("SELECT id FROM permissions WHERE name = ?");
+                $stmtCheck->execute([$permInfo['name']]);
+                $permId = $stmtCheck->fetchColumn();
+                if (!$permId) {
+                    $stmtIns = $db->prepare("INSERT INTO permissions (name, description, module) VALUES (?, ?, ?)");
+                    $stmtIns->execute([$permInfo['name'], $permInfo['description'], $permInfo['module']]);
+                    $permId = $db->lastInsertId();
+                    if ($permId) {
+                        $db->exec("INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (2, " . (int)$permId . ")");
+                    }
                 }
             } catch (\Exception $ex) {
                 // Ignore duplicate errors
