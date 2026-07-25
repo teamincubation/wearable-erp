@@ -68,8 +68,10 @@ class PackingQrController extends Controller {
             }
         } catch (\PDOException $e) {}
 
-        // Auto-heal assigned_by and assigned_at columns on carton_items
+        // Auto-heal carton_items columns for product_qr_code, qr_code, assigned_by, and assigned_at compatibility
         $cartonItemCols = [
+            'qr_code' => "VARCHAR(150) DEFAULT NULL",
+            'product_qr_code' => "VARCHAR(150) DEFAULT NULL",
             'assigned_by' => "INT DEFAULT NULL",
             'assigned_at' => "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
         ];
@@ -246,7 +248,7 @@ class PackingQrController extends Controller {
 
         // Fetch currently assigned items in this carton
         $stmtItems = $db->prepare("
-            SELECT ci.*, u.name as assigned_by_name
+            SELECT ci.*, COALESCE(ci.product_qr_code, ci.qr_code) as product_qr_code, u.name as assigned_by_name
             FROM carton_items ci
             LEFT JOIN users u ON ci.assigned_by = u.id
             WHERE ci.carton_id = ?
@@ -331,20 +333,27 @@ class PackingQrController extends Controller {
 
             // Fetch assigned items map for company
             $stmtAssigned = $db->prepare("
-                SELECT ci.product_qr_code, ci.carton_id, c.carton_no 
+                SELECT COALESCE(ci.product_qr_code, ci.qr_code) as product_qr_code, ci.carton_id, c.carton_no 
                 FROM carton_items ci
                 JOIN cartons c ON ci.carton_id = c.id
-                WHERE c.company_id = ? AND ci.product_qr_code IS NOT NULL AND ci.product_qr_code != ''
+                WHERE c.company_id = ? 
+                  AND (
+                      (ci.product_qr_code IS NOT NULL AND ci.product_qr_code != '')
+                      OR
+                      (ci.qr_code IS NOT NULL AND ci.qr_code != '')
+                  )
             ");
             $stmtAssigned->execute([$companyId]);
             $assignedRows = $stmtAssigned->fetchAll() ?: [];
 
             $assignedMap = [];
             foreach ($assignedRows as $asgn) {
-                $assignedMap[$asgn['product_qr_code']] = [
-                    'carton_id' => $asgn['carton_id'],
-                    'carton_no' => $asgn['carton_no']
-                ];
+                if (!empty($asgn['product_qr_code'])) {
+                    $assignedMap[$asgn['product_qr_code']] = [
+                        'carton_id' => $asgn['carton_id'],
+                        'carton_no' => $asgn['carton_no']
+                    ];
+                }
             }
 
             $eligibleProducts = [];
@@ -509,9 +518,9 @@ class PackingQrController extends Controller {
             SELECT ci.carton_id, c.carton_no 
             FROM carton_items ci 
             JOIN cartons c ON ci.carton_id = c.id 
-            WHERE ci.product_qr_code = ? AND ci.carton_id != ? LIMIT 1
+            WHERE (ci.product_qr_code = ? OR ci.qr_code = ?) AND ci.carton_id != ? LIMIT 1
         ");
-        $stmtCheckAssigned->execute([$productQr, $cartonId]);
+        $stmtCheckAssigned->execute([$productQr, $productQr, $cartonId]);
         $existingAssigned = $stmtCheckAssigned->fetch();
 
         if ($existingAssigned) {
@@ -602,8 +611,8 @@ class PackingQrController extends Controller {
             $db->beginTransaction();
 
             $stmtInsItem = $db->prepare("
-                INSERT INTO carton_items (carton_id, production_order_id, product_qr_code, size, color, qty, assigned_by, assigned_at)
-                VALUES (?, ?, ?, 'FREE', 'N/A', 1, ?, NOW())
+                INSERT INTO carton_items (carton_id, production_order_id, qr_code, product_qr_code, size, color, qty, assigned_by, assigned_at)
+                VALUES (?, ?, ?, ?, 'FREE', 'N/A', 1, ?, NOW())
                 ON DUPLICATE KEY UPDATE assigned_at = NOW()
             ");
 
@@ -618,13 +627,13 @@ class PackingQrController extends Controller {
                 if (empty($cleanQr)) continue;
 
                 // Check if already in this carton
-                $stmtChk = $db->prepare("SELECT id FROM carton_items WHERE carton_id = ? AND product_qr_code = ? LIMIT 1");
-                $stmtChk->execute([$cartonId, $cleanQr]);
+                $stmtChk = $db->prepare("SELECT id FROM carton_items WHERE carton_id = ? AND (product_qr_code = ? OR qr_code = ?) LIMIT 1");
+                $stmtChk->execute([$cartonId, $cleanQr, $cleanQr]);
                 if ($stmtChk->fetch()) {
                     continue; // Skip duplicates
                 }
 
-                $stmtInsItem->execute([$cartonId, $carton['production_order_id'], $cleanQr, $userId]);
+                $stmtInsItem->execute([$cartonId, $carton['production_order_id'], $cleanQr, $cleanQr, $userId]);
                 $stmtStageLog->execute([$companyId, $carton['production_order_id'], $userId, $cleanQr, $cleanQr, "Assigned to Carton {$carton['carton_no']} ({$assignmentMode})"]);
                 $addedCount++;
             }
