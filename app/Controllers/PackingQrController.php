@@ -67,6 +67,20 @@ class PackingQrController extends Controller {
                 $db->exec("ALTER TABLE `cartons` ADD COLUMN `max_capacity_pcs` INT DEFAULT 50 AFTER `warehouse_id`");
             }
         } catch (\PDOException $e) {}
+
+        // Auto-heal assigned_by and assigned_at columns on carton_items
+        $cartonItemCols = [
+            'assigned_by' => "INT DEFAULT NULL",
+            'assigned_at' => "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+        ];
+        foreach ($cartonItemCols as $col => $type) {
+            try {
+                $checkCi = $db->query("SHOW COLUMNS FROM `carton_items` LIKE '{$col}'");
+                if (!$checkCi || $checkCi->rowCount() === 0) {
+                    $db->exec("ALTER TABLE `carton_items` ADD COLUMN `{$col}` {$type}");
+                }
+            } catch (\PDOException $e) {}
+        }
     }
 
     /**
