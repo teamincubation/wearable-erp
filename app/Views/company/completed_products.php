@@ -141,8 +141,13 @@ $avgMarginVal = ($totalRevenueVal > 0) ? round(($totalProfitVal / $totalRevenueV
                     <?php if (!empty($completed_batches)): ?>
                         <?php foreach ($completed_batches as $b): ?>
                             <?php 
-                            $startTs = !empty($b['started_at']) ? strtotime($b['started_at']) : strtotime($b['created_at']);
-                            $endTs = !empty($b['completed_at']) ? strtotime($b['completed_at']) : time();
+                            try {
+                                $startTs = !empty($b['started_at']) ? (new \DateTime($b['started_at'], new \DateTimeZone('UTC')))->getTimestamp() : (new \DateTime($b['created_at'] ?? 'now', new \DateTimeZone('UTC')))->getTimestamp();
+                                $endTs = !empty($b['completed_at']) ? (new \DateTime($b['completed_at'], new \DateTimeZone('UTC')))->getTimestamp() : time();
+                            } catch (\Exception $e) {
+                                $startTs = !empty($b['started_at']) ? strtotime($b['started_at']) : strtotime($b['created_at'] ?? 'now');
+                                $endTs = !empty($b['completed_at']) ? strtotime($b['completed_at']) : time();
+                            }
                             $diffSecs = max(0, $endTs - $startTs);
                             $days = floor($diffSecs / 86400);
                             $hrs = floor(($diffSecs % 86400) / 3600);
@@ -210,8 +215,13 @@ $avgMarginVal = ($totalRevenueVal > 0) ? round(($totalProfitVal / $totalRevenueV
 <?php if (!empty($completed_batches)): ?>
     <?php foreach ($completed_batches as $b): ?>
         <?php 
-        $startTs = !empty($b['started_at']) ? strtotime($b['started_at']) : strtotime($b['created_at']);
-        $endTs = !empty($b['completed_at']) ? strtotime($b['completed_at']) : time();
+        try {
+            $startTs = !empty($b['started_at']) ? (new \DateTime($b['started_at'], new \DateTimeZone('UTC')))->getTimestamp() : (new \DateTime($b['created_at'] ?? 'now', new \DateTimeZone('UTC')))->getTimestamp();
+            $endTs = !empty($b['completed_at']) ? (new \DateTime($b['completed_at'], new \DateTimeZone('UTC')))->getTimestamp() : time();
+        } catch (\Exception $e) {
+            $startTs = !empty($b['started_at']) ? strtotime($b['started_at']) : strtotime($b['created_at'] ?? 'now');
+            $endTs = !empty($b['completed_at']) ? strtotime($b['completed_at']) : time();
+        }
         $diffSecs = max(0, $endTs - $startTs);
         $days = floor($diffSecs / 86400);
         $hrs = floor(($diffSecs % 86400) / 3600);

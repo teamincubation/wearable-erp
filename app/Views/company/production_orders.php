@@ -53,11 +53,17 @@
                             <?php 
                             $isStarted = ($o['status'] === 'running' || $o['status'] === 'in_progress' || !empty($o['started_at']));
                             
-                            // Work duration counter
+                            // Work duration counter (UTC aligned)
                             $durationText = 'Not Started Yet';
                             if ($isStarted && !empty($o['started_at'])) {
-                                $startTs = strtotime($o['started_at']);
-                                $diffSecs = max(0, time() - $startTs);
+                                try {
+                                    $dtStart = new \DateTime($o['started_at'], new \DateTimeZone('UTC'));
+                                    $startTs = $dtStart->getTimestamp();
+                                } catch (\Exception $e) {
+                                    $startTs = strtotime($o['started_at']) ?: 0;
+                                }
+                                $nowTs = time();
+                                $diffSecs = max(0, $nowTs - $startTs);
                                 $days = floor($diffSecs / 86400);
                                 $hrs = floor(($diffSecs % 86400) / 3600);
                                 $mins = sprintf('%02d', floor(($diffSecs % 3600) / 60));

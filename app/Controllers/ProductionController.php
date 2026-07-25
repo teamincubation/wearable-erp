@@ -1162,7 +1162,7 @@ class ProductionController extends Controller {
             return;
         }
 
-        $db->prepare("UPDATE production_orders SET status = 'running', started_at = NOW(), updated_at = NOW() WHERE id = ?")->execute([$id]);
+        $db->prepare("UPDATE production_orders SET status = 'running', started_at = UTC_TIMESTAMP(), updated_at = NOW() WHERE id = ?")->execute([$id]);
 
         AuditLog::log($companyId, Session::get('user_id'), 'start_production', 'ProductionOrder', (int)$id, null, null, "Started manufacturing batch: {$batch['production_no']}");
         Session::setFlash('success', "Production batch #{$batch['production_no']} started successfully. Work time duration counter is active from 0.");
@@ -1196,7 +1196,7 @@ class ProductionController extends Controller {
             return;
         }
 
-        $db->prepare("UPDATE production_orders SET status = 'completed', completed_at = NOW(), end_date = CURDATE(), updated_at = NOW() WHERE id = ?")->execute([$id]);
+        $db->prepare("UPDATE production_orders SET status = 'completed', completed_at = UTC_TIMESTAMP(), end_date = CURDATE(), updated_at = NOW() WHERE id = ?")->execute([$id]);
 
         // Automatically update linked Buyer PO status to 'completed'
         if (!empty($batch['po_id'])) {
