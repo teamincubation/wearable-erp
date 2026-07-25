@@ -622,6 +622,20 @@ class PackingQrController extends Controller {
         try {
             $db->beginTransaction();
 
+            // Automatically unassign all product QR codes starting with "ITEM" or null/empty QR from this carton
+            $stmtDelDummy = $db->prepare("
+                DELETE FROM carton_items 
+                WHERE carton_id = ? AND (
+                    product_qr_code LIKE 'ITEM%' 
+                    OR qr_code LIKE 'ITEM%' 
+                    OR product_qr_code IS NULL 
+                    OR product_qr_code = ''
+                    OR qr_code IS NULL 
+                    OR qr_code = ''
+                )
+            ");
+            $stmtDelDummy->execute([$cartonId]);
+
             $stmtInsItem = $db->prepare("
                 INSERT INTO carton_items (carton_id, production_order_id, qr_code, product_qr_code, size, color, qty, assigned_by, assigned_at)
                 VALUES (?, ?, ?, ?, 'FREE', 'N/A', 1, ?, NOW())

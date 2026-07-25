@@ -308,6 +308,18 @@
     const MAX_CAPACITY = <?= (int)($carton['max_capacity_pcs'] ?: 50) ?>;
     let CURRENT_ASSIGNED = <?= (int)$assignedQty ?>;
 
+    <?php 
+    $dummyCount = 0;
+    foreach ($assignedItems as $ai) {
+        $qr = !empty($ai['product_qr_code']) ? (string)$ai['product_qr_code'] : (!empty($ai['qr_code']) ? (string)$ai['qr_code'] : '');
+        if (empty($qr) || str_starts_with(strtoupper($qr), 'ITEM')) {
+            $dummyCount++;
+        }
+    }
+    ?>
+    const DUMMY_ITEM_COUNT = <?= (int)$dummyCount ?>;
+    let REAL_CURRENT_ASSIGNED = Math.max(0, CURRENT_ASSIGNED - DUMMY_ITEM_COUNT);
+
     let scannedSessionProducts = [];
     let html5QrScanner = null;
     let isCameraActive = false;
@@ -390,7 +402,7 @@
 
     function toggleSelectAllManual(masterCb) {
         const checkboxes = document.querySelectorAll('.manual-chk:not([data-originally-disabled])');
-        const maxNewAllowed = Math.max(0, MAX_CAPACITY - CURRENT_ASSIGNED);
+        const maxNewAllowed = Math.max(0, MAX_CAPACITY - REAL_CURRENT_ASSIGNED);
 
         if (masterCb.checked) {
             let count = 0;
@@ -426,7 +438,7 @@
         const masterCb = document.getElementById('manual_select_all');
 
         const totalSelected = checked.length;
-        const totalInCarton = CURRENT_ASSIGNED + totalSelected;
+        const totalInCarton = REAL_CURRENT_ASSIGNED + totalSelected;
         const isCapacityReached = (totalInCarton >= MAX_CAPACITY);
 
         if (countSpan) countSpan.textContent = totalSelected;
@@ -455,11 +467,15 @@
             if (masterCb) masterCb.disabled = false;
 
             if (warningDiv) {
-                if (CURRENT_ASSIGNED > 0) {
+                if (REAL_CURRENT_ASSIGNED > 0 || DUMMY_ITEM_COUNT > 0) {
                     const remaining = MAX_CAPACITY - totalInCarton;
+                    let noticeText = `Carton capacity: <strong>${MAX_CAPACITY} pcs</strong> | Currently linked: <strong>${REAL_CURRENT_ASSIGNED} pcs</strong> | Available slots: <strong>${remaining} pcs</strong>.`;
+                    if (DUMMY_ITEM_COUNT > 0) {
+                        noticeText += ` <span class="text-primary fw-bold"><i class="fa-solid fa-wand-magic-sparkles ms-1"></i> (${DUMMY_ITEM_COUNT} placeholder ITEM entries will be auto-replaced on save)</span>`;
+                    }
                     warningDiv.innerHTML = `
                         <div class="alert alert-info py-2 px-3 rounded-3 font-monospace small mb-2" style="font-size: 11.5px;">
-                            <i class="fa-solid fa-box text-primary me-1"></i> Carton capacity: <strong>${MAX_CAPACITY} pcs</strong> | Currently linked: <strong>${CURRENT_ASSIGNED} pcs</strong> | Available slots: <strong>${remaining} pcs</strong>.
+                            <i class="fa-solid fa-box text-primary me-1"></i> ${noticeText}
                         </div>
                     `;
                 } else {
@@ -475,12 +491,17 @@
 
         if (qrs.length === 0) return;
 
-        if (CURRENT_ASSIGNED + qrs.length > MAX_CAPACITY) {
+        if (REAL_CURRENT_ASSIGNED + qrs.length > MAX_CAPACITY) {
             alert(`Carton Capacity Exceeded: Maximum capacity is ${MAX_CAPACITY} pcs. Unassign items below under "Currently Linked Items in Carton" to add items.`);
             return;
         }
 
-        if (!confirm(`Assign ${qrs.length} selected products to Carton ${CARTON_NO}?`)) return;
+        let confirmMsg = `Assign ${qrs.length} selected products to Carton ${CARTON_NO}?`;
+        if (DUMMY_ITEM_COUNT > 0) {
+            confirmMsg += `\n\nNote: ${DUMMY_ITEM_COUNT} placeholder item(s) starting with 'ITEM' will be automatically unassigned.`;
+        }
+
+        if (!confirm(confirmMsg)) return;
 
         fetch('<?= base_url('company/packing-qr/api/assign-bulk') ?>', {
             method: 'POST',
