@@ -7,7 +7,7 @@ use App\Core\Response;
 use App\Core\Session;
 use App\Core\Database;
 use App\Models\AuditLog;
-use App\Models\Buyer;
+use App\Models\Contact;
 use App\Models\Warehouse;
 
 /**
@@ -119,7 +119,7 @@ class DispatchController extends Controller {
             FROM production_orders pro
             JOIN buyer_pos po ON pro.po_id = po.id
             JOIN styles s ON po.style_id = s.id
-            LEFT JOIN buyers b ON s.buyer_id = b.id
+            LEFT JOIN contacts b ON po.buyer_id = b.id
             WHERE pro.company_id = ? AND pro.deleted_at IS NULL
             ORDER BY pro.id DESC
         ");
@@ -162,7 +162,7 @@ class DispatchController extends Controller {
             LEFT JOIN buyer_pos po ON pro.po_id = po.id
             LEFT JOIN styles s ON po.style_id = s.id
             LEFT JOIN users u ON c.created_by = u.id
-            LEFT JOIN buyers b ON c.client_id = b.id
+            LEFT JOIN contacts b ON c.client_id = b.id
             LEFT JOIN warehouses w ON c.warehouse_id = w.id
             LEFT JOIN shipment_cartons sc ON c.id = sc.carton_id
             LEFT JOIN shipments shp ON sc.shipment_id = shp.id
@@ -188,8 +188,8 @@ class DispatchController extends Controller {
         });
 
         // Fetch Registered Buyers/Clients & Warehouses
-        $buyerModel = new Buyer();
-        $buyers = $buyerModel->all();
+        $contactModel = new Contact();
+        $buyers = $contactModel->findBy(['type' => 'buyer']);
 
         $warehouseModel = new Warehouse();
         $warehouses = $warehouseModel->all();
@@ -405,7 +405,7 @@ class DispatchController extends Controller {
             LEFT JOIN production_orders pro ON c.production_order_id = pro.id
             LEFT JOIN buyer_pos po ON pro.po_id = po.id
             LEFT JOIN styles s ON po.style_id = s.id
-            LEFT JOIN buyers b ON c.client_id = b.id
+            LEFT JOIN contacts b ON c.client_id = b.id
             LEFT JOIN warehouses w ON c.warehouse_id = w.id
             WHERE c.company_id = ? AND c.id IN ({$placeholders})
             ORDER BY c.id ASC

@@ -124,6 +124,9 @@ CREATE TABLE IF NOT EXISTS `contacts` (
   INDEX `idx_contact_type` (`type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 6b. BUYERS VIEW ALIAS
+CREATE OR REPLACE VIEW `buyers` AS SELECT * FROM `contacts` WHERE `type` = 'buyer';
+
 -- Warehouse Storage Types Table
 CREATE TABLE IF NOT EXISTS `warehouse_types` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,

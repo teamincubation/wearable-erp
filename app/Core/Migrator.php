@@ -116,6 +116,11 @@ class Migrator {
                 } catch (\PDOException $e) {}
             }
 
+            // Auto-heal 'buyers' view alias pointing to contacts table for safety & backward compatibility
+            try {
+                $db->exec("CREATE OR REPLACE VIEW `buyers` AS SELECT * FROM `contacts` WHERE `type` = 'buyer'");
+            } catch (\PDOException $e) {}
+
             // Auto-heal bom_categories table columns for update tracking
             $bomCatColumns = [
                 'updated_by' => "INT DEFAULT NULL",
