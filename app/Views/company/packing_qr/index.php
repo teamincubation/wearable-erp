@@ -173,12 +173,15 @@
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-end pe-4">
-                                        <a href="<?= base_url('company/packing-qr/assign/' . $c['id']) ?>" class="btn btn-sm btn-primary rounded-pill px-3 me-1 fw-bold">
-                                            <i class="fa-solid fa-box-open me-1"></i> Pack Goods
-                                        </a>
-                                        <a href="<?= base_url('company/dispatch/cartons/print?carton_id=' . $c['id']) ?>" target="_blank" class="btn btn-sm btn-outline-dark rounded-pill px-2.5" title="Print QR Label">
-                                            <i class="fa-solid fa-print"></i>
-                                        </a>
+                                        <?php if ((int)$c['assigned_qty'] > 0): ?>
+                                            <a href="<?= base_url('company/packing-qr/assign/' . $c['id']) ?>" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold">
+                                                <i class="fa-solid fa-pen-to-square me-1"></i> Update Packed Goods
+                                            </a>
+                                        <?php else: ?>
+                                            <a href="<?= base_url('company/packing-qr/assign/' . $c['id']) ?>" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold">
+                                                <i class="fa-solid fa-box-open me-1"></i> Pack Goods
+                                            </a>
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -228,13 +231,16 @@
                         <small class="text-muted font-monospace" style="font-size: 11px;">
                             <?= date('d M Y, h:i A', strtotime($c['created_at'])) ?>
                         </small>
-                        <div class="d-flex gap-1">
-                            <a href="<?= base_url('company/dispatch/cartons/print?carton_id=' . $c['id']) ?>" target="_blank" class="btn btn-sm btn-outline-dark rounded-circle" style="width: 34px; height: 34px; padding: 5px;">
-                                <i class="fa-solid fa-print"></i>
-                            </a>
-                            <a href="<?= base_url('company/packing-qr/assign/' . $c['id']) ?>" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold">
-                                <i class="fa-solid fa-box-open me-1"></i> Pack Goods
-                            </a>
+                        <div>
+                            <?php if ((int)$c['assigned_qty'] > 0): ?>
+                                <a href="<?= base_url('company/packing-qr/assign/' . $c['id']) ?>" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold">
+                                    <i class="fa-solid fa-pen-to-square me-1"></i> Update Packed Goods
+                                </a>
+                            <?php else: ?>
+                                <a href="<?= base_url('company/packing-qr/assign/' . $c['id']) ?>" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold">
+                                    <i class="fa-solid fa-box-open me-1"></i> Pack Goods
+                                </a>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>

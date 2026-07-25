@@ -120,7 +120,7 @@
                 </div>
 
                 <!-- Filters & Action Button -->
-                <div class="row g-2 mb-3">
+                <div class="row g-2 mb-2">
                     <div class="col-12 col-md-7">
                         <div class="input-group input-group-sm">
                             <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
@@ -133,6 +133,9 @@
                         </button>
                     </div>
                 </div>
+
+                <!-- Carton Capacity Limit Alert Banner -->
+                <div id="manual_capacity_warning"></div>
 
                 <!-- Products List Table -->
                 <div class="table-responsive border rounded-3" style="max-height: 420px;">
@@ -240,9 +243,14 @@
 
     <!-- Currently Linked Products Table -->
     <div class="mobile-pack-card mt-3">
-        <div class="card-header bg-white py-3 px-3 border-bottom d-flex justify-content-between align-items-center">
-            <h6 class="fw-bold text-dark m-0 font-monospace"><i class="fa-solid fa-boxes-stacked text-primary me-2"></i> Currently Linked Items in Carton</h6>
-            <span class="badge bg-light text-dark border font-monospace"><?= count($assignedItems) ?> Total Items</span>
+        <div class="card-header bg-white py-3 px-3 border-bottom">
+            <div class="d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold text-dark m-0 font-monospace"><i class="fa-solid fa-boxes-stacked text-primary me-2"></i> Currently Linked Items in Carton</h6>
+                <span class="badge bg-light text-dark border font-monospace"><?= count($assignedItems) ?> / <?= (int)($carton['max_capacity_pcs'] ?: 50) ?> pcs Sealed Capacity</span>
+            </div>
+            <small class="text-secondary d-block font-monospace mt-1" style="font-size: 11.5px;">
+                <i class="fa-solid fa-circle-info me-1 text-primary"></i> To add new items to this carton when capacity is reached, click <strong>"Unassign"</strong> on any item below to free up item slots.
+            </small>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -297,6 +305,7 @@
 <script>
     const CARTON_ID = <?= (int)$carton['id'] ?>;
     const CARTON_NO = '<?= htmlspecialchars($carton['carton_no']) ?>';
+    const MAX_CAPACITY = <?= (int)($carton['max_capacity_pcs'] ?: 50) ?>;
     let CURRENT_ASSIGNED = <?= (int)$assignedQty ?>;
 
     let scannedSessionProducts = [];
@@ -353,10 +362,13 @@
         let html = '';
         products.forEach(p => {
             const isAssignedToOther = p.is_assigned && !p.is_current_carton;
-            const disabledAttr = isAssignedToOther ? 'disabled' : '';
+            const isCurrentCarton = p.is_current_carton;
+            const isDisabled = isAssignedToOther || isCurrentCarton;
+            const disabledAttr = isDisabled ? 'disabled data-originally-disabled="true"' : '';
+            
             const statusBadge = isAssignedToOther ? 
                 `<span class="badge bg-warning text-dark"><i class="fa-solid fa-lock me-1"></i> In ${p.existing_carton_no}</span>` :
-                (p.is_current_carton ? `<span class="badge bg-success"><i class="fa-solid fa-circle-check me-1"></i> In This Carton</span>` : `<span class="badge bg-primary">Ready to Pack</span>`);
+                (isCurrentCarton ? `<span class="badge bg-success"><i class="fa-solid fa-circle-check me-1"></i> In This Carton</span>` : `<span class="badge bg-primary">Ready to Pack</span>`);
 
             html += `
                 <tr>
@@ -377,8 +389,22 @@
     }
 
     function toggleSelectAllManual(masterCb) {
-        const checkboxes = document.querySelectorAll('.manual-chk:not([disabled])');
-        checkboxes.forEach(cb => cb.checked = masterCb.checked);
+        const checkboxes = document.querySelectorAll('.manual-chk:not([data-originally-disabled])');
+        const maxNewAllowed = Math.max(0, MAX_CAPACITY - CURRENT_ASSIGNED);
+
+        if (masterCb.checked) {
+            let count = 0;
+            checkboxes.forEach(cb => {
+                if (count < maxNewAllowed) {
+                    cb.checked = true;
+                    count++;
+                } else {
+                    cb.checked = false;
+                }
+            });
+        } else {
+            checkboxes.forEach(cb => cb.checked = false);
+        }
         updateManualSelectionCount();
     }
 
@@ -393,10 +419,54 @@
 
     function updateManualSelectionCount() {
         const checked = document.querySelectorAll('.manual-chk:checked');
+        const unchecked = document.querySelectorAll('.manual-chk:not(:checked)');
         const countSpan = document.getElementById('manual_selected_count');
         const btn = document.getElementById('btn_assign_manual');
-        if (countSpan) countSpan.textContent = checked.length;
-        if (btn) btn.disabled = (checked.length === 0);
+        const warningDiv = document.getElementById('manual_capacity_warning');
+        const masterCb = document.getElementById('manual_select_all');
+
+        const totalSelected = checked.length;
+        const totalInCarton = CURRENT_ASSIGNED + totalSelected;
+        const isCapacityReached = (totalInCarton >= MAX_CAPACITY);
+
+        if (countSpan) countSpan.textContent = totalSelected;
+        if (btn) btn.disabled = (totalSelected === 0);
+
+        if (isCapacityReached) {
+            unchecked.forEach(cb => {
+                cb.disabled = true;
+            });
+            if (masterCb && !masterCb.checked) masterCb.disabled = true;
+
+            if (warningDiv) {
+                warningDiv.innerHTML = `
+                    <div class="alert alert-warning py-2.5 px-3 rounded-3 font-monospace small mb-2 shadow-sm" style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); color: #b45309;">
+                        <i class="fa-solid fa-triangle-exclamation me-1.5 fs-6 text-warning"></i>
+                        <strong>Carton Capacity Limit Reached (${MAX_CAPACITY} pcs max):</strong> Further selection is restricted. Unassign items below under <u>"Currently Linked Items in Carton"</u> to add items to this carton.
+                    </div>
+                `;
+            }
+        } else {
+            unchecked.forEach(cb => {
+                if (!cb.hasAttribute('data-originally-disabled')) {
+                    cb.disabled = false;
+                }
+            });
+            if (masterCb) masterCb.disabled = false;
+
+            if (warningDiv) {
+                if (CURRENT_ASSIGNED > 0) {
+                    const remaining = MAX_CAPACITY - totalInCarton;
+                    warningDiv.innerHTML = `
+                        <div class="alert alert-info py-2 px-3 rounded-3 font-monospace small mb-2" style="font-size: 11.5px;">
+                            <i class="fa-solid fa-box text-primary me-1"></i> Carton capacity: <strong>${MAX_CAPACITY} pcs</strong> | Currently linked: <strong>${CURRENT_ASSIGNED} pcs</strong> | Available slots: <strong>${remaining} pcs</strong>.
+                        </div>
+                    `;
+                } else {
+                    warningDiv.innerHTML = '';
+                }
+            }
+        }
     }
 
     function submitManualAssignments() {
@@ -404,6 +474,11 @@
         const qrs = Array.from(checked).map(cb => cb.value);
 
         if (qrs.length === 0) return;
+
+        if (CURRENT_ASSIGNED + qrs.length > MAX_CAPACITY) {
+            alert(`Carton Capacity Exceeded: Maximum capacity is ${MAX_CAPACITY} pcs. Unassign items below under "Currently Linked Items in Carton" to add items.`);
+            return;
+        }
 
         if (!confirm(`Assign ${qrs.length} selected products to Carton ${CARTON_NO}?`)) return;
 
@@ -443,6 +518,11 @@
 
     function processProductScan(qrCode) {
         if (!qrCode) return;
+
+        if (CURRENT_ASSIGNED + scannedSessionProducts.length >= MAX_CAPACITY) {
+            showScanAlert('danger', `<i class="fa-solid fa-triangle-exclamation me-1"></i> SCAN REJECTED: Carton item capacity limit reached (${MAX_CAPACITY} pcs max). Unassign items below under "Currently Linked Items in Carton" to add item to this carton.`);
+            return;
+        }
 
         fetch('<?= base_url('company/packing-qr/api/scan-product') ?>', {
             method: 'POST',
