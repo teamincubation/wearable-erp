@@ -506,34 +506,58 @@ class DeveloperController extends Controller {
             // Disable foreign key checks for clean tenant hard deletion
             $db->exec("SET FOREIGN_KEY_CHECKS = 0;");
 
-            // Cascade delete all child data belonging to this tenant company_id
+            // 1. Delete indirect child tables linked via user_id or role_id
+            try {
+                $db->prepare("DELETE FROM role_permissions WHERE role_id IN (SELECT id FROM roles WHERE company_id = ?)")->execute([$id]);
+            } catch (\Exception $ex) {}
+
+            try {
+                $db->prepare("DELETE FROM user_sessions WHERE user_id IN (SELECT id FROM users WHERE company_id = ?)")->execute([$id]);
+            } catch (\Exception $ex) {}
+
+            // 2. Explicit list of all tenant data tables
             $tablesWithCompanyId = [
                 'users', 'roles', 'feature_flags', 'license_keys', 'system_settings',
                 'styles', 'tech_packs', 'bom_categories', 'contacts', 'branches',
-                'warehouses', 'cost_sheets', 'buyer_pos', 'purchase_requisitions',
-                'purchase_orders', 'purchase_order_items', 'grns', 'grn_items',
-                'inventory_transactions', 'production_orders', 'production_stage_logs',
-                'quality_inspections', 'employee_attendance', 'payroll_records',
-                'tally_vouchers', 'audit_logs'
+                'warehouses', 'warehouse_types', 'departments', 'machines', 'shifts',
+                'uoms', 'taxes_gst', 'company_holidays', 'payment_accounts', 'employee_loans',
+                'designations', 'cik_history', 'style_variables', 'cost_sheets', 'buyer_pos',
+                'purchase_requisitions', 'purchase_orders', 'purchase_order_items', 'grns',
+                'grn_items', 'supplier_invoices', 'inventory_transactions', 'production_orders',
+                'production_stage_logs', 'quality_inspections', 'employee_attendance',
+                'payroll_records', 'tally_vouchers', 'audit_logs'
             ];
 
+            // 3. Dynamically discover any additional database tables containing company_id column
+            try {
+                $stmtSchema = $db->query("
+                    SELECT DISTINCT TABLE_NAME 
+                    FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE TABLE_SCHEMA = DATABASE() 
+                      AND COLUMN_NAME = 'company_id'
+                ");
+                $schemaTables = $stmtSchema->fetchAll(\PDO::FETCH_COLUMN) ?: [];
+                $tablesWithCompanyId = array_values(array_unique(array_merge($tablesWithCompanyId, $schemaTables)));
+            } catch (\Exception $ex) {}
+
+            // Execute purge for every table containing company_id
             foreach ($tablesWithCompanyId as $table) {
+                if ($table === 'companies') continue;
                 try {
-                    $stmt = $db->prepare("DELETE FROM {$table} WHERE company_id = ?");
+                    $stmt = $db->prepare("DELETE FROM `{$table}` WHERE company_id = ?");
                     $stmt->execute([$id]);
-                } catch (\Exception $ex) {
-                }
+                } catch (\Exception $ex) {}
             }
 
-            // Hard delete company record itself
+            // 4. Hard delete company record itself from companies table
             $stmt = $db->prepare("DELETE FROM companies WHERE id = ?");
             $stmt->execute([$id]);
 
             // Restore foreign key checks
             $db->exec("SET FOREIGN_KEY_CHECKS = 1;");
 
-            AuditLog::log(null, Session::get('user_id'), 'hard_delete_company', 'Company', (int)$id, null, null, "Hard deleted company tenant: {$company['name']} ({$company['subdomain']})");
-            Session::setFlash('success', "Tenant company '{$company['name']}' and all its associated records have been permanently deleted from the system.");
+            AuditLog::log(null, Session::get('user_id'), 'hard_delete_company', 'Company', (int)$id, null, null, "Hard deleted company tenant and all associated data: {$company['name']} ({$company['subdomain']})");
+            Session::setFlash('success', "Tenant company '{$company['name']}' and all its associated records across all system tables have been permanently deleted.");
         } catch (\Exception $e) {
             try {
                 $db->exec("SET FOREIGN_KEY_CHECKS = 1;");
