@@ -455,29 +455,21 @@
                     <div id="shipment_notice_alert" class="alert alert-info py-2 px-3 mb-3 rounded-3 small font-monospace d-none"></div>
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
-                            <label class="form-label small fw-bold">Shipment Destination Type <span class="text-danger">*</span></label>
-                            <select name="destination_type" id="shipment_dest_type" class="form-select text-dark" onchange="toggleShipmentDestFields(this)" required>
-                                <option value="client">Client / Buyer</option>
-                                <option value="warehouse">Company Warehouse</option>
-                            </select>
+                            <label class="form-label small fw-bold">
+                                Shipment Destination Type 
+                                <span class="badge bg-secondary-subtle text-secondary border ms-1" title="Fetched from carton packing"><i class="fa-solid fa-lock me-1"></i> Locked from Packing</span>
+                            </label>
+                            <input type="text" id="shipment_dest_type_display" class="form-control bg-light font-monospace fw-bold text-dark" value="Client / Buyer" readonly>
+                            <input type="hidden" name="destination_type" id="shipment_dest_type_hidden" value="client">
                         </div>
-                        <div class="col-md-6" id="client_dest_wrapper">
-                            <label class="form-label small fw-bold">Select Client / Buyer</label>
-                            <select name="client_id" class="form-select text-dark">
-                                <option value="">-- Choose Client --</option>
-                                <?php foreach ($buyers as $b): ?>
-                                    <option value="<?= $b['id'] ?>"><?= htmlspecialchars($b['name']) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="col-md-6 d-none" id="warehouse_dest_wrapper">
-                            <label class="form-label small fw-bold">Select Destination Warehouse</label>
-                            <select name="warehouse_id" class="form-select text-dark">
-                                <option value="">-- Choose Warehouse --</option>
-                                <?php foreach ($warehouses as $w): ?>
-                                    <option value="<?= $w['id'] ?>"><?= htmlspecialchars($w['name']) ?> (<?= htmlspecialchars($w['code']) ?>)</option>
-                                <?php endforeach; ?>
-                            </select>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">
+                                Select Destination Target
+                                <span class="badge bg-secondary-subtle text-secondary border ms-1" title="Fetched from carton packing"><i class="fa-solid fa-lock me-1"></i> Read-Only</span>
+                            </label>
+                            <input type="text" id="shipment_dest_target_display" class="form-control bg-light font-monospace fw-bold text-dark" value="Select a carton below" readonly>
+                            <input type="hidden" name="client_id" id="shipment_client_id_hidden" value="">
+                            <input type="hidden" name="warehouse_id" id="shipment_warehouse_id_hidden" value="">
                         </div>
                     </div>
 
@@ -526,9 +518,18 @@
                                         $readyCartons = array_filter($allCartons, fn($c) => $c['status'] === 'packed');
                                         if (!empty($readyCartons)):
                                             foreach ($readyCartons as $rc):
+                                                $rcDestType = $rc['destination_type'] ?: 'client';
+                                                $rcDestName = ($rcDestType === 'client') ? ($rc['client_name'] ?: 'Client Direct') : (($rcDestType === 'warehouse') ? ($rc['warehouse_name'] ?: 'Company Warehouse') : 'Unassigned');
                                     ?>
                                         <tr>
-                                            <td><input type="checkbox" name="carton_ids[]" value="<?= $rc['id'] ?>" class="form-check-input"></td>
+                                            <td>
+                                                <input type="checkbox" name="carton_ids[]" value="<?= $rc['id'] ?>" class="form-check-input shipment-carton-checkbox"
+                                                       data-dest-type="<?= htmlspecialchars($rcDestType) ?>"
+                                                       data-client-id="<?= (int)($rc['client_id'] ?? 0) ?>"
+                                                       data-warehouse-id="<?= (int)($rc['warehouse_id'] ?? 0) ?>"
+                                                       data-dest-name="<?= htmlspecialchars($rcDestName) ?>"
+                                                       onchange="updateShipmentDestinationFromCartons()">
+                                            </td>
                                             <td><strong class="font-monospace text-dark"><?= htmlspecialchars($rc['carton_no']) ?></strong></td>
                                             <td><span class="font-monospace text-primary"><?= htmlspecialchars($rc['production_no'] ?: 'N/A') ?></span></td>
                                             <td><span class="badge bg-light text-dark border font-monospace"><?= number_format($rc['total_items_qty']) ?> pcs</span></td>
@@ -655,15 +656,39 @@
         }
     }
 
-    function toggleShipmentDestFields(selectEl) {
-        const clientWrap = document.getElementById('client_dest_wrapper');
-        const whWrap = document.getElementById('warehouse_dest_wrapper');
-        if (selectEl.value === 'warehouse') {
-            clientWrap.classList.add('d-none');
-            whWrap.classList.remove('d-none');
+    function updateShipmentDestinationFromCartons() {
+        const modalEl = document.getElementById('createShipmentModal');
+        if (!modalEl) return;
+
+        const checked = modalEl.querySelectorAll('.shipment-carton-checkbox:checked');
+        const typeDisplay = document.getElementById('shipment_dest_type_display');
+        const targetDisplay = document.getElementById('shipment_dest_target_display');
+        const typeHidden = document.getElementById('shipment_dest_type_hidden');
+        const clientHidden = document.getElementById('shipment_client_id_hidden');
+        const whHidden = document.getElementById('shipment_warehouse_id_hidden');
+
+        if (checked.length > 0) {
+            const cb = checked[0];
+            const destType = cb.getAttribute('data-dest-type') || 'client';
+            const clientId = cb.getAttribute('data-client-id') || '';
+            const whId = cb.getAttribute('data-warehouse-id') || '';
+            const destName = cb.getAttribute('data-dest-name') || 'N/A';
+
+            if (typeDisplay) {
+                typeDisplay.value = (destType === 'warehouse') ? 'Company Warehouse' : ((destType === 'client') ? 'Client / Buyer' : 'Unassigned (In-Factory)');
+            }
+            if (targetDisplay) {
+                targetDisplay.value = destName;
+            }
+            if (typeHidden) typeHidden.value = destType;
+            if (clientHidden) clientHidden.value = clientId;
+            if (whHidden) whHidden.value = whId;
         } else {
-            whWrap.classList.add('d-none');
-            clientWrap.classList.remove('d-none');
+            if (typeDisplay) typeDisplay.value = 'Client / Buyer';
+            if (targetDisplay) targetDisplay.value = 'Select a carton below';
+            if (typeHidden) typeHidden.value = 'client';
+            if (clientHidden) clientHidden.value = '';
+            if (whHidden) whHidden.value = '';
         }
     }
 
@@ -677,34 +702,20 @@
             noticeEl.classList.remove('d-none');
         }
 
-        const destSelect = document.getElementById('shipment_dest_type');
-        if (destSelect) {
-            if (destType === 'warehouse') {
-                destSelect.value = 'warehouse';
-                toggleShipmentDestFields(destSelect);
-                if (warehouseId > 0) {
-                    const whSelect = modalEl.querySelector('select[name="warehouse_id"]');
-                    if (whSelect) whSelect.value = warehouseId;
-                }
-            } else {
-                destSelect.value = 'client';
-                toggleShipmentDestFields(destSelect);
-                if (clientId > 0) {
-                    const clientSelect = modalEl.querySelector('select[name="client_id"]');
-                    if (clientSelect) clientSelect.value = clientId;
-                }
-            }
-        }
-
-        // Check checkbox for this carton ID in the shipment items checklist
-        const checkboxes = modalEl.querySelectorAll('input[name="carton_ids[]"]');
+        const checkboxes = modalEl.querySelectorAll('.shipment-carton-checkbox');
         checkboxes.forEach(cb => {
             if (parseInt(cb.value) === parseInt(cartonId)) {
                 cb.checked = true;
                 const tr = cb.closest('tr');
                 if (tr) tr.classList.add('table-warning');
+            } else {
+                cb.checked = false;
+                const tr = cb.closest('tr');
+                if (tr) tr.classList.remove('table-warning');
             }
         });
+
+        updateShipmentDestinationFromCartons();
 
         const modal = new bootstrap.Modal(modalEl);
         modal.show();

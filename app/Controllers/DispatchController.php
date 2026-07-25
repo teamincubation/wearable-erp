@@ -504,6 +504,23 @@ class DispatchController extends Controller {
             return;
         }
 
+        // Fetch destination details from the selected carton record to guarantee accuracy
+        $firstCid = (int)$cartonIds[0];
+        $stmtCtnDest = $db->prepare("SELECT destination_type, client_id, warehouse_id FROM cartons WHERE id = ? AND company_id = ? LIMIT 1");
+        $stmtCtnDest->execute([$firstCid, $companyId]);
+        $ctnDest = $stmtCtnDest->fetch();
+        if ($ctnDest) {
+            if (empty($destinationType) || $destinationType === 'unassigned') {
+                $destinationType = $ctnDest['destination_type'] ?: 'client';
+            }
+            if (!$clientId && $destinationType === 'client') {
+                $clientId = $ctnDest['client_id'];
+            }
+            if (!$warehouseId && $destinationType === 'warehouse') {
+                $warehouseId = $ctnDest['warehouse_id'];
+            }
+        }
+
         // Auto-generate Shipment ID: SHP-YYYY-XXXX
         $yearStr = date('Y');
         $stmtLast = $db->prepare("SELECT id FROM shipments WHERE company_id = ? ORDER BY id DESC LIMIT 1");
