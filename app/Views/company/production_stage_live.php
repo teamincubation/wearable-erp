@@ -631,6 +631,15 @@
                                 const badgeClass = isPass ? 'bg-success text-white' : 'bg-danger text-white';
                                 const statusText = isPass ? 'PASS' : 'FAIL';
                                 const tagLabel = l.machine_name || (l.qr_code || 'Manual');
+                                const isEdited = l.edited_by_name && l.edited_at_formatted;
+                                let editBadgeHtml = '';
+                                if (isEdited) {
+                                    editBadgeHtml = `
+                                        <small class="d-block font-monospace mt-1" style="color: #facc15 !important; font-size: 10px; line-height: 1.2;">
+                                            <i class="fa-solid fa-pen-to-square me-1 text-warning"></i> Edited by <strong class="text-white">${l.edited_by_name}</strong> on ${l.edited_at_formatted}${l.edit_remarks ? ' - "' + l.edit_remarks + '"' : ''}
+                                        </small>
+                                    `;
+                                }
                                 feedHtml += `
                                     <div class="list-group-item bg-transparent text-dash-main px-0 py-2" style="border-color: var(--table-row-border) !important;">
                                         <div class="d-flex w-100 justify-content-between align-items-center mb-1">
@@ -644,6 +653,7 @@
                                             Tag: <span class="text-white">${tagLabel}</span> | 
                                             By: <span class="text-white">${l.employee_name || 'System'}</span>
                                         </small>
+                                        ${editBadgeHtml}
                                     </div>
                                 `;
                             });
@@ -741,9 +751,20 @@
 
                             data.logs.forEach(l => {
                                 const badge = l.status === 'PASS' ? 'bg-success' : 'bg-danger';
+                                let editNotice = '';
+                                if (l.edited_by_name && l.edited_at_formatted) {
+                                    editNotice = `
+                                        <div class="mt-1.5 p-1.5 rounded font-monospace" style="background: rgba(234, 179, 8, 0.15); border: 1px solid rgba(234, 179, 8, 0.35); color: #facc15 !important; font-size: 11px; line-height: 1.3;">
+                                            <i class="fa-solid fa-pen-to-square me-1 text-warning"></i> <strong>Edited</strong> by <span class="text-white">${l.edited_by_name}</span> on ${l.edited_at_formatted}${l.edit_remarks ? ' - "' + l.edit_remarks + '"' : ''}
+                                        </div>
+                                    `;
+                                }
                                 html += `
                                     <tr>
-                                        <td style="background-color: #0f172a !important; color: #38bdf8 !important; border-bottom: 1px solid rgba(255,255,255,0.06);"><strong class="font-monospace text-uppercase" style="color: #38bdf8 !important; font-weight: 700;">${l.stage}</strong></td>
+                                        <td style="background-color: #0f172a !important; color: #38bdf8 !important; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                                            <strong class="font-monospace text-uppercase" style="color: #38bdf8 !important; font-weight: 700;">${l.stage}</strong>
+                                            ${editNotice}
+                                        </td>
                                         <td style="background-color: #0f172a !important; border-bottom: 1px solid rgba(255,255,255,0.06);"><span class="badge ${badge} text-white font-monospace px-2.5 py-1" style="color: #ffffff !important; font-weight: 700;">${l.status}</span></td>
                                         <td style="background-color: #0f172a !important; color: #ffffff !important; border-bottom: 1px solid rgba(255,255,255,0.06);">
                                             <div class="fw-bold text-white" style="color: #ffffff !important;">${l.operator_name}</div>

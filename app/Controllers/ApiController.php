@@ -503,6 +503,28 @@ class ApiController extends Controller {
             return;
         }
 
+        // Failed Unit Check: Prevent scanning failed QR codes in next stages
+        $stmtCheckFailed = $db->prepare("
+            SELECT psl.*, u.name as operator_name 
+            FROM production_stage_logs psl
+            LEFT JOIN users u ON psl.employee_id = u.id
+            WHERE psl.company_id = ? AND LOWER(TRIM(psl.qr_code)) = LOWER(TRIM(?))
+              AND (LOWER(TRIM(psl.status)) = 'fail' OR psl.qty_out = 0 OR psl.waste_qty > 0)
+            ORDER BY psl.id DESC LIMIT 1
+        ");
+        $stmtCheckFailed->execute([$companyId, $qrCode]);
+        $failedLog = $stmtCheckFailed->fetch();
+
+        if ($failedLog) {
+            $failedStageName = strtoupper(str_replace('_', ' ', $failedLog['stage']));
+            $response->json([
+                'status' => 'failed_unit',
+                'failed_unit' => true,
+                'message' => "Rejected: Unit QR ({$qrCode}) failed inspection at stage '{$failedStageName}'. Failed units cannot be scanned in subsequent stages!"
+            ], 409);
+            return;
+        }
+
         // 1. Duplicate check: Prevent logging the same QR code twice under the same WIP stage key
         $stmtCheckAlready = $db->prepare("
             SELECT id FROM production_stage_logs 

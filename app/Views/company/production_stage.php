@@ -246,6 +246,13 @@
                                         <td><span class="badge bg-light text-secondary"><?= $h['duration_minutes'] ?> mins</span></td>
                                         <td>
                                             <strong class="text-dark font-monospace" style="font-size: 12px;"><?= $dtH->format('d M Y, h:i A') ?></strong>
+                                            <?php if (!empty($h['edited_at'])): ?>
+                                                <div class="mt-1">
+                                                    <span class="badge bg-warning bg-opacity-25 text-dark border border-warning font-monospace text-wrap text-start" style="font-size: 0.72rem; line-height: 1.25;">
+                                                        <i class="fa-solid fa-pen-to-square me-1 text-warning"></i> Edited by <?= htmlspecialchars($h['editor_name'] ?: 'Admin') ?> on <?= date('d M, h:i A', strtotime($h['edited_at'])) ?><?= !empty($h['edit_remarks']) ? ' - "' . htmlspecialchars($h['edit_remarks']) . '"' : '' ?>
+                                                    </span>
+                                                </div>
+                                            <?php endif; ?>
                                         </td>
                                         <td class="text-end">
                                             <?php if (\App\Core\Auth::hasPermission('company.production.manage')): ?>
@@ -328,6 +335,10 @@
                                                                             <label class="form-label small fw-bold">End Time</label>
                                                                             <input type="time" name="end_time" class="form-control text-dark" value="<?= $h['end_time'] ? date('H:i', strtotime($h['end_time'])) : date('H:i') ?>" required>
                                                                         </div>
+                                                                    </div>
+                                                                    <div class="mb-2">
+                                                                        <label class="form-label small fw-bold">Edit Remarks / Reason for Update <span class="text-muted fw-normal">(Optional)</span></label>
+                                                                        <input type="text" name="edit_remarks" class="form-control text-dark" value="<?= htmlspecialchars($h['edit_remarks'] ?? '') ?>" placeholder="e.g. Corrected quantity or operator name typo">
                                                                     </div>
                                                                 </div>
                                                                 <div class="modal-footer">
@@ -485,9 +496,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
                         data.logs.forEach(l => {
                             const badge = l.status === 'PASS' ? 'bg-success' : 'bg-danger';
+                            let editNotice = '';
+                            if (l.edited_by_name && l.edited_at_formatted) {
+                                editNotice = `
+                                    <div class="mt-1.5 p-1.5 rounded font-monospace" style="background: rgba(234, 179, 8, 0.15); border: 1px solid rgba(234, 179, 8, 0.35); color: #facc15 !important; font-size: 11px; line-height: 1.3;">
+                                        <i class="fa-solid fa-pen-to-square me-1 text-warning"></i> <strong>Edited</strong> by <span class="text-white">${l.edited_by_name}</span> on ${l.edited_at_formatted}${l.edit_remarks ? ' - "' + l.edit_remarks + '"' : ''}
+                                    </div>
+                                `;
+                            }
                             html += `
                                 <tr>
-                                    <td style="background-color: #0f172a !important; color: #38bdf8 !important; border-bottom: 1px solid rgba(255,255,255,0.06);"><strong class="font-monospace text-uppercase" style="color: #38bdf8 !important; font-weight: 700;">${l.stage}</strong></td>
+                                    <td style="background-color: #0f172a !important; color: #38bdf8 !important; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                                        <strong class="font-monospace text-uppercase" style="color: #38bdf8 !important; font-weight: 700;">${l.stage}</strong>
+                                        ${editNotice}
+                                    </td>
                                     <td style="background-color: #0f172a !important; border-bottom: 1px solid rgba(255,255,255,0.06);"><span class="badge ${badge} text-white font-monospace px-2.5 py-1" style="color: #ffffff !important; font-weight: 700;">${l.status}</span></td>
                                     <td style="background-color: #0f172a !important; color: #ffffff !important; border-bottom: 1px solid rgba(255,255,255,0.06);">
                                         <div class="fw-bold text-white" style="color: #ffffff !important;">${l.operator_name}</div>
