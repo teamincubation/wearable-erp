@@ -345,13 +345,13 @@ $avgMarginVal = ($totalRevenueVal > 0) ? round(($totalProfitVal / $totalRevenueV
                                                 <td class="text-end">
                                                     <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-sm font-monospace d-print-none" data-bs-toggle="modal" data-bs-target="#opStageModal-<?= $b['id'] ?>-<?= $opIdx ?>">
                                                         <i class="fa-solid fa-layer-group me-1 text-primary"></i> 
-                                                        Good: <strong class="text-success"><?= number_format($op['total_good_qty']) ?> pcs</strong> | 
-                                                        Rej: <strong class="text-danger"><?= number_format($op['total_waste_qty']) ?> pcs</strong>
+                                                        Good: <strong class="text-success"><?= number_format($op['total_good_qty']) ?></strong> | 
+                                                        Rej: <strong class="text-danger"><?= number_format($op['total_waste_qty']) ?></strong>
                                                         <i class="fa-solid fa-arrow-up-right-from-square ms-1 text-secondary" style="font-size: 11px;"></i>
                                                     </button>
                                                     <div class="d-none d-print-block font-monospace">
-                                                        <span class="text-success fw-bold">Good: <?= number_format($op['total_good_qty']) ?> pcs</span> | 
-                                                        <span class="text-danger fw-bold">Rej: <?= number_format($op['total_waste_qty']) ?> pcs</span>
+                                                        <span class="text-success fw-bold">Good: <?= number_format($op['total_good_qty']) ?></span> | 
+                                                        <span class="text-danger fw-bold">Rej: <?= number_format($op['total_waste_qty']) ?></span>
                                                     </div>
                                                 </td>
                                             </tr>
