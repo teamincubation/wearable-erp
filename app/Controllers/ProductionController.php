@@ -679,8 +679,12 @@ class ProductionController extends Controller {
         $permId = $stmtPerm->fetchColumn();
         if (!$permId) {
             try {
-                $db->exec("INSERT INTO permissions (id, name, description, module) VALUES (25, 'company.production.rfid_tracking', 'Access RFID Production Tracking mobile scanner page', 'tenant')");
-                $db->exec("INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (2, 25)");
+                $stmtIns = $db->prepare("INSERT INTO permissions (name, description, module) VALUES (?, ?, ?)");
+                $stmtIns->execute(['company.production.rfid_tracking', 'Access QR Code / RFID Production Scanner page', 'tenant']);
+                $permId = $db->lastInsertId();
+                if ($permId) {
+                    $db->exec("INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (2, " . (int)$permId . ")");
+                }
             } catch (\Exception $e) {
                 // Ignore if exists
             }

@@ -257,7 +257,11 @@
                                                             $bgColor = '#6c757d';
                                                             $textColor = '#ffffff';
 
-                                                            if (strpos($perm['name'], 'company.users') !== false || strpos($perm['name'], 'company.payroll') !== false) {
+                                                            if ($perm['name'] === 'company.production.rfid_tracking') {
+                                                                $moduleName = 'QR Scanner';
+                                                                $bgColor = '#00acb5';
+                                                                $cleanLabel = 'QR Code Scanner (Mobile & Floor)';
+                                                            } elseif (strpos($perm['name'], 'company.users') !== false || strpos($perm['name'], 'company.payroll') !== false) {
                                                                 $moduleName = 'HR/Users';
                                                                 $bgColor = '#6f42c1';
                                                             } elseif (strpos($perm['name'], 'company.roles') !== false) {
@@ -501,7 +505,11 @@
                                     $bgColor = '#6c757d';
                                     $textColor = '#ffffff';
 
-                                    if (strpos($perm['name'], 'company.users') !== false || strpos($perm['name'], 'company.payroll') !== false) {
+                                    if ($perm['name'] === 'company.production.rfid_tracking') {
+                                        $moduleName = 'QR Scanner';
+                                        $bgColor = '#00acb5';
+                                        $cleanLabel = 'QR Code Scanner (Mobile & Floor)';
+                                    } elseif (strpos($perm['name'], 'company.users') !== false || strpos($perm['name'], 'company.payroll') !== false) {
                                         $moduleName = 'HR/Users';
                                         $bgColor = '#6f42c1';
                                     } elseif (strpos($perm['name'], 'company.roles') !== false) {

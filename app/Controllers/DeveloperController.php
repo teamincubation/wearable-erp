@@ -72,10 +72,15 @@ class DeveloperController extends Controller {
         // Ensure company.production.rfid_tracking permission exists dynamically
         $stmtCheckRFID = $db->prepare("SELECT id FROM permissions WHERE name = ?");
         $stmtCheckRFID->execute(['company.production.rfid_tracking']);
-        if (!$stmtCheckRFID->fetchColumn()) {
+        $rfidId = $stmtCheckRFID->fetchColumn();
+        if (!$rfidId) {
             try {
-                $db->exec("INSERT INTO permissions (id, name, description, module) VALUES (25, 'company.production.rfid_tracking', 'Access RFID Production Tracking mobile scanner page', 'tenant')");
-                $db->exec("INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (2, 25)");
+                $stmtIns = $db->prepare("INSERT INTO permissions (name, description, module) VALUES (?, ?, ?)");
+                $stmtIns->execute(['company.production.rfid_tracking', 'Access QR Code / RFID Production Scanner page', 'tenant']);
+                $rfidId = $db->lastInsertId();
+                if ($rfidId) {
+                    $db->exec("INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (2, " . (int)$rfidId . ")");
+                }
             } catch (\Exception $ex) {
                 // Ignore duplicate errors
             }

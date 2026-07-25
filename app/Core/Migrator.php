@@ -121,6 +121,28 @@ class Migrator {
                 $db->exec("CREATE OR REPLACE VIEW `buyers` AS SELECT * FROM `contacts` WHERE `type` = 'buyer'");
             } catch (\PDOException $e) {}
 
+            // Auto-heal permissions table for QR Code Scanner & Dispatch permissions
+            $requiredPermissions = [
+                ['name' => 'company.production.rfid_tracking', 'description' => 'Access QR Code / RFID Production Scanner page', 'module' => 'tenant'],
+                ['name' => 'company.dispatch.view', 'description' => 'View finished goods dispatch and packing hub', 'module' => 'tenant'],
+                ['name' => 'company.dispatch.manage', 'description' => 'Manage carton packing, printing QR labels, and dispatching shipments', 'module' => 'tenant']
+            ];
+            foreach ($requiredPermissions as $permInfo) {
+                try {
+                    $stmtCheck = $db->prepare("SELECT id FROM permissions WHERE name = ?");
+                    $stmtCheck->execute([$permInfo['name']]);
+                    $permId = $stmtCheck->fetchColumn();
+                    if (!$permId) {
+                        $stmtIns = $db->prepare("INSERT INTO permissions (name, description, module) VALUES (?, ?, ?)");
+                        $stmtIns->execute([$permInfo['name'], $permInfo['description'], $permInfo['module']]);
+                        $permId = $db->lastInsertId();
+                    }
+                    if ($permId) {
+                        $db->exec("INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (2, " . (int)$permId . ")");
+                    }
+                } catch (\PDOException $e) {}
+            }
+
             // Auto-heal bom_categories table columns for update tracking
             $bomCatColumns = [
                 'updated_by' => "INT DEFAULT NULL",
