@@ -509,7 +509,7 @@ class ApiController extends Controller {
             FROM production_stage_logs psl
             LEFT JOIN users u ON psl.employee_id = u.id
             WHERE psl.company_id = ? AND LOWER(TRIM(psl.qr_code)) = LOWER(TRIM(?))
-              AND (LOWER(TRIM(psl.status)) = 'fail' OR psl.qty_out = 0 OR psl.waste_qty > 0)
+              AND (LOWER(TRIM(psl.status)) = 'fail' OR psl.waste_qty > 0)
             ORDER BY psl.id DESC LIMIT 1
         ");
         $stmtCheckFailed->execute([$companyId, $qrCode]);

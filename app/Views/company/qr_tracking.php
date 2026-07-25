@@ -657,14 +657,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 'X-Requested-With': 'XMLHttpRequest'
             }
         })
-        .then(res => res.text().then(text => {
-            try {
-                return JSON.parse(text);
-            } catch (e) {
-                console.error("Non-JSON server response:", text);
-                throw new Error("Server returned an invalid verification format.");
-            }
-        }))
+        .then(res => {
+            return res.json().catch(err => {
+                throw new Error("Unable to parse server response. Please refresh the page.");
+            });
+        })
         .then(data => {
             loader.remove();
             if (data.success) {
@@ -682,12 +679,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 showScanPopup();
             } else {
                 hideScanPopup();
+                const msg = data.message || data.error || "QR Code verification failed.";
                 if (data.failed_unit) {
-                    showAlertBanner("FAILED UNIT REJECTED", data.message || "This unit failed inspection and cannot proceed.", false);
+                    showAlertBanner("FAILED UNIT REJECTED", msg, false);
                 } else if (data.already_validated) {
-                    showAlertBanner("ALREADY VALIDATED IN THIS STAGE", data.message, true);
+                    showAlertBanner("ALREADY VALIDATED IN THIS STAGE", msg, true);
                 } else {
-                    showAlertBanner("SEQUENCE / TAG ERROR", data.message || "QR Code verification failed.", false);
+                    showAlertBanner("VERIFICATION REJECTED", msg, false);
                 }
             }
         })
@@ -726,14 +724,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 'X-Requested-With': 'XMLHttpRequest'
             }
         })
-        .then(res => res.text().then(text => {
-            try {
-                return JSON.parse(text);
-            } catch (e) {
-                console.error("Non-JSON log response:", text);
-                throw new Error("Server returned an invalid response.");
-            }
-        }))
+        .then(res => {
+            return res.json().catch(err => {
+                throw new Error("Unable to parse server response. Please refresh the page.");
+            });
+        })
         .then(data => {
             if (data.success) {
                 scanCount++;
@@ -756,10 +751,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } else {
                 hideScanPopup();
+                const msg = data.message || data.error || "Failed to log QR activity.";
                 if (data.failed_unit) {
-                    showAlertBanner("FAILED UNIT REJECTED", data.message, false);
+                    showAlertBanner("FAILED UNIT REJECTED", msg, false);
                 } else {
-                    showAlertBanner("LOGGING FAILED", data.message || "Failed to log QR activity.", false);
+                    showAlertBanner("LOGGING FAILED", msg, false);
                 }
             }
         })
