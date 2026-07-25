@@ -539,6 +539,11 @@ $router->get('/company/production/orders', [\App\Controllers\ProductionControlle
        ->middleware(PermissionMiddleware::class)
        ->permission('company.production.view');
 
+$router->get('/company/production/orders/check-batch-no', [\App\Controllers\ProductionController::class, 'checkBatchNo'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.production.view');
+
 $router->post('/company/production/orders/create', [\App\Controllers\ProductionController::class, 'createOrder'])
        ->middleware(AuthMiddleware::class)
        ->middleware(CsrfMiddleware::class)

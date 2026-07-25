@@ -189,7 +189,8 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label small fw-bold">Production Batch Number <span class="text-danger">*</span></label>
-                            <input type="text" name="production_no" class="form-control font-monospace" placeholder="e.g. BATCH-TOCCO-001" required>
+                            <input type="text" id="create_production_no" name="production_no" class="form-control font-monospace" placeholder="e.g. BATCH-TOCCO-001" required oninput="validateBatchNoRealtime(this)">
+                            <div id="batch_no_status_feedback" class="mt-1" style="font-size: 11.5px; min-height: 18px;"></div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label small fw-bold">Launch Start Date <span class="text-danger">*</span></label>
@@ -198,7 +199,7 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
-                        <button type="submit" class="btn btn-primary px-4">Plan Batch</button>
+                        <button type="submit" id="btn_plan_batch_submit" class="btn btn-primary px-4">Plan Batch</button>
                     </div>
                 </div>
             </form>
@@ -554,5 +555,47 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+let batchCheckTimeout = null;
+
+function validateBatchNoRealtime(inputEl) {
+    const val = inputEl.value.trim();
+    const feedbackEl = document.getElementById('batch_no_status_feedback');
+    const submitBtn = document.getElementById('btn_plan_batch_submit');
+
+    if (batchCheckTimeout) clearTimeout(batchCheckTimeout);
+
+    if (!val) {
+        if (feedbackEl) feedbackEl.innerHTML = '';
+        if (submitBtn) submitBtn.disabled = false;
+        return;
+    }
+
+    if (feedbackEl) {
+        feedbackEl.innerHTML = `<span class="text-muted font-monospace"><i class="fa-solid fa-spinner fa-spin me-1"></i> Checking batch number availability...</span>`;
+    }
+
+    batchCheckTimeout = setTimeout(() => {
+        fetch(`<?= base_url('company/production/orders/check-batch-no') ?>?production_no=${encodeURIComponent(val)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.exists) {
+                    if (feedbackEl) {
+                        feedbackEl.innerHTML = `<span class="text-danger font-monospace fw-bold"><i class="fa-solid fa-circle-xmark me-1"></i> ${data.message}</span>`;
+                    }
+                    if (submitBtn) submitBtn.disabled = true;
+                } else {
+                    if (feedbackEl) {
+                        feedbackEl.innerHTML = `<span class="text-success font-monospace fw-bold"><i class="fa-solid fa-circle-check me-1"></i> ${data.message}</span>`;
+                    }
+                    if (submitBtn) submitBtn.disabled = false;
+                }
+            })
+            .catch(err => {
+                if (feedbackEl) feedbackEl.innerHTML = '';
+                if (submitBtn) submitBtn.disabled = false;
+            });
+    }, 300);
+}
 </script>
 

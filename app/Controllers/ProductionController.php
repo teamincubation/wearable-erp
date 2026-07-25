@@ -58,16 +58,72 @@ class ProductionController extends Controller {
     }
 
     /**
+     * Real-Time AJAX Check for Unique Production Batch Number per Tenant Company
+     * GET /company/production/orders/check-batch-no
+     */
+    public function checkBatchNo(Request $request, Response $response): void {
+        header('Content-Type: application/json');
+        $companyId = Session::get('company_id');
+        $productionNo = trim((string)$request->get('production_no'));
+        $excludeId = (int)$request->get('exclude_id');
+
+        if (empty($productionNo)) {
+            echo json_encode(['exists' => false, 'message' => 'Batch number is empty.']);
+            exit;
+        }
+
+        $db = Database::getInstance();
+        $sql = "SELECT id FROM production_orders WHERE company_id = ? AND LOWER(TRIM(production_no)) = LOWER(TRIM(?)) AND deleted_at IS NULL";
+        $params = [$companyId, $productionNo];
+
+        if ($excludeId > 0) {
+            $sql .= " AND id != ?";
+            $params[] = $excludeId;
+        }
+        $sql .= " LIMIT 1";
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+        $exists = (bool)$stmt->fetchColumn();
+
+        if ($exists) {
+            echo json_encode([
+                'exists' => true,
+                'message' => "Batch Number '{$productionNo}' already exists for your company!"
+            ]);
+        } else {
+            echo json_encode([
+                'exists' => false,
+                'message' => "Batch Number '{$productionNo}' is available."
+            ]);
+        }
+        exit;
+    }
+
+    /**
      * Create Production Order
      */
     public function createOrder(Request $request, Response $response): void {
         $poId = (int)$request->get('po_id');
-        $productionNo = trim($request->get('production_no'));
+        $productionNo = trim((string)$request->get('production_no'));
         $startDate = $request->get('start_date');
 
         if (empty($poId) || empty($productionNo) || empty($startDate)) {
             Session::setFlash('error', 'Linked Buyer PO, Production Number, and Start Date are required.');
             $this->redirect('company/production/orders');
+            return;
+        }
+
+        $companyId = Session::get('company_id');
+        $db = Database::getInstance();
+
+        // Enforce unique production_no per tenant company
+        $stmtChk = $db->prepare("SELECT id FROM production_orders WHERE company_id = ? AND LOWER(TRIM(production_no)) = LOWER(TRIM(?)) AND deleted_at IS NULL LIMIT 1");
+        $stmtChk->execute([$companyId, $productionNo]);
+        if ($stmtChk->fetchColumn()) {
+            Session::setFlash('error', "Production Batch Number '{$productionNo}' already exists for your company! Please enter a unique batch number.");
+            $this->redirect('company/production/orders');
+            return;
         }
 
         $orderModel = new ProductionOrder();
@@ -80,7 +136,7 @@ class ProductionController extends Controller {
         ]);
 
         AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'create_production_order', 'ProductionOrder', $orderId, null, null, "Created production order: {$productionNo}");
-        Session::setFlash('success', 'Production order created and is pending operations setup.');
+        Session::setFlash('success', "Production order '{$productionNo}' created successfully and is pending operations setup.");
         $this->redirect('company/production/orders');
     }
 
