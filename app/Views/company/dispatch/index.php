@@ -344,9 +344,19 @@
                         <label class="form-label small fw-bold">Select Production Batch <span class="text-danger">*</span></label>
                         <select id="pack_batch_select" class="form-select text-dark" onchange="updatePackBatchInfo(this)" required>
                             <option value="">-- Choose Production Batch --</option>
-                            <?php foreach ($allBatches as $b): ?>
-                                <option value="<?= $b['production_order_id'] ?>" data-no="<?= htmlspecialchars($b['production_no']) ?>" data-unpacked="<?= max(0, $b['finished_output_qty'] - $b['packed_in_cartons_qty']) ?>" data-buyer-id="<?= $b['buyer_id'] ?? '' ?>">
-                                    Batch: <?= htmlspecialchars($b['production_no']) ?> (Style: <?= htmlspecialchars($b['style_no']) ?>)
+                            <?php foreach ($allBatches as $b): 
+                                $finishedQty = (int)$b['finished_output_qty'];
+                                $packedQty = (int)$b['packed_in_cartons_qty'];
+                                $targetQty = (int)$b['target_qty'];
+                                $unpackedBal = max(0, $finishedQty > 0 ? ($finishedQty - $packedQty) : ($targetQty - $packedQty));
+                            ?>
+                                <option value="<?= $b['production_order_id'] ?>" 
+                                        data-no="<?= htmlspecialchars($b['production_no']) ?>" 
+                                        data-unpacked="<?= $unpackedBal ?>" 
+                                        data-target="<?= $targetQty ?>" 
+                                        data-packed="<?= $packedQty ?>" 
+                                        data-buyer-id="<?= $b['buyer_id'] ?? '' ?>">
+                                    Batch: <?= htmlspecialchars($b['production_no']) ?> (Style: <?= htmlspecialchars($b['style_no']) ?> — Unpacked: <?= $unpackedBal ?> pcs / Target: <?= $targetQty ?> pcs)
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -355,7 +365,10 @@
                     <div class="row g-2 mb-3">
                         <div class="col-6">
                             <label class="form-label small fw-bold">Total Quantity to Pack (pcs) <span class="text-danger">*</span></label>
-                            <input type="number" name="total_qty" id="pack_total_qty" class="form-control font-monospace" min="1" value="1" required>
+                            <input type="number" name="total_qty" id="pack_total_qty" class="form-control font-monospace" min="1" value="1" oninput="validatePackQty(this)" required>
+                            <small id="pack_qty_help" class="text-primary font-monospace mt-1 d-block" style="font-size: 11px;">
+                                <i class="fa-solid fa-circle-info me-1"></i> Restricted to remaining unpacked balance.
+                            </small>
                         </div>
                         <div class="col-6">
                             <label class="form-label small fw-bold">Destination Type</label>
@@ -552,10 +565,34 @@
 
     function updatePackBatchInfo(selectEl) {
         const selectedOpt = selectEl.options[selectEl.selectedIndex];
+        const qtyInput = document.getElementById('pack_total_qty');
+        const helpEl = document.getElementById('pack_qty_help');
+
         if (selectedOpt && selectedOpt.value) {
             document.getElementById('pack_order_id').value = selectedOpt.value;
-            const unpacked = parseInt(selectedOpt.getAttribute('data-unpacked')) || 1;
-            document.getElementById('pack_total_qty').value = unpacked > 0 ? unpacked : 1;
+            const unpacked = parseInt(selectedOpt.getAttribute('data-unpacked')) || 0;
+            const target = parseInt(selectedOpt.getAttribute('data-target')) || 0;
+            const packed = parseInt(selectedOpt.getAttribute('data-packed')) || 0;
+
+            if (qtyInput) {
+                qtyInput.max = unpacked;
+                
+                if (unpacked <= 0) {
+                    qtyInput.value = 0;
+                    qtyInput.setAttribute('disabled', 'disabled');
+                    if (helpEl) {
+                        helpEl.className = 'text-danger font-monospace mt-1 d-block';
+                        helpEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-1"></i> Fully Packed! All ${target} pcs already packed.`;
+                    }
+                } else {
+                    qtyInput.removeAttribute('disabled');
+                    qtyInput.value = unpacked;
+                    if (helpEl) {
+                        helpEl.className = 'text-primary font-monospace mt-1 d-block';
+                        helpEl.innerHTML = `<i class="fa-solid fa-circle-info me-1"></i> Max allowed to pack: <strong>${unpacked} pcs</strong> (Target: ${target} pcs, Packed: ${packed} pcs)`;
+                    }
+                }
+            }
 
             // Auto-select client/buyer if mapped to this batch
             const buyerId = selectedOpt.getAttribute('data-buyer-id');
@@ -568,6 +605,16 @@
                     togglePackDestFields(destTypeEl);
                 }
             }
+        }
+    }
+
+    function validatePackQty(inputEl) {
+        const maxVal = parseInt(inputEl.max) || 0;
+        const val = parseInt(inputEl.value) || 0;
+        if (maxVal > 0 && val > maxVal) {
+            inputEl.value = maxVal;
+        } else if (val < 1 && maxVal > 0) {
+            inputEl.value = 1;
         }
     }
 

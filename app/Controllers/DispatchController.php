@@ -263,6 +263,33 @@ class DispatchController extends Controller {
             return;
         }
 
+        // Server-side max quantity validation against remaining unpacked balance
+        $stmtCheckQty = $db->prepare("
+            SELECT pro.production_no, po.quantity as target_qty,
+                   (SELECT COALESCE(SUM(psl.qty_out), 0) FROM production_stage_logs psl WHERE psl.production_order_id = pro.id AND psl.company_id = ? AND psl.stage IN ('packing', 'carton_packing', 'shipment')) as finished_output_qty,
+                   (SELECT COALESCE(SUM(ci.qty), 0) FROM carton_items ci JOIN cartons c ON ci.carton_id = c.id WHERE c.production_order_id = pro.id AND c.company_id = ?) as packed_in_cartons_qty
+            FROM production_orders pro
+            JOIN buyer_pos po ON pro.po_id = po.id
+            WHERE pro.id = ? AND pro.company_id = ? LIMIT 1
+        ");
+        $stmtCheckQty->execute([$companyId, $companyId, $productionOrderId, $companyId]);
+        $batchInfo = $stmtCheckQty->fetch();
+
+        if ($batchInfo) {
+            $targetQty = (int)$batchInfo['target_qty'];
+            $finishedQty = (int)$batchInfo['finished_output_qty'];
+            $packedQty = (int)$batchInfo['packed_in_cartons_qty'];
+            $maxPackable = $finishedQty > 0 ? max(0, $finishedQty - $packedQty) : max(0, $targetQty - $packedQty);
+
+            $requestedQty = max(1, (int)($request->get('total_qty') ?: 1));
+
+            if ($requestedQty > $maxPackable) {
+                Session::setFlash('error', "Quantity limit exceeded: Batch '{$batchInfo['production_no']}' only has {$maxPackable} pcs remaining to pack (Target: {$targetQty} pcs, Already packed: {$packedQty} pcs).");
+                $this->redirect('company/dispatch');
+                return;
+            }
+        }
+
         // Auto-generate Carton ID: CTN-YYYY-XXXX
         $yearStr = date('Y');
         $stmtLast = $db->prepare("SELECT id FROM cartons WHERE company_id = ? ORDER BY id DESC LIMIT 1");
