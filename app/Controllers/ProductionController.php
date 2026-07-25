@@ -1640,10 +1640,67 @@ class ProductionController extends Controller {
             ];
         }
 
+        // Fetch Carton & Dispatch/Delivery details for this product QR code
+        $cartonInfo = null;
+        $stmtCarton = $db->prepare("
+            SELECT ci.carton_id, ci.assigned_at,
+                   c.carton_no, c.destination_type, c.status as carton_status, c.tracking_no, c.created_at as carton_created_at,
+                   b.name as client_name, w.name as warehouse_name,
+                   shp.shipment_no, shp.status as shipment_status, shp.vehicle_courier_details, shp.dispatch_note, shp.created_at as dispatch_date
+            FROM carton_items ci
+            JOIN cartons c ON ci.carton_id = c.id
+            LEFT JOIN contacts b ON c.client_id = b.id
+            LEFT JOIN warehouses w ON c.warehouse_id = w.id
+            LEFT JOIN shipment_cartons sc ON c.id = sc.carton_id
+            LEFT JOIN shipments shp ON sc.shipment_id = shp.id
+            WHERE c.company_id = ? AND (ci.product_qr_code = ? OR ci.qr_code = ?)
+            ORDER BY ci.id DESC LIMIT 1
+        ");
+        $stmtCarton->execute([$companyId, $qrCode, $qrCode]);
+        $ctnRow = $stmtCarton->fetch();
+
+        if ($ctnRow) {
+            $dest = ($ctnRow['destination_type'] === 'client') 
+                ? ($ctnRow['client_name'] ?: 'Client Direct') 
+                : (($ctnRow['destination_type'] === 'warehouse') 
+                    ? ($ctnRow['warehouse_name'] ?: 'Company Warehouse') 
+                    : 'Unassigned');
+
+            $cStatusStr = match($ctnRow['carton_status']) {
+                'dispatched' => 'Dispatched',
+                'delivered' => 'Delivered',
+                'packed' => 'Packed & Sealed in Carton',
+                default => ucfirst((string)$ctnRow['carton_status'])
+            };
+
+            $dtCtn = !empty($ctnRow['carton_created_at']) ? new \DateTime($ctnRow['carton_created_at'], new \DateTimeZone('UTC')) : null;
+            if ($dtCtn) { try { $dtCtn->setTimezone(new \DateTimeZone($tzStr)); } catch (\Exception $e) {} }
+
+            $dtDisp = !empty($ctnRow['dispatch_date']) ? new \DateTime($ctnRow['dispatch_date'], new \DateTimeZone('UTC')) : null;
+            if ($dtDisp) { try { $dtDisp->setTimezone(new \DateTimeZone($tzStr)); } catch (\Exception $e) {} }
+
+            $cartonInfo = [
+                'carton_id' => (int)$ctnRow['carton_id'],
+                'carton_no' => $ctnRow['carton_no'],
+                'destination' => $dest,
+                'destination_type' => ucfirst((string)$ctnRow['destination_type']),
+                'status' => $ctnRow['carton_status'], // 'packed', 'dispatched', 'delivered'
+                'status_label' => $cStatusStr,
+                'tracking_no' => $ctnRow['tracking_no'] ?: null,
+                'shipment_no' => $ctnRow['shipment_no'] ?: null,
+                'shipment_status' => $ctnRow['shipment_status'] ? ucfirst((string)$ctnRow['shipment_status']) : null,
+                'courier_details' => $ctnRow['vehicle_courier_details'] ?: null,
+                'dispatch_note' => $ctnRow['dispatch_note'] ?: null,
+                'packed_at_formatted' => $dtCtn ? $dtCtn->format('d M Y, h:i A') : null,
+                'dispatched_at_formatted' => $dtDisp ? $dtDisp->format('d M Y, h:i A') : null
+            ];
+        }
+
         echo json_encode([
             'success' => true,
             'qr_code' => $qrCode,
             'total_stages' => count($formattedLogs),
+            'carton_info' => $cartonInfo,
             'logs' => $formattedLogs
         ]);
         exit;

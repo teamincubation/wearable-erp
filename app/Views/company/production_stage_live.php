@@ -723,6 +723,62 @@
                     .then(res => res.json())
                     .then(data => {
                         if (data.success && data.logs && data.logs.length > 0) {
+                            let cartonCardHtml = '';
+                            if (data.carton_info) {
+                                const c = data.carton_info;
+                                let statusBadge = `<span class="badge bg-primary text-white px-3 py-1.5 rounded-pill"><i class="fa-solid fa-boxes-packing me-1"></i> ${c.status_label}</span>`;
+                                if (c.status === 'delivered') {
+                                    statusBadge = `<span class="badge bg-success text-white px-3 py-1.5 rounded-pill"><i class="fa-solid fa-circle-check me-1"></i> Delivered</span>`;
+                                } else if (c.status === 'dispatched') {
+                                    statusBadge = `<span class="badge bg-warning text-dark px-3 py-1.5 rounded-pill"><i class="fa-solid fa-truck-fast me-1"></i> Dispatched ${c.shipment_no ? '(' + c.shipment_no + ')' : ''}</span>`;
+                                }
+
+                                cartonCardHtml = `
+                                    <div class="p-3 rounded-3 mb-3 font-monospace" style="background: #1e293b; border: 1px solid #334155; color: #f8fafc;">
+                                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2 pb-2 border-bottom" style="border-color: rgba(255,255,255,0.1) !important;">
+                                            <div>
+                                                <span class="badge bg-primary text-white font-monospace fs-6 px-2.5 py-1 me-2" style="background: #2563eb !important;">
+                                                    <i class="fa-solid fa-box-archive me-1"></i> ${c.carton_no}
+                                                </span>
+                                                <span class="badge bg-info-subtle text-info border border-info-subtle font-monospace" style="font-size: 11px;">
+                                                    <i class="fa-solid fa-location-dot me-1"></i> Dest: ${c.destination}
+                                                </span>
+                                            </div>
+                                            <div>${statusBadge}</div>
+                                        </div>
+                                        <div class="row g-2" style="font-size: 11.5px; color: #cbd5e1;">
+                                            <div class="col-12 col-md-6">
+                                                <i class="fa-solid fa-calendar-check text-primary me-1"></i> <strong>Carton Packed:</strong> ${c.packed_at_formatted || 'N/A'}
+                                            </div>
+                                            <div class="col-12 col-md-6">
+                                                <i class="fa-solid fa-truck text-warning me-1"></i> <strong>Shipment:</strong> ${c.shipment_no || 'Pending Shipment'}
+                                            </div>
+                                            ${c.courier_details ? `
+                                                <div class="col-12 col-md-6">
+                                                    <i class="fa-solid fa-route text-info me-1"></i> <strong>Courier / Vehicle:</strong> ${c.courier_details}
+                                                </div>
+                                            ` : ''}
+                                            ${c.tracking_no ? `
+                                                <div class="col-12 col-md-6">
+                                                    <i class="fa-solid fa-barcode text-success me-1"></i> <strong>Tracking ID:</strong> ${c.tracking_no}
+                                                </div>
+                                            ` : ''}
+                                            ${c.dispatched_at_formatted ? `
+                                                <div class="col-12 col-md-6">
+                                                    <i class="fa-solid fa-clock text-muted me-1"></i> <strong>Dispatch Date:</strong> ${c.dispatched_at_formatted}
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                `;
+                            } else {
+                                cartonCardHtml = `
+                                    <div class="p-2.5 rounded-3 mb-3 font-monospace small" style="background: rgba(51, 65, 85, 0.4); border: 1px solid #334155; color: #94a3b8;">
+                                        <i class="fa-solid fa-box-open text-warning me-1.5"></i> <strong>Carton Assignment:</strong> Not yet linked to any sealed carton box.
+                                    </div>
+                                `;
+                            }
+
                             let html = `
                                 <div class="p-3 rounded-3 mb-3" style="background: #0f172a; border: 1px solid #1e293b;">
                                     <div class="d-flex justify-content-between align-items-center">
@@ -735,6 +791,7 @@
                                         </span>
                                     </div>
                                 </div>
+                                ${cartonCardHtml}
                                 <div class="table-responsive border-0" style="background: #0f172a; border-radius: 12px;">
                                     <table class="table table-hover table-dark-custom align-middle mb-0" style="font-size: 12.5px; background-color: #0f172a !important; color: #f8fafc !important; --bs-table-bg: #0f172a; --bs-table-color: #f8fafc; --bs-table-border-color: rgba(255,255,255,0.08);">
                                         <thead>
