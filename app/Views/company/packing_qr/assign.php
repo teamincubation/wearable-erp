@@ -331,19 +331,23 @@
         const tbody = document.getElementById('manual_table_body');
         if (!tbody) return;
 
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted font-monospace"><i class="fa-solid fa-spinner fa-spin me-2"></i> Fetching eligible packed products...</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted font-monospace"><i class="fa-solid fa-spinner fa-spin me-2"></i> Fetching eligible packed products for batch...</td></tr>`;
 
         fetch(`<?= base_url('company/packing-qr/api/eligible-products') ?>?carton_id=${CARTON_ID}`)
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                return res.json();
+            })
             .then(data => {
                 if (data.success && data.products) {
                     renderManualProductsTable(data.products);
                 } else {
-                    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-danger font-monospace">Failed to load products: ${data.message || 'Error'}</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-danger font-monospace"><i class="fa-solid fa-triangle-exclamation me-1"></i> ${data.message || 'Failed to load batch products.'}</td></tr>`;
                 }
             })
             .catch(err => {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-danger font-monospace">Network error loading products.</td></tr>`;
+                console.error("Error fetching products:", err);
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-danger font-monospace"><i class="fa-solid fa-triangle-exclamation me-1"></i> Error loading products: ${err.message || 'Server connection error'}</td></tr>`;
             });
     }
 

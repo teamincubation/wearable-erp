@@ -263,127 +263,142 @@ class PackingQrController extends Controller {
      * GET /company/packing-qr/api/eligible-products
      */
     public function getEligibleProducts(Request $request, Response $response): void {
+        if (ob_get_length()) ob_clean();
         header('Content-Type: application/json');
-        $this->ensureTablesExist();
-        $companyId = Session::get('company_id');
-        $db = Database::getInstance();
+        
+        try {
+            $this->ensureTablesExist();
+            $companyId = Session::get('company_id');
+            $db = Database::getInstance();
 
-        $cartonId = (int)$request->get('carton_id');
+            $cartonId = (int)$request->get('carton_id');
 
-        $stmtCtn = $db->prepare("SELECT production_order_id, max_capacity_pcs FROM cartons WHERE id = ? AND company_id = ? LIMIT 1");
-        $stmtCtn->execute([$cartonId, $companyId]);
-        $carton = $stmtCtn->fetch();
-
-        if (!$carton) {
-            echo json_encode(['success' => false, 'message' => 'Carton not found.']);
-            return;
-        }
-
-        $prodOrderId = (int)$carton['production_order_id'];
-
-        // Query products logged in packing stage that are NOT assigned to any carton (without invalid GROUP BY)
-        $stmtLogs = $db->prepare("
-            SELECT psl.id, psl.production_order_id, psl.scanned_qr_code, psl.stage, psl.qty_out, psl.created_at,
-                   pro.production_no, s.style_no, s.name as style_name, po.po_no as buyer_po_no,
-                   ci.carton_id as existing_carton_id,
-                   c.carton_no as existing_carton_no
-            FROM production_stage_logs psl
-            JOIN production_orders pro ON psl.production_order_id = pro.id
-            LEFT JOIN buyer_pos po ON pro.po_id = po.id
-            LEFT JOIN styles s ON po.style_id = s.id
-            LEFT JOIN carton_items ci ON psl.scanned_qr_code = ci.product_qr_code
-            LEFT JOIN cartons c ON ci.carton_id = c.id
-            WHERE psl.company_id = ? 
-              AND psl.production_order_id = ?
-              AND psl.scanned_qr_code IS NOT NULL AND psl.scanned_qr_code != ''
-            ORDER BY psl.id DESC
-        ");
-        $stmtLogs->execute([$companyId, $prodOrderId]);
-        $logs = $stmtLogs->fetchAll() ?: [];
-
-        $eligibleProducts = [];
-        $seenQrs = [];
-
-        foreach ($logs as $row) {
-            $qr = trim((string)$row['scanned_qr_code']);
-            if (empty($qr) || isset($seenQrs[$qr])) continue;
-            $seenQrs[$qr] = true;
-
-            $isAssigned = !empty($row['existing_carton_id']);
-            $isCurrentCarton = ($row['existing_carton_id'] == $cartonId);
-
-            $eligibleProducts[] = [
-                'id' => $row['id'],
-                'qr_code' => $qr,
-                'production_no' => $row['production_no'],
-                'style_no' => $row['style_no'] ?: 'N/A',
-                'buyer_po' => $row['buyer_po_no'] ?: 'N/A',
-                'size' => 'FREE',
-                'color' => 'N/A',
-                'qty' => max(1, (int)$row['qty_out']),
-                'stage' => ucfirst($row['stage']),
-                'is_assigned' => $isAssigned,
-                'existing_carton_no' => $row['existing_carton_no'],
-                'is_current_carton' => $isCurrentCarton,
-                'selectable' => !$isAssigned || $isCurrentCarton
-            ];
-        }
-
-        // Fallback: If no scanned_qr_code rows exist yet for this batch, generate virtual QR items
-        if (empty($eligibleProducts)) {
-            $stmtOrderInfo = $db->prepare("
-                SELECT pro.production_no, s.style_no, po.po_no as buyer_po_no,
-                       (SELECT COALESCE(SUM(psl.qty_out), 0) FROM production_stage_logs psl WHERE psl.production_order_id = pro.id AND psl.company_id = ?) as total_finished_qty
-                FROM production_orders pro
+            // 1. Fetch Carton & Production Order details
+            $stmtCtn = $db->prepare("
+                SELECT c.id as carton_id, c.carton_no, c.production_order_id, c.max_capacity_pcs,
+                       pro.production_no, s.style_no, s.name as style_name,
+                       po.po_no as buyer_po_no, COALESCE(po.quantity, 50) as target_qty
+                FROM cartons c
+                JOIN production_orders pro ON c.production_order_id = pro.id
                 LEFT JOIN buyer_pos po ON pro.po_id = po.id
                 LEFT JOIN styles s ON po.style_id = s.id
-                WHERE pro.id = ? AND pro.company_id = ? LIMIT 1
+                WHERE c.id = ? AND c.company_id = ? LIMIT 1
             ");
-            $stmtOrderInfo->execute([$companyId, $prodOrderId, $companyId]);
-            $orderInfo = $stmtOrderInfo->fetch();
+            $stmtCtn->execute([$cartonId, $companyId]);
+            $carton = $stmtCtn->fetch();
 
-            if ($orderInfo) {
-                $count = max(20, min(100, (int)($orderInfo['total_finished_qty'] ?: 20)));
-                for ($i = 1; $i <= $count; $i++) {
-                    $virtualQr = sprintf("PROD-%s-%04d", $orderInfo['production_no'], $i);
-
-                    $stmtChkAssigned = $db->prepare("
-                        SELECT ci.carton_id, c.carton_no 
-                        FROM carton_items ci 
-                        JOIN cartons c ON ci.carton_id = c.id 
-                        WHERE ci.product_qr_code = ? LIMIT 1
-                    ");
-                    $stmtChkAssigned->execute([$virtualQr]);
-                    $asgn = $stmtChkAssigned->fetch();
-
-                    $isAssigned = !empty($asgn);
-                    $isCurrentCarton = $isAssigned && ($asgn['carton_id'] == $cartonId);
-
-                    $eligibleProducts[] = [
-                        'id' => $i,
-                        'qr_code' => $virtualQr,
-                        'production_no' => $orderInfo['production_no'],
-                        'style_no' => $orderInfo['style_no'] ?: 'N/A',
-                        'buyer_po' => $orderInfo['buyer_po_no'] ?: 'N/A',
-                        'size' => 'ALL',
-                        'color' => 'ASSORTED',
-                        'qty' => 1,
-                        'stage' => 'Ready to Pack',
-                        'is_assigned' => $isAssigned,
-                        'existing_carton_no' => $asgn ? $asgn['carton_no'] : null,
-                        'is_current_carton' => $isCurrentCarton,
-                        'selectable' => !$isAssigned || $isCurrentCarton
-                    ];
-                }
+            if (!$carton) {
+                echo json_encode(['success' => false, 'message' => 'Carton record not found.']);
+                return;
             }
-        }
 
-        echo json_encode([
-            'success' => true,
-            'carton_id' => $cartonId,
-            'total_count' => count($eligibleProducts),
-            'products' => $eligibleProducts
-        ]);
+            $prodOrderId = (int)$carton['production_order_id'];
+            $productionNo = $carton['production_no'];
+            $styleNo = $carton['style_no'] ?: 'N/A';
+            $buyerPo = $carton['buyer_po_no'] ?: 'N/A';
+            $batchTotalQty = max(1, (int)$carton['target_qty']);
+
+            // 2. Fetch all logged product stage QRs for this batch
+            $stmtLogs = $db->prepare("
+                SELECT psl.id, psl.scanned_qr_code, psl.stage, psl.qty_out, psl.created_at
+                FROM production_stage_logs psl
+                WHERE psl.company_id = ? 
+                  AND psl.production_order_id = ?
+                  AND psl.scanned_qr_code IS NOT NULL 
+                  AND psl.scanned_qr_code != ''
+                ORDER BY psl.id ASC
+            ");
+            $stmtLogs->execute([$companyId, $prodOrderId]);
+            $logs = $stmtLogs->fetchAll() ?: [];
+
+            // Fetch assigned items map for company
+            $stmtAssigned = $db->prepare("
+                SELECT ci.product_qr_code, ci.carton_id, c.carton_no 
+                FROM carton_items ci
+                JOIN cartons c ON ci.carton_id = c.id
+                WHERE c.company_id = ? AND ci.product_qr_code IS NOT NULL AND ci.product_qr_code != ''
+            ");
+            $stmtAssigned->execute([$companyId]);
+            $assignedRows = $stmtAssigned->fetchAll() ?: [];
+
+            $assignedMap = [];
+            foreach ($assignedRows as $asgn) {
+                $assignedMap[$asgn['product_qr_code']] = [
+                    'carton_id' => $asgn['carton_id'],
+                    'carton_no' => $asgn['carton_no']
+                ];
+            }
+
+            $eligibleProducts = [];
+            $seenQrs = [];
+
+            // Add logged scanned QRs first
+            foreach ($logs as $row) {
+                $qr = trim((string)$row['scanned_qr_code']);
+                if (empty($qr) || isset($seenQrs[$qr])) continue;
+                $seenQrs[$qr] = true;
+
+                $asgnInfo = $assignedMap[$qr] ?? null;
+                $isAssigned = !empty($asgnInfo);
+                $isCurrentCarton = $isAssigned && ($asgnInfo['carton_id'] == $cartonId);
+
+                $eligibleProducts[] = [
+                    'id' => $row['id'],
+                    'qr_code' => $qr,
+                    'production_no' => $productionNo,
+                    'style_no' => $styleNo,
+                    'buyer_po' => $buyerPo,
+                    'size' => 'FREE',
+                    'color' => 'N/A',
+                    'qty' => max(1, (int)$row['qty_out']),
+                    'stage' => ucfirst($row['stage']),
+                    'is_assigned' => $isAssigned,
+                    'existing_carton_no' => $asgnInfo ? $asgnInfo['carton_no'] : null,
+                    'is_current_carton' => $isCurrentCarton,
+                    'selectable' => !$isAssigned || $isCurrentCarton
+                ];
+            }
+
+            // Ensure all batch products up to batchTotalQty are generated and available to select
+            $totalCountNeeded = max(count($eligibleProducts), min(500, $batchTotalQty));
+            for ($i = 1; $i <= $totalCountNeeded; $i++) {
+                $virtualQr = sprintf("PROD-%s-%04d", $productionNo, $i);
+                if (isset($seenQrs[$virtualQr])) continue;
+                $seenQrs[$virtualQr] = true;
+
+                $asgnInfo = $assignedMap[$virtualQr] ?? null;
+                $isAssigned = !empty($asgnInfo);
+                $isCurrentCarton = $isAssigned && ($asgnInfo['carton_id'] == $cartonId);
+
+                $eligibleProducts[] = [
+                    'id' => 'v_' . $i,
+                    'qr_code' => $virtualQr,
+                    'production_no' => $productionNo,
+                    'style_no' => $styleNo,
+                    'buyer_po' => $buyerPo,
+                    'size' => 'ALL',
+                    'color' => 'ASSORTED',
+                    'qty' => 1,
+                    'stage' => 'Ready to Pack',
+                    'is_assigned' => $isAssigned,
+                    'existing_carton_no' => $asgnInfo ? $asgnInfo['carton_no'] : null,
+                    'is_current_carton' => $isCurrentCarton,
+                    'selectable' => !$isAssigned || $isCurrentCarton
+                ];
+            }
+
+            echo json_encode([
+                'success' => true,
+                'carton_id' => $cartonId,
+                'total_count' => count($eligibleProducts),
+                'products' => $eligibleProducts
+            ]);
+        } catch (\Throwable $ex) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error loading products: ' . $ex->getMessage()
+            ]);
+        }
     }
 
     /**
