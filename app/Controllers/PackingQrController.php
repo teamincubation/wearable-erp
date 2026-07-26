@@ -480,21 +480,31 @@ class PackingQrController extends Controller {
         $sessionCount = count($scannedSessionQrs);
         $totalProjected = $currentQty + $sessionCount + 1;
 
-        // Rule 1 & 2: Product QR exists for tenant company
+        $cleanQr = $productQr;
+        $fullQr = $cleanQr;
+        if (!empty($carton['production_no']) && !str_starts_with(strtoupper($cleanQr), strtoupper($carton['production_no']))) {
+            $fullQr = $carton['production_no'] . '-' . ltrim($cleanQr, '-');
+        }
+
+        // Rule 1 & 2: Product QR exists for tenant company (check exact match or prefix variation)
         $stmtLog = $db->prepare("
             SELECT psl.*, COALESCE(psl.scanned_qr_code, psl.qr_code) as scanned_qr_code, pro.production_no, pro.id as prod_order_id, s.style_no, s.name as style_name, po.po_no as buyer_po_no
             FROM production_stage_logs psl
             JOIN production_orders pro ON psl.production_order_id = pro.id
             LEFT JOIN buyer_pos po ON pro.po_id = po.id
             LEFT JOIN styles s ON po.style_id = s.id
-            WHERE (psl.scanned_qr_code = ? OR psl.qr_code = ?) AND psl.company_id = ?
+            WHERE psl.company_id = ? AND (
+                psl.scanned_qr_code = ? OR psl.qr_code = ? OR
+                psl.scanned_qr_code = ? OR psl.qr_code = ? OR
+                psl.scanned_qr_code LIKE ? OR psl.qr_code LIKE ?
+            )
             ORDER BY psl.id DESC LIMIT 1
         ");
-        $stmtLog->execute([$productQr, $productQr, $companyId]);
+        $stmtLog->execute([$companyId, $cleanQr, $cleanQr, $fullQr, $fullQr, "%{$cleanQr}%", "%{$cleanQr}%"]);
         $product = $stmtLog->fetch();
 
         if (!$product) {
-            echo json_encode(['success' => false, 'error_code' => 'PRODUCT_NOT_FOUND', 'message' => "Product QR '{$productQr}' does not exist or belong to this tenant."]);
+            echo json_encode(['success' => false, 'error_code' => 'PRODUCT_NOT_FOUND', 'message' => "Product QR '{$cleanQr}' does not exist or belong to this tenant."]);
             return;
         }
 
@@ -508,74 +518,105 @@ class PackingQrController extends Controller {
             return;
         }
 
-        // Rule 4: Passed production/packing stage
-        $validStages = ['packing', 'carton_packing', 'finishing', 'qc_pass', 'completed'];
-        if (!in_array(strtolower($product['stage']), $validStages)) {
-            echo json_encode([
-                'success' => false,
-                'error_code' => 'INVALID_STAGE',
-                'message' => "Product QR is at stage '" . ucfirst($product['stage']) . "' and has not passed Packing inspection."
-            ]);
-            return;
-        }
-
-        // Rule 5: Is not cancelled
+        // Rule 4: Is not cancelled / failed
         if (isset($product['status']) && strtolower($product['status']) === 'fail') {
             echo json_encode(['success' => false, 'error_code' => 'PRODUCT_REJECTED', 'message' => "Product QR failed inspection or was rejected."]);
             return;
         }
 
-        // Rule 6: Not already assigned to another carton
+        // Rule 5: Not already assigned to another carton
         $stmtCheckAssigned = $db->prepare("
             SELECT ci.carton_id, c.carton_no 
             FROM carton_items ci 
             JOIN cartons c ON ci.carton_id = c.id 
-            WHERE (ci.product_qr_code = ? OR ci.qr_code = ?) AND ci.carton_id != ? LIMIT 1
+            WHERE (ci.product_qr_code = ? OR ci.qr_code = ? OR ci.product_qr_code = ? OR ci.qr_code = ?) AND ci.carton_id != ? LIMIT 1
         ");
-        $stmtCheckAssigned->execute([$productQr, $productQr, $cartonId]);
+        $stmtCheckAssigned->execute([$cleanQr, $cleanQr, $fullQr, $fullQr, $cartonId]);
         $existingAssigned = $stmtCheckAssigned->fetch();
 
         if ($existingAssigned) {
             echo json_encode([
                 'success' => false,
                 'error_code' => 'ALREADY_ASSIGNED',
-                'message' => "Product QR '{$productQr}' is already assigned to Carton '{$existingAssigned['carton_no']}'."
+                'message' => "Product QR '{$cleanQr}' is already assigned to Carton '{$existingAssigned['carton_no']}'."
             ]);
             return;
         }
 
-        // Rule 7: Has not been shipped/delivered
+        // Check if already in THIS carton
+        $stmtCheckThis = $db->prepare("
+            SELECT id FROM carton_items 
+            WHERE carton_id = ? AND (product_qr_code = ? OR qr_code = ? OR product_qr_code = ? OR qr_code = ?) LIMIT 1
+        ");
+        $stmtCheckThis->execute([$cartonId, $cleanQr, $cleanQr, $fullQr, $fullQr]);
+        if ($stmtCheckThis->fetch()) {
+            echo json_encode([
+                'success' => false,
+                'error_code' => 'DUPLICATE_IN_CARTON',
+                'message' => "Product QR '{$cleanQr}' is ALREADY assigned to this carton."
+            ]);
+            return;
+        }
+
+        // Has carton been shipped/delivered
         if (in_array($carton['status'], ['dispatched', 'delivered'])) {
             echo json_encode(['success' => false, 'error_code' => 'CARTON_SHIPPED', 'message' => "Carton '{$carton['carton_no']}' is already dispatched/delivered."]);
             return;
         }
 
-        // Rule 8: Not duplicated within current scan session
-        if (in_array($productQr, $scannedSessionQrs)) {
-            echo json_encode(['success' => false, 'error_code' => 'DUPLICATE_SCAN', 'message' => "Product QR '{$productQr}' was already scanned in this session."]);
-            return;
-        }
+        // Begin transaction to unassign placeholder items and assign scanned product promptly
+        $db->beginTransaction();
 
-        $newAssignedTotal = $currentQty + $sessionCount + 1;
-        $newRemainingCap = max(0, $maxCap - $newAssignedTotal);
-        $completionPercent = min(100, round(($newAssignedTotal / $maxCap) * 100, 1));
+        $stmtDelDummy = $db->prepare("
+            DELETE FROM carton_items 
+            WHERE carton_id = ? AND (
+                product_qr_code LIKE 'ITEM%' 
+                OR qr_code LIKE 'ITEM%' 
+                OR product_qr_code IS NULL 
+                OR product_qr_code = ''
+                OR qr_code IS NULL 
+                OR qr_code = ''
+            )
+        ");
+        $stmtDelDummy->execute([$cartonId]);
+
+        $qrToSave = !empty($product['scanned_qr_code']) ? $product['scanned_qr_code'] : $fullQr;
+
+        $stmtInsItem = $db->prepare("
+            INSERT INTO carton_items (carton_id, production_order_id, qr_code, product_qr_code, size, color, qty, assigned_by, assigned_at)
+            VALUES (?, ?, ?, ?, 'FREE', 'N/A', 1, ?, NOW())
+            ON DUPLICATE KEY UPDATE assigned_at = NOW()
+        ");
+        $stmtInsItem->execute([$cartonId, $carton['production_order_id'], $qrToSave, $qrToSave, $userId]);
+
+        $stmtStageLog = $db->prepare("
+            INSERT INTO production_stage_logs (company_id, production_order_id, stage, employee_id, operator_id, qty_in, qty_out, qr_code, scanned_qr_code, notes, created_at)
+            VALUES (?, ?, 'carton_assignment', ?, ?, 1, 1, ?, ?, ?, NOW())
+        ");
+        $stmtStageLog->execute([$companyId, $carton['production_order_id'], $userId, $userId, $qrToSave, $qrToSave, "Assigned to Carton {$carton['carton_no']} (qr_scan)"]);
+
+        $db->commit();
+
+        AuditLog::log($companyId, $userId, 'assign_carton_item_scan', 'Carton', $cartonId, null, null, "Scanned & assigned QR {$qrToSave} to Carton {$carton['carton_no']}");
+
+        $displayQr = $cleanQr;
+        if (!empty($carton['production_no']) && str_starts_with(strtoupper($displayQr), strtoupper($carton['production_no']) . '-')) {
+            $displayQr = substr($displayQr, strlen($carton['production_no']) + 1);
+        }
 
         echo json_encode([
             'success' => true,
             'product' => [
-                'qr_code' => $productQr,
+                'qr_code' => $qrToSave,
+                'display_qr' => $displayQr,
                 'production_no' => $product['production_no'],
                 'style_no' => $product['style_no'],
                 'buyer_po' => $product['buyer_po_no'] ?: 'N/A',
                 'size' => 'FREE',
                 'color' => 'N/A',
-                'qty' => 1,
-                'scanned_at' => date('H:i:s')
+                'scanned_at' => date('d M Y, h:i A')
             ],
-            'updated_assigned_qty' => $newAssignedTotal,
-            'remaining_capacity' => $newRemainingCap,
-            'completion_percent' => $completionPercent,
-            'is_full' => ($newRemainingCap === 0)
+            'message' => "Product QR '{$displayQr}' successfully assigned to Carton {$carton['carton_no']}!"
         ]);
     }
 

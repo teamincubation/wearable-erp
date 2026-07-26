@@ -85,20 +85,69 @@
     <!-- Mobile-First Mode Selector Navigation Tabs -->
     <ul class="nav nav-pills nav-fill nav-pills-mobile bg-white p-1.5 rounded-4 shadow-sm mb-3 border" id="packingModeTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active rounded-3 fw-bold" id="manual-tab" data-bs-toggle="tab" data-bs-target="#manual-mode" type="button" role="tab" onclick="switchAssignmentMode('manual')">
-                <i class="fa-solid fa-list-check me-1.5"></i> Manual Select
+            <button class="nav-link active rounded-3 fw-bold" id="qr-tab" data-bs-toggle="tab" data-bs-target="#qr-mode" type="button" role="tab" onclick="switchAssignmentMode('qr')">
+                <i class="fa-solid fa-camera me-1.5"></i> QR Scan Mode
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link rounded-3 fw-bold" id="qr-tab" data-bs-toggle="tab" data-bs-target="#qr-mode" type="button" role="tab" onclick="switchAssignmentMode('qr')">
-                <i class="fa-solid fa-camera me-1.5"></i> QR Scan Mode
+            <button class="nav-link rounded-3 fw-bold" id="manual-tab" data-bs-toggle="tab" data-bs-target="#manual-mode" type="button" role="tab" onclick="switchAssignmentMode('manual')">
+                <i class="fa-solid fa-list-check me-1.5"></i> Manual Select
             </button>
         </li>
     </ul>
 
     <div class="tab-content" id="packingModeTabsContent">
-        <!-- ================= TAB 1: MANUAL MODE ================= -->
-        <div class="tab-pane fade show active" id="manual-mode" role="tabpanel">
+        <!-- ================= TAB 1: QR SCAN MODE (DEFAULT) ================= -->
+        <div class="tab-pane fade show active" id="qr-mode" role="tabpanel">
+            <div class="row g-3 mb-3">
+                <!-- Scanner Input & Controls -->
+                <div class="col-12 col-lg-6">
+                    <div class="mobile-pack-card p-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="fw-bold text-dark m-0 font-monospace"><i class="fa-solid fa-qrcode text-primary me-1.5"></i> Live Scanner</h6>
+                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 font-monospace" onclick="toggleCameraStream()">
+                                <i class="fa-solid fa-power-off me-1"></i> Toggle Camera
+                            </button>
+                        </div>
+
+                        <!-- Real-Time Input Box for Handheld Barcode Guns -->
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-dark">Scan Product QR Code</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-dark text-white border-dark"><i class="fa-solid fa-barcode"></i></span>
+                                <input type="text" id="qr_input_box" class="form-control font-monospace fw-bold text-dark bg-light" placeholder="Scan or type Product QR..." autofocus onkeydown="handleQrInputKeydown(event)">
+                                <button class="btn btn-primary fw-bold px-3" type="button" onclick="triggerManualScanSubmit()">
+                                    <i class="fa-solid fa-plus me-1"></i> Assign
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Camera Viewport Container -->
+                        <div class="scanner-viewport-box mb-2">
+                            <div id="reader"></div>
+                        </div>
+
+                        <div id="scan_alert_box"></div>
+                    </div>
+                </div>
+
+                <!-- Guidance & Scanner Tips Card -->
+                <div class="col-12 col-lg-6">
+                    <div class="mobile-pack-card p-3 h-100">
+                        <h6 class="fw-bold text-dark mb-2 font-monospace"><i class="fa-solid fa-lightbulb text-warning me-1.5"></i> Fast QR Assignment Instructions</h6>
+                        <ul class="text-secondary small font-monospace ps-3 mb-0" style="line-height: 1.7; font-size: 11.5px;">
+                            <li>Point your handheld 2D USB/Bluetooth barcode gun at any printed product QR tag.</li>
+                            <li>The system instantly validates company tenancy, quality PASS status, and batch match.</li>
+                            <li>Valid product units are assigned immediately to this carton without extra clicks.</li>
+                            <li>Placeholder <code>ITEM-##</code> entries are automatically unassigned upon valid product scan.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TAB 2: MANUAL SELECT MODE ================= -->
+        <div class="tab-pane fade" id="manual-mode" role="tabpanel">
             <div class="mobile-pack-card p-3">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div>
@@ -323,14 +372,18 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         loadEligibleManualProducts();
+        switchAssignmentMode('qr');
     });
 
     function switchAssignmentMode(mode) {
         if (mode === 'qr') {
             setTimeout(() => {
                 const inputEl = document.getElementById('qr_input_box');
-                if (inputEl) inputEl.focus();
-            }, 300);
+                if (inputEl) {
+                    inputEl.focus();
+                    inputEl.select();
+                }
+            }, 200);
         }
     }
 
@@ -518,7 +571,6 @@
         if (e.key === 'Enter') {
             e.preventDefault();
             processProductScan(e.target.value.trim());
-            e.target.value = '';
         }
     }
 
@@ -526,44 +578,57 @@
         const inputEl = document.getElementById('qr_input_box');
         if (inputEl && inputEl.value.trim()) {
             processProductScan(inputEl.value.trim());
-            inputEl.value = '';
         }
     }
 
     function processProductScan(qrCode) {
         if (!qrCode) return;
 
-        if (CURRENT_ASSIGNED + scannedSessionProducts.length >= MAX_CAPACITY) {
-            showScanAlert('danger', `<i class="fa-solid fa-triangle-exclamation me-1"></i> SCAN REJECTED: Selection limit reached. Unassign items below under "Currently Linked Items in Carton" to add items.`);
+        if (REAL_CURRENT_ASSIGNED >= MAX_CAPACITY) {
+            showScanAlert('danger', `<i class="fa-solid fa-triangle-exclamation me-1.5 text-danger"></i> <strong>SCAN REJECTED:</strong> Selection limit reached. Unassign items below to add items.`);
             return;
         }
 
         fetch('<?= base_url('company/packing-qr/api/scan-product') ?>', {
             method: 'POST',
             headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-            body: `carton_id=${CARTON_ID}&product_qr=${encodeURIComponent(qrCode)}&${scannedSessionProducts.map(p => `session_qrs[]=${encodeURIComponent(p.qr_code)}`).join('&')}`
+            body: `carton_id=${CARTON_ID}&product_qr=${encodeURIComponent(qrCode)}`
         })
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                showScanAlert('success', `<i class="fa-solid fa-circle-check me-1"></i> VALID SCAN: Product QR '<strong>${qrCode}</strong>' added!`);
-                scannedSessionProducts.unshift(data.product);
-                updateQrSessionUI(data);
+                const displayQr = data.product ? data.product.display_qr : qrCode;
+                showScanAlert('success', `<i class="fa-solid fa-circle-check me-1.5 text-success fs-6"></i> <strong>VALID SCAN & ASSIGNED:</strong> Product QR '<strong>${displayQr}</strong>' successfully linked to Carton ${CARTON_NO}!`);
+                
+                const inputEl = document.getElementById('qr_input_box');
+                if (inputEl) {
+                    inputEl.value = '';
+                    inputEl.focus();
+                }
+
+                // Automatically reload page after 700ms so table and count update live
+                setTimeout(() => {
+                    window.location.reload();
+                }, 700);
             } else {
-                showScanAlert('danger', `<i class="fa-solid fa-triangle-exclamation me-1"></i> SCAN REJECTED: ${data.message}`);
+                showScanAlert('danger', `<i class="fa-solid fa-triangle-exclamation me-1.5 text-danger"></i> <strong>SCAN REJECTED:</strong> ${data.message}`);
+                const inputEl = document.getElementById('qr_input_box');
+                if (inputEl) {
+                    inputEl.select();
+                    inputEl.focus();
+                }
             }
         })
         .catch(err => {
-            showScanAlert('danger', '<i class="fa-solid fa-triangle-exclamation me-1"></i> Network error validating scan.');
+            showScanAlert('danger', '<i class="fa-solid fa-triangle-exclamation me-1.5 text-danger"></i> Network error validating scan.');
         });
     }
 
     function showScanAlert(type, htmlMsg) {
-        const alertEl = document.getElementById('scan_feedback_alert');
+        const alertEl = document.getElementById('scan_alert_box');
         if (!alertEl) return;
-        alertEl.className = `alert alert-${type} py-2 px-3 rounded-3 small font-monospace mb-0 mt-2`;
+        alertEl.className = `alert alert-${type} py-2.5 px-3 rounded-3 small font-monospace mb-0 mt-2 shadow-sm`;
         alertEl.innerHTML = htmlMsg;
-        alertEl.classList.remove('d-none');
     }
 
     function updateQrSessionUI(data) {
