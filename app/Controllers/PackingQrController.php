@@ -832,9 +832,15 @@ class PackingQrController extends Controller {
 
                 $searchResult = $cartonMatch;
             } else {
-                // Search as Product QR Code
+                // Search as Product QR Code with full Tech Pack, BOM, and Costing Specs
                 $stmtProd = $db->prepare("
-                    SELECT psl.*, COALESCE(psl.scanned_qr_code, psl.qr_code) as scanned_qr_code, pro.production_no, s.style_no, s.name as style_name, po.po_no as buyer_po_no,
+                    SELECT psl.*, COALESCE(psl.scanned_qr_code, psl.qr_code) as scanned_qr_code, 
+                           pro.production_no, 
+                           s.id as style_id, s.style_no, s.name as style_name, s.category as garment_category, s.composition as fabric_specs, s.brand as brand_name,
+                           po.po_no as buyer_po_no, po.unit_price as unit_price,
+                           b_buyer.name as buyer_name,
+                           tp.bom_json, tp.printing_specs, tp.embroidery_specs,
+                           cs.total_cost as production_expense_per_unit,
                            ci.carton_id, c.carton_no, c.status as carton_status, c.created_at as carton_packed_at,
                            b.name as client_name, w.name as warehouse_name,
                            shp.shipment_no, shp.status as shipment_status
@@ -842,6 +848,9 @@ class PackingQrController extends Controller {
                     JOIN production_orders pro ON psl.production_order_id = pro.id
                     LEFT JOIN buyer_pos po ON pro.po_id = po.id
                     LEFT JOIN styles s ON po.style_id = s.id
+                    LEFT JOIN contacts b_buyer ON po.buyer_id = b_buyer.id
+                    LEFT JOIN tech_packs tp ON (s.id = tp.style_id AND tp.deleted_at IS NULL)
+                    LEFT JOIN cost_sheets cs ON (s.id = cs.style_id AND cs.deleted_at IS NULL)
                     LEFT JOIN carton_items ci ON (
                         psl.scanned_qr_code = ci.product_qr_code OR 
                         psl.qr_code = ci.product_qr_code OR

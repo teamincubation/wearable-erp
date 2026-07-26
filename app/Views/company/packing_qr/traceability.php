@@ -156,7 +156,24 @@ if (!function_exists('formatDisplayQrTrace')) {
                 </div>
             </div>
 
-        <?php elseif ($searchType === 'product' && !empty($searchResult)): ?>
+        <?php elseif ($searchType === 'product' && !empty($searchResult)): 
+            $bomItems = [];
+            if (!empty($searchResult['bom_json'])) {
+                $decodedBom = is_string($searchResult['bom_json']) ? json_decode($searchResult['bom_json'], true) : $searchResult['bom_json'];
+                if (is_array($decodedBom)) {
+                    foreach ($decodedBom as $b) {
+                        if (is_array($b)) {
+                            $bName = $b['item_name'] ?? ($b['name'] ?? ($b['material'] ?? ''));
+                            $bQty = $b['qty'] ?? ($b['quantity'] ?? ($b['consumption'] ?? '1'));
+                            $bUnit = $b['unit'] ?? ($b['uom'] ?? 'pc');
+                            if ($bName) $bomItems[] = "{$bName} ({$bQty} {$bUnit}/pc)";
+                        } elseif (is_string($b)) {
+                            $bomItems[] = $b;
+                        }
+                    }
+                }
+            }
+        ?>
             <!-- ================= PRODUCT 2-WAY TRACEABILITY RESULT ================= -->
             <div class="trace-card p-3 mb-3">
                 <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
@@ -201,6 +218,104 @@ if (!function_exists('formatDisplayQrTrace')) {
                             <small class="d-block text-dark fw-bold mt-0.5" style="font-size: 10px;">
                                 <?= ($searchResult['client_name'] ?: $searchResult['warehouse_name']) ?: 'In Factory' ?>
                             </small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Complete Garment Product Specifications, BOM & Costing Grid -->
+                <div class="card border-0 bg-light p-3 mb-3 rounded-4 shadow-sm" style="border: 1px solid #e2e8f0 !important;">
+                    <h6 class="fw-bold text-dark font-monospace mb-2.5 d-flex align-items-center" style="font-size: 13px;">
+                        <i class="fa-solid fa-shirt text-primary me-2"></i> Garment Product Specifications & Tech Pack Details
+                    </h6>
+                    
+                    <div class="row g-2 font-monospace" style="font-size: 12px;">
+                        <!-- 1. Style Code & Name -->
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <div class="p-2 bg-white rounded-3 border">
+                                <small class="text-muted d-block" style="font-size: 9.5px;">GARMENT STYLE CODE & NAME</small>
+                                <strong class="text-dark"><?= htmlspecialchars($searchResult['style_no'] ?: 'N/A') ?></strong> 
+                                <span class="text-secondary">- <?= htmlspecialchars($searchResult['style_name'] ?: 'Garment Item') ?></span>
+                            </div>
+                        </div>
+
+                        <!-- 2. PO Reference No -->
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <div class="p-2 bg-white rounded-3 border">
+                                <small class="text-muted d-block" style="font-size: 9.5px;">PO REFERENCE NO</small>
+                                <strong class="text-primary"><?= htmlspecialchars($searchResult['buyer_po_no'] ?: 'N/A') ?></strong>
+                            </div>
+                        </div>
+
+                        <!-- 3. Brand / Client -->
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <div class="p-2 bg-white rounded-3 border">
+                                <small class="text-muted d-block" style="font-size: 9.5px;">BRAND / CLIENT</small>
+                                <strong class="text-dark"><?= htmlspecialchars($searchResult['buyer_name'] ?: ($searchResult['brand_name'] ?: 'Internal Client')) ?></strong>
+                            </div>
+                        </div>
+
+                        <!-- 4. Unit Price (for single pc) -->
+                        <div class="col-6 col-md-3">
+                            <div class="p-2 bg-white rounded-3 border">
+                                <small class="text-muted d-block" style="font-size: 9.5px;">UNIT PRICE (PER PC)</small>
+                                <strong class="text-success">₹<?= number_format((float)($searchResult['unit_price'] ?: 0), 2) ?> / pc</strong>
+                            </div>
+                        </div>
+
+                        <!-- 5. Production Expenses (for single pc) -->
+                        <div class="col-6 col-md-3">
+                            <div class="p-2 bg-white rounded-3 border">
+                                <small class="text-muted d-block" style="font-size: 9.5px;">PRODUCTION EXPENSES (PER PC)</small>
+                                <strong class="text-danger">₹<?= number_format((float)($searchResult['production_expense_per_unit'] ?: 0), 2) ?> / pc</strong>
+                            </div>
+                        </div>
+
+                        <!-- 6. Garment Category -->
+                        <div class="col-6 col-md-3">
+                            <div class="p-2 bg-white rounded-3 border">
+                                <small class="text-muted d-block" style="font-size: 9.5px;">GARMENT CATEGORY</small>
+                                <strong class="text-dark text-capitalize"><?= htmlspecialchars($searchResult['garment_category'] ?: 'Unisex') ?></strong>
+                            </div>
+                        </div>
+
+                        <!-- 7. Fabric & GSM Specs -->
+                        <div class="col-6 col-md-3">
+                            <div class="p-2 bg-white rounded-3 border">
+                                <small class="text-muted d-block" style="font-size: 9.5px;">FABRIC & GSM SPECS</small>
+                                <strong class="text-dark"><?= htmlspecialchars($searchResult['fabric_specs'] ?: '100% Cotton / Standard GSM') ?></strong>
+                            </div>
+                        </div>
+
+                        <!-- 8. Bill of Materials (BOM) per pc -->
+                        <div class="col-12">
+                            <div class="p-2 bg-white rounded-3 border">
+                                <small class="text-muted d-block mb-1" style="font-size: 9.5px;">BILL OF MATERIALS (BOM FOR SINGLE PC)</small>
+                                <?php if (!empty($bomItems)): ?>
+                                    <div class="d-flex flex-wrap gap-1.5">
+                                        <?php foreach ($bomItems as $bomStr): ?>
+                                            <span class="badge bg-primary-subtle text-primary border font-monospace"><?= htmlspecialchars($bomStr) ?></span>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php else: ?>
+                                    <span class="text-muted small">Standard Garment Components (Main Fabric, Sewing Thread, Care Tag, Polybag)</span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+
+                        <!-- 9. Print & Graphic Guidelines -->
+                        <div class="col-12 col-md-6">
+                            <div class="p-2 bg-white rounded-3 border h-100">
+                                <small class="text-muted d-block mb-0.5" style="font-size: 9.5px;"><i class="fa-solid fa-print text-info me-1"></i> PRINT & GRAPHIC GUIDELINES</small>
+                                <span class="text-dark small"><?= !empty($searchResult['printing_specs']) ? nl2br(htmlspecialchars($searchResult['printing_specs'])) : 'N/A - Standard Solid / Non-Printed' ?></span>
+                            </div>
+                        </div>
+
+                        <!-- 10. Embroidery Specs -->
+                        <div class="col-12 col-md-6">
+                            <div class="p-2 bg-white rounded-3 border h-100">
+                                <small class="text-muted d-block mb-0.5" style="font-size: 9.5px;"><i class="fa-solid fa-needle text-warning me-1"></i> EMBROIDERY SPECS</small>
+                                <span class="text-dark small"><?= !empty($searchResult['embroidery_specs']) ? nl2br(htmlspecialchars($searchResult['embroidery_specs'])) : 'N/A - No Embroidery Required' ?></span>
+                            </div>
                         </div>
                     </div>
                 </div>
