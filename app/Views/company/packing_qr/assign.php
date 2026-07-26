@@ -99,21 +99,20 @@
     <div class="tab-content" id="packingModeTabsContent">
         <!-- ================= TAB 1: QR SCAN MODE (DEFAULT) ================= -->
         <div class="tab-pane fade show active" id="qr-mode" role="tabpanel">
-            <div class="row g-3 mb-3">
+            <div class="row g-2 mb-3">
                 <!-- Scanner Input & Controls -->
-                <div class="col-12 col-lg-6">
+                <div class="col-12">
                     <div class="mobile-pack-card p-3">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h6 class="fw-bold text-dark m-0 font-monospace"><i class="fa-solid fa-qrcode text-primary me-1.5"></i> Live Scanner</h6>
-                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 font-monospace" onclick="toggleCameraStream()">
-                                <i class="fa-solid fa-power-off me-1"></i> Toggle Camera
+                            <h6 class="fw-bold text-dark m-0 font-monospace" style="font-size: 13px;"><i class="fa-solid fa-qrcode text-primary me-1.5"></i> Live Scanner</h6>
+                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1 font-monospace" onclick="toggleCameraStream()" style="font-size: 11px;">
+                                <i class="fa-solid fa-camera me-1"></i> Camera
                             </button>
                         </div>
 
                         <!-- Real-Time Input Box for Handheld Barcode Guns -->
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold text-dark">Scan Product QR Code</label>
-                            <div class="input-group">
+                        <div class="mb-2">
+                            <div class="input-group input-group-sm">
                                 <span class="input-group-text bg-dark text-white border-dark"><i class="fa-solid fa-barcode"></i></span>
                                 <input type="text" id="qr_input_box" class="form-control font-monospace fw-bold text-dark bg-light" placeholder="Scan or type Product QR..." autofocus onkeydown="handleQrInputKeydown(event)">
                                 <button class="btn btn-primary fw-bold px-3" type="button" onclick="triggerManualScanSubmit()">
@@ -128,19 +127,6 @@
                         </div>
 
                         <div id="scan_alert_box"></div>
-                    </div>
-                </div>
-
-                <!-- Guidance & Scanner Tips Card -->
-                <div class="col-12 col-lg-6">
-                    <div class="mobile-pack-card p-3 h-100">
-                        <h6 class="fw-bold text-dark mb-2 font-monospace"><i class="fa-solid fa-lightbulb text-warning me-1.5"></i> Fast QR Assignment Instructions</h6>
-                        <ul class="text-secondary small font-monospace ps-3 mb-0" style="line-height: 1.7; font-size: 11.5px;">
-                            <li>Point your handheld 2D USB/Bluetooth barcode gun at any printed product QR tag.</li>
-                            <li>The system instantly validates company tenancy, quality PASS status, and batch match.</li>
-                            <li>Valid product units are assigned immediately to this carton without extra clicks.</li>
-                            <li>Placeholder <code>ITEM-##</code> entries are automatically unassigned upon valid product scan.</li>
-                        </ul>
                     </div>
                 </div>
             </div>
