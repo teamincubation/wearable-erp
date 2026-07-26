@@ -1,3 +1,19 @@
+<?php
+if (!function_exists('formatDisplayQrTrace')) {
+    function formatDisplayQrTrace(?string $qr, ?string $batchNo = null): string {
+        if (empty($qr)) return '';
+        $clean = trim($qr);
+        if (!empty($batchNo) && str_starts_with(strtoupper($clean), strtoupper($batchNo) . '-')) {
+            return substr($clean, strlen($batchNo) + 1);
+        }
+        if (preg_match('/^[A-Z0-9]+-(.+)$/i', $clean, $m) && !str_starts_with(strtoupper($clean), 'ITEM-')) {
+            return $m[1];
+        }
+        return $clean;
+    }
+}
+?>
+
 <style>
     .trace-card {
         border-radius: 20px;
@@ -40,7 +56,7 @@
                 <label class="form-label small fw-bold text-dark">Enter Product QR Code OR Sealed Carton ID</label>
                 <div class="input-group">
                     <span class="input-group-text bg-primary text-white border-primary"><i class="fa-solid fa-qrcode"></i></span>
-                    <input type="text" name="query" class="form-control font-monospace fw-bold text-dark bg-light" placeholder="e.g. Scan or paste Product QR (PROD-...) or Carton ID (CTN-2026-0001)..." value="<?= htmlspecialchars($query ?? '') ?>" autofocus required>
+                    <input type="text" name="query" class="form-control font-monospace fw-bold text-dark bg-light" placeholder="e.g. Scan or paste Product QR (XXL-0001) or Carton ID (CTN-2026-0001)..." value="<?= htmlspecialchars($query ?? '') ?>" autofocus required>
                 </div>
             </div>
             <div class="col-12 col-md-3 mt-md-4">
@@ -117,15 +133,16 @@
                         <tbody>
                             <?php if (!empty($searchResult['items'])): ?>
                                 <?php foreach ($searchResult['items'] as $item): 
-                                    $itemQr = !empty($item['product_qr_code']) ? (string)$item['product_qr_code'] : ('ITEM-' . $item['id']);
+                                    $rawItemQr = !empty($item['product_qr_code']) ? (string)$item['product_qr_code'] : (!empty($item['qr_code']) ? (string)$item['qr_code'] : ('ITEM-' . $item['id']));
+                                    $displayItemQr = formatDisplayQrTrace($rawItemQr, $searchResult['production_no']);
                                 ?>
                                     <tr>
-                                        <td class="ps-3"><strong class="font-monospace text-primary"><?= htmlspecialchars($itemQr) ?></strong></td>
+                                        <td class="ps-3"><strong class="font-monospace text-primary"><?= htmlspecialchars($displayItemQr) ?></strong></td>
                                         <td><span class="badge bg-light text-dark border font-monospace"><?= htmlspecialchars($item['size'] ?: 'FREE') ?> / <?= htmlspecialchars($item['color'] ?: 'N/A') ?></span></td>
                                         <td><span class="badge bg-success-subtle text-success border font-monospace"><?= number_format((int)($item['qty'] ?: 1)) ?> pcs</span></td>
                                         <td class="font-monospace small text-muted"><?= date('d M Y, h:i A', strtotime($item['assigned_at'] ?? $item['created_at'])) ?></td>
                                         <td class="text-end pe-3">
-                                            <a href="<?= base_url('company/packing-qr/traceability?query=' . urlencode($itemQr)) ?>" class="btn btn-sm btn-outline-primary rounded-pill px-2.5 font-monospace">
+                                            <a href="<?= base_url('company/packing-qr/traceability?query=' . urlencode($displayItemQr)) ?>" class="btn btn-sm btn-outline-primary rounded-pill px-2.5 font-monospace">
                                                 <i class="fa-solid fa-route me-1"></i> Trace
                                             </a>
                                         </td>
@@ -145,7 +162,7 @@
                 <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
                     <div>
                         <span class="badge bg-success font-monospace me-1.5">PRODUCT ITEM</span>
-                        <h6 class="fw-bold text-dark d-inline font-monospace">Product QR: <?= htmlspecialchars($searchResult['scanned_qr_code']) ?></h6>
+                        <h6 class="fw-bold text-dark d-inline font-monospace">Product QR: <?= htmlspecialchars(formatDisplayQrTrace($searchResult['scanned_qr_code'], $searchResult['production_no'])) ?></h6>
                     </div>
                     <span class="badge bg-light text-dark border font-monospace">
                         Batch: <?= htmlspecialchars($searchResult['production_no']) ?>

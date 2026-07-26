@@ -864,15 +864,21 @@ class PackingQrController extends Controller {
 
                 if ($productMatch) {
                     $searchType = 'product';
+                    $rawQr = !empty($productMatch['scanned_qr_code']) ? $productMatch['scanned_qr_code'] : (!empty($productMatch['qr_code']) ? $productMatch['qr_code'] : $query);
+
                     // Fetch full stage timeline for this product
                     $stmtTimeline = $db->prepare("
                         SELECT psl.*, u.name as operator_name 
                         FROM production_stage_logs psl
                         LEFT JOIN users u ON (psl.employee_id = u.id OR psl.operator_id = u.id)
-                        WHERE psl.company_id = ? AND (psl.scanned_qr_code = ? OR psl.qr_code = ?)
+                        WHERE psl.company_id = ? AND (
+                            psl.scanned_qr_code = ? OR psl.qr_code = ? OR
+                            psl.scanned_qr_code = ? OR psl.qr_code = ? OR
+                            psl.scanned_qr_code LIKE ? OR psl.qr_code LIKE ?
+                        )
                         ORDER BY psl.id ASC
                     ");
-                    $stmtTimeline->execute([$companyId, $query, $query]);
+                    $stmtTimeline->execute([$companyId, $query, $query, $rawQr, $rawQr, "%{$query}%", "%{$query}%"]);
                     $productMatch['timeline'] = $stmtTimeline->fetchAll() ?: [];
 
                     $searchResult = $productMatch;
