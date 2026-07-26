@@ -8,53 +8,24 @@
     </div>
 </div>
 
-<!-- MINIMALISTIC & HIGH-ATTENTION QR CODE TRACKING BAR -->
-<div class="pepp-card p-3 mb-4" style="background: #0f172a; border-radius: 16px; border: 1px solid #1e293b;">
-    <form id="track-qr-unit-form" class="row align-items-center g-2">
-        <div class="col-md-4 col-12">
-            <div class="d-flex align-items-center gap-2.5 ps-2">
-                <div class="bg-primary text-white d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; min-width: 38px; font-size: 1.1rem; border-radius: 12px; background: #2563eb !important;">
-                    <i class="fa-solid fa-qrcode"></i>
-                </div>
-                <div>
-                    <h6 class="fw-bold text-white m-0 font-outfit" style="font-size: 14px;">Track Unit & Carton Status</h6>
-                    <span class="text-white-50 small" style="font-size: 11px;">Instant Product QR & Carton Box lifecycle lookup</span>
-                </div>
+<!-- ENTERPRISE TRACE LIFECYCLE SEARCH SYSTEM -->
+<div class="card p-3 mb-4 border-0 shadow-sm" style="border-radius: 16px; background: #ffffff; border: 1px solid #e2e8f0;">
+    <form method="GET" action="<?= base_url('company/packing-qr/traceability') ?>" class="row g-2 align-items-center">
+        <div class="col-12">
+            <label class="form-label small fw-bold text-dark mb-1.5" style="font-size: 13px;">Enter Product QR Code OR Sealed Carton ID</label>
+        </div>
+        <div class="col-12 col-md-9">
+            <div class="input-group">
+                <span class="input-group-text bg-primary text-white border-primary"><i class="fa-solid fa-qrcode"></i></span>
+                <input type="text" name="query" class="form-control font-monospace fw-bold text-dark bg-light" placeholder="e.g. Scan or paste Product QR (XXL-0001) or Carton ID (CTN-2026-0001)..." required>
             </div>
         </div>
-        <div class="col-md-6 col-8">
-            <div class="input-group input-group-sm">
-                <span class="input-group-text border-end-0 bg-transparent text-primary" style="border-color: #334155;">
-                    <i class="fa-solid fa-barcode"></i>
-                </span>
-                <input type="text" id="track-qr-unit-input" class="form-control font-monospace fw-bold ps-1 bg-dark text-white border-secondary" placeholder="Scan or type Product QR (e.g. B2507002-XXL-0001 or Carton ID)..." required>
-            </div>
-        </div>
-        <div class="col-md-2 col-4 text-end pe-3">
-            <button type="submit" id="track-qr-unit-btn" class="btn btn-primary btn-sm w-100 fw-bold rounded-pill shadow-sm" style="font-size: 12px; padding: 8px 14px;">
-                <i class="fa-solid fa-magnifying-glass me-1"></i> Track Unit
+        <div class="col-12 col-md-3">
+            <button type="submit" class="btn btn-primary fw-bold w-100 py-2 shadow-sm rounded-3">
+                <i class="fa-solid fa-magnifying-glass me-1.5"></i> Trace Lifecycle
             </button>
         </div>
     </form>
-</div>
-
-<!-- Track QR Unit Lifecycle Modal -->
-<div class="modal fade" id="trackQrUnitModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content text-white" style="background: #090d16; border: 1px solid #1e293b; border-radius: 20px;">
-            <div class="modal-header border-bottom border-secondary py-3 px-4" style="border-color: rgba(255,255,255,0.08) !important;">
-                <h6 class="modal-title fw-bold text-white font-outfit d-flex align-items-center">
-                    <i class="fa-solid fa-route text-primary me-2"></i> Product & Carton Lifecycle Tracking
-                </h6>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-4 text-start" id="track-qr-modal-body">
-            </div>
-            <div class="modal-footer border-top border-secondary py-2.5 px-4" style="border-color: rgba(255,255,255,0.08) !important;">
-                <button type="button" class="btn btn-outline-light btn-sm rounded-pill px-4" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
 </div>
 
 <!-- Stats widgets -->
