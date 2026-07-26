@@ -4,9 +4,10 @@ namespace App\Controllers;
 use App\Core\Database;
 use App\Core\Session;
 use App\Core\Auth;
+use App\Core\Controller;
 use PDO;
 
-class SalesReportsController {
+class SalesReportsController extends Controller {
 
     /**
      * Auto-seed sales_reports permission if not exists
@@ -375,7 +376,7 @@ class SalesReportsController {
             'overall_efficiency_pct' => $kpiEfficiencyPct
         ];
 
-        view('company/sales_reports/index', [
+        $this->renderView('company/sales_reports/index', [
             'title' => 'Sales & Executive Financial Reports',
             'kpis' => $kpis,
             'batchReportList' => $batchReportList,
