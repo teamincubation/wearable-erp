@@ -794,7 +794,8 @@ class PackingQrController extends Controller {
                 SELECT c.*, pro.production_no, s.style_no, s.name as style_name, b.name as client_name, w.name as warehouse_name, shp.shipment_no
                 FROM cartons c
                 JOIN production_orders pro ON c.production_order_id = pro.id
-                LEFT JOIN styles s ON pro.style_id = s.id
+                LEFT JOIN buyer_pos po ON pro.po_id = po.id
+                LEFT JOIN styles s ON po.style_id = s.id
                 LEFT JOIN contacts b ON c.client_id = b.id
                 LEFT JOIN warehouses w ON c.warehouse_id = w.id
                 LEFT JOIN shipment_cartons sc ON c.id = sc.carton_id
