@@ -448,6 +448,7 @@ class PackingQrController extends Controller {
         header('Content-Type: application/json');
         $this->ensureTablesExist();
         $companyId = Session::get('company_id');
+        $userId = Session::get('user_id');
         $db = Database::getInstance();
 
         $cartonId = (int)$request->get('carton_id');
@@ -555,12 +556,6 @@ class PackingQrController extends Controller {
                 'error_code' => 'DUPLICATE_IN_CARTON',
                 'message' => "Product QR '{$cleanQr}' is ALREADY assigned to this carton."
             ]);
-            return;
-        }
-
-        // Has carton been shipped/delivered
-        if (in_array($carton['status'], ['dispatched', 'delivered'])) {
-            echo json_encode(['success' => false, 'error_code' => 'CARTON_SHIPPED', 'message' => "Carton '{$carton['carton_no']}' is already dispatched/delivered."]);
             return;
         }
 
