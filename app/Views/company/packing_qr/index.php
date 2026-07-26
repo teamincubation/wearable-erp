@@ -117,13 +117,11 @@
                     <thead class="bg-light text-uppercase small text-muted font-monospace" style="font-size: 11px;">
                         <tr>
                             <th class="ps-4">Carton ID</th>
-                            <th>Carton QR</th>
                             <th>Batch & Style</th>
                             <th>Packed Units</th>
                             <th>Packing Date & Time</th>
                             <th>Destination</th>
                             <th>Dispatch Status</th>
-                            <th>Shipment</th>
                             <th class="text-end pe-4">Actions</th>
                         </tr>
                     </thead>
@@ -144,11 +142,6 @@
                                         <small class="d-block text-muted" style="font-size: 11px;">By: <?= htmlspecialchars($c['created_by_name'] ?: 'Admin') ?></small>
                                     </td>
                                     <td>
-                                        <span class="badge bg-dark-subtle text-dark border font-monospace" style="font-size: 10px;">
-                                            <i class="fa-solid fa-qrcode me-1"></i> <?= htmlspecialchars($c['carton_no']) ?>
-                                        </span>
-                                    </td>
-                                    <td>
                                         <strong class="font-monospace text-primary"><?= htmlspecialchars($c['production_no'] ?: 'N/A') ?></strong>
                                         <small class="d-block text-muted"><?= htmlspecialchars($c['style_no'] ?? '') ?></small>
                                     </td>
@@ -165,13 +158,6 @@
                                         <span class="badge bg-light text-dark border font-monospace"><?= htmlspecialchars($destLabel) ?></span>
                                     </td>
                                     <td><?= $statusBadge ?></td>
-                                    <td>
-                                        <?php if (!empty($c['shipment_no'])): ?>
-                                            <span class="badge bg-info-subtle text-info border font-monospace"><i class="fa-solid fa-truck me-1"></i> <?= htmlspecialchars($c['shipment_no']) ?></span>
-                                        <?php else: ?>
-                                            <span class="badge bg-light text-muted border">Unassigned</span>
-                                        <?php endif; ?>
-                                    </td>
                                     <td class="text-end pe-4">
                                         <?php if ((int)$c['assigned_qty'] > 0): ?>
                                             <a href="<?= base_url('company/packing-qr/assign/' . $c['id']) ?>" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold">
@@ -187,7 +173,7 @@
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="9" class="text-center py-5 text-muted">
+                                <td colspan="7" class="text-center py-5 text-muted">
                                     <i class="fa-solid fa-boxes-packing fs-1 mb-2 opacity-50 text-secondary"></i>
                                     <p class="m-0 fw-semibold">No sealed carton boxes found.</p>
                                 </td>
