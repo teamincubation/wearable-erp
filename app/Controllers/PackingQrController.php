@@ -814,17 +814,17 @@ class PackingQrController extends Controller {
 
             if ($cartonMatch) {
                 $searchType = 'carton';
-                // Fetch items inside this carton
+                // Fetch items inside this carton (grouped by carton_items.id to prevent duplicate rows)
                 $stmtItems = $db->prepare("
-                    SELECT ci.*, psl.created_at as production_date
+                    SELECT ci.*, MIN(psl.created_at) as production_date
                     FROM carton_items ci
                     LEFT JOIN production_stage_logs psl ON (
                         ci.product_qr_code = psl.scanned_qr_code OR 
                         ci.product_qr_code = psl.qr_code OR
-                        ci.qr_code = psl.scanned_qr_code OR
-                        ci.qr_code = psl.qr_code
+                        (ci.qr_code IS NOT NULL AND ci.qr_code != '' AND (ci.qr_code = psl.scanned_qr_code OR ci.qr_code = psl.qr_code))
                     )
                     WHERE ci.carton_id = ?
+                    GROUP BY ci.id
                     ORDER BY ci.id DESC
                 ");
                 $stmtItems->execute([$cartonMatch['id']]);
