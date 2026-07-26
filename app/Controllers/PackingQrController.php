@@ -60,6 +60,13 @@ class PackingQrController extends Controller {
             ");
         } catch (\PDOException $e) {}
 
+        // Ensure database table collations match utf8mb4_unicode_ci to prevent collation mismatch errors
+        try {
+            $db->exec("ALTER TABLE `carton_items` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+            $db->exec("ALTER TABLE `production_stage_logs` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+            $db->exec("ALTER TABLE `cartons` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+        } catch (\PDOException $e) {}
+
         // Auto-heal max_capacity_pcs column on cartons
         try {
             $chkCap = $db->query("SHOW COLUMNS FROM `cartons` LIKE 'max_capacity_pcs'");
@@ -811,7 +818,12 @@ class PackingQrController extends Controller {
                 $stmtItems = $db->prepare("
                     SELECT ci.*, psl.created_at as production_date
                     FROM carton_items ci
-                    LEFT JOIN production_stage_logs psl ON (ci.product_qr_code = psl.scanned_qr_code OR ci.product_qr_code = psl.qr_code) AND psl.stage = 'packing'
+                    LEFT JOIN production_stage_logs psl ON (
+                        ci.product_qr_code = psl.scanned_qr_code OR 
+                        ci.product_qr_code = psl.qr_code OR
+                        ci.qr_code = psl.scanned_qr_code OR
+                        ci.qr_code = psl.qr_code
+                    )
                     WHERE ci.carton_id = ?
                     ORDER BY ci.id DESC
                 ");
@@ -830,16 +842,24 @@ class PackingQrController extends Controller {
                     JOIN production_orders pro ON psl.production_order_id = pro.id
                     LEFT JOIN buyer_pos po ON pro.po_id = po.id
                     LEFT JOIN styles s ON po.style_id = s.id
-                    LEFT JOIN carton_items ci ON (psl.scanned_qr_code = ci.product_qr_code OR psl.qr_code = ci.product_qr_code)
+                    LEFT JOIN carton_items ci ON (
+                        psl.scanned_qr_code = ci.product_qr_code OR 
+                        psl.qr_code = ci.product_qr_code OR
+                        psl.scanned_qr_code = ci.qr_code OR
+                        psl.qr_code = ci.qr_code
+                    )
                     LEFT JOIN cartons c ON ci.carton_id = c.id
                     LEFT JOIN contacts b ON c.client_id = b.id
                     LEFT JOIN warehouses w ON c.warehouse_id = w.id
                     LEFT JOIN shipment_cartons sc ON c.id = sc.carton_id
                     LEFT JOIN shipments shp ON sc.shipment_id = shp.id
-                    WHERE psl.company_id = ? AND (psl.scanned_qr_code = ? OR psl.qr_code = ?)
+                    WHERE psl.company_id = ? AND (
+                        psl.scanned_qr_code = ? OR psl.qr_code = ? OR
+                        psl.scanned_qr_code LIKE ? OR psl.qr_code LIKE ?
+                    )
                     ORDER BY psl.id DESC LIMIT 1
                 ");
-                $stmtProd->execute([$companyId, $query, $query]);
+                $stmtProd->execute([$companyId, $query, $query, "%{$query}%", "%{$query}%"]);
                 $productMatch = $stmtProd->fetch();
 
                 if ($productMatch) {
