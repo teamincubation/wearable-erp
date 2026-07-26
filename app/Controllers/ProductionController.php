@@ -40,7 +40,7 @@ class ProductionController extends Controller {
 
         // Fetch active approved buyer POs joined with active buyer details
         $stmt = $db->prepare("
-            SELECT po.id, po.po_no, po.style_id, s.style_no, c.name as buyer_name, c.code as buyer_code, c.brand_name
+            SELECT po.id, po.po_no, po.quantity, po.sizes_json, po.style_id, s.style_no, s.name as style_name, s.size_range, c.name as buyer_name, c.code as buyer_code, c.brand_name
             FROM buyer_pos po
             JOIN contacts c ON po.buyer_id = c.id
             JOIN styles s ON po.style_id = s.id
@@ -135,8 +135,63 @@ class ProductionController extends Controller {
             'created_by' => Session::get('user_id')
         ]);
 
-        AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'create_production_order', 'ProductionOrder', $orderId, null, null, "Created production order: {$productionNo}");
-        Session::setFlash('success', "Production order '{$productionNo}' created successfully and is pending operations setup.");
+        // Auto Load Size Breakdown & Generate Unique Product QR Codes
+        $sizeQtys = $request->get('size_qty') ?: [];
+        if (empty($sizeQtys)) {
+            $stmtPo = $db->prepare("SELECT sizes_json, quantity FROM buyer_pos WHERE id = ? AND company_id = ?");
+            $stmtPo->execute([$poId, $companyId]);
+            $poRow = $stmtPo->fetch();
+            $sizeQtys = json_decode($poRow['sizes_json'] ?? '[]', true) ?: [];
+            if (empty($sizeQtys)) {
+                $sizeQtys = ['FREE' => (int)($poRow['quantity'] ?? 1)];
+            }
+        }
+
+        // Fetch existing QR codes in tenant database to enforce absolute company-wide uniqueness
+        $existingQrStmt = $db->prepare("
+            SELECT DISTINCT COALESCE(scanned_qr_code, qr_code) as qr 
+            FROM production_stage_logs 
+            WHERE company_id = ? AND (scanned_qr_code IS NOT NULL AND scanned_qr_code != '')
+        ");
+        $existingQrStmt->execute([$companyId]);
+        $existingQrs = array_flip($existingQrStmt->fetchAll(\PDO::FETCH_COLUMN) ?: []);
+
+        $insertLogStmt = $db->prepare("
+            INSERT INTO production_stage_logs 
+            (company_id, production_order_id, stage, qty_in, qty_out, qr_code, scanned_qr_code, notes, created_at)
+            VALUES (?, ?, 'cutting', 1, 1, ?, ?, ?, NOW())
+        ");
+
+        $totalGeneratedQrs = 0;
+        foreach ($sizeQtys as $szName => $qty) {
+            $qtyCount = (int)$qty;
+            if ($qtyCount <= 0) continue;
+
+            $cleanSize = strtoupper(trim((string)$szName));
+            
+            for ($i = 1; $i <= $qtyCount; $i++) {
+                $seq = $i;
+                do {
+                    $qrCode = "{$productionNo}-{$cleanSize}-" . sprintf('%04d', $seq);
+                    $seq++;
+                } while (isset($existingQrs[$qrCode]));
+
+                $existingQrs[$qrCode] = true;
+
+                $insertLogStmt->execute([
+                    $companyId,
+                    $orderId,
+                    $qrCode,
+                    $qrCode,
+                    "Auto-generated piece QR code for size {$cleanSize} (Unit {$i}/{$qtyCount})"
+                ]);
+
+                $totalGeneratedQrs++;
+            }
+        }
+
+        AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'create_production_order', 'ProductionOrder', $orderId, null, null, "Created production order: {$productionNo} with {$totalGeneratedQrs} QR codes");
+        Session::setFlash('success', "Production order '{$productionNo}' planned successfully! Loaded size breakdown and auto-generated {$totalGeneratedQrs} unique Product QR Codes for manufacturing traceability.");
         $this->redirect('company/production/orders');
     }
 

@@ -149,15 +149,56 @@
                                                         </div>
                                                     </div>
                                                     <div class="row g-3 mb-3">
-                                                        <div class="col-6">
-                                                            <label class="form-label small fw-bold">Order Qty (pcs) <span class="text-danger">*</span></label>
-                                                            <input type="number" name="quantity" class="form-control" value="<?= htmlspecialchars($o['quantity']) ?>" min="1" required>
-                                                        </div>
-                                                        <div class="col-6">
-                                                            <label class="form-label small fw-bold">Unit Price (₹) <span class="text-danger">*</span></label>
-                                                            <input type="number" step="0.01" name="unit_price" class="form-control" value="<?= htmlspecialchars($o['unit_price']) ?>" min="0.01" required>
-                                                        </div>
-                                                    </div>
+                                                         <div class="col-6">
+                                                             <label class="form-label small fw-bold">Order Qty (pcs) <span class="text-danger">*</span></label>
+                                                             <input type="number" name="quantity" class="form-control" value="<?= htmlspecialchars($o['quantity']) ?>" min="1" required oninput="calcEditModalSum(<?= $o['id'] ?>)">
+                                                         </div>
+                                                         <div class="col-6">
+                                                             <label class="form-label small fw-bold">Unit Price (₹) <span class="text-danger">*</span></label>
+                                                             <input type="number" step="0.01" name="unit_price" class="form-control" value="<?= htmlspecialchars($o['unit_price']) ?>" min="0.01" required>
+                                                         </div>
+                                                     </div>
+
+                                                     <!-- Size-Wise Quantities Grid for Edit Modal -->
+                                                     <?php
+                                                         $savedSizesJson = json_decode($o['sizes_json'] ?? '[]', true) ?: [];
+                                                         $currentStyleSizeStr = '';
+                                                         foreach ($styles as $st) {
+                                                             if ($st['id'] == $o['style_id']) {
+                                                                 $currentStyleSizeStr = $st['size_range'] ?? '';
+                                                                 break;
+                                                             }
+                                                         }
+                                                         $sizesList = array_map('trim', explode(',', $currentStyleSizeStr));
+                                                         $sizesList = array_filter($sizesList);
+                                                         if (empty($sizesList)) {
+                                                             $sizesList = ['S', 'M', 'L', 'XL', 'XXL'];
+                                                         }
+                                                         foreach ($savedSizesJson as $szK => $szV) {
+                                                             if (!in_array($szK, $sizesList)) {
+                                                                 $sizesList[] = $szK;
+                                                             }
+                                                         }
+                                                         $editSum = array_sum($savedSizesJson);
+                                                         $editRem = max(0, (int)$o['quantity'] - $editSum);
+                                                     ?>
+                                                     <div class="mt-3 p-3 bg-light border rounded text-dark">
+                                                         <h6 class="fw-bold mb-1 text-primary" style="font-size: 13px;"><i class="fa-solid fa-arrows-left-right me-1"></i> Size breakdown Details</h6>
+                                                         <p class="text-secondary small mb-3" style="font-size: 11px;">Update size allocation across the active garment style sizes. Total size quantity cannot exceed overall PO quantity.</p>
+                                                         <div class="row row-cols-3 g-2">
+                                                             <?php foreach ($sizesList as $szName): ?>
+                                                                 <?php $szVal = isset($savedSizesJson[$szName]) ? (int)$savedSizesJson[$szName] : 0; ?>
+                                                                 <div class="col mb-2">
+                                                                     <label class="form-label small fw-bold mb-1 text-secondary" style="font-size: 11px;">Size <?= htmlspecialchars($szName) ?></label>
+                                                                     <input type="number" name="size_qty[<?= htmlspecialchars($szName) ?>]" class="form-control form-control-sm edit-size-input-<?= $o['id'] ?> font-monospace" min="0" value="<?= $szVal ?>" style="font-size: 12px;" oninput="calcEditModalSum(<?= $o['id'] ?>)">
+                                                                 </div>
+                                                             <?php endforeach; ?>
+                                                         </div>
+                                                         <div class="mt-3 text-secondary small d-flex justify-content-between pt-2 border-top" style="font-size: 12px;">
+                                                             <span>Total size breakdown sum: <strong id="edit-size-sum-<?= $o['id'] ?>" class="text-dark"><?= number_format($editSum) ?></strong> pcs</span>
+                                                             <span>Unallocated remaining: <strong id="edit-size-rem-<?= $o['id'] ?>" class="<?= $editRem < 0 ? 'text-danger fw-bold' : 'text-success fw-bold' ?>"><?= number_format($editRem) ?></strong> pcs</span>
+                                                         </div>
+                                                     </div>
                                                 </div>
                                                 <div class="modal-footer">
                                                     <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
@@ -446,8 +487,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 e.preventDefault();
                 alert('Validation Error: The sum of size quantities (' + sum + ') cannot exceed the total order quantity (' + overall + ').');
                 return false;
-            }
-        });
     }
 });
+
+function calcEditModalSum(orderId) {
+    const inputs = document.querySelectorAll('.edit-size-input-' + orderId);
+    let sum = 0;
+    inputs.forEach(inp => sum += (parseInt(inp.value) || 0));
+    
+    const qtyInput = document.querySelector('#editBuyerPoModal-' + orderId + ' input[name="quantity"]');
+    const overall = parseInt(qtyInput ? qtyInput.value : 0) || 0;
+    
+    const sumEl = document.getElementById('edit-size-sum-' + orderId);
+    const remEl = document.getElementById('edit-size-rem-' + orderId);
+    
+    if (sumEl) sumEl.innerText = sum.toLocaleString();
+    if (remEl) {
+        const rem = overall - sum;
+        remEl.innerText = rem.toLocaleString();
+        remEl.className = rem < 0 ? 'text-danger fw-bold' : 'text-success fw-bold';
+    }
+}
 </script>

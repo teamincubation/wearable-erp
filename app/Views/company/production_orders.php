@@ -196,10 +196,33 @@
                             <label class="form-label small fw-bold">Launch Start Date <span class="text-danger">*</span></label>
                             <input type="date" name="start_date" class="form-control text-dark" value="<?= date('Y-m-d') ?>" required>
                         </div>
+
+                        <!-- Auto-Loaded Size Breakdown Details & QR Code Generation Preview -->
+                        <div id="plan-po-sizes-container" class="mt-3 p-3 bg-light border rounded text-dark" style="display: none;">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <h6 class="fw-bold m-0 text-primary" style="font-size: 13px;">
+                                    <i class="fa-solid fa-arrows-left-right me-1"></i> Auto-Loaded Size Breakdown Details
+                                </h6>
+                                <span class="badge bg-success-subtle text-success border"><i class="fa-solid fa-check-double me-1"></i> Loaded from Buyer PO</span>
+                            </div>
+                            <p class="text-secondary small mb-2" style="font-size: 11px;">Quantities across size breakdowns auto-loaded from linked Buyer PO. Individual piece Product QR Codes will be automatically generated upon batch creation.</p>
+                            
+                            <div id="plan-po-size-fields-wrapper" class="row row-cols-3 g-2 mb-2"></div>
+
+                            <div class="p-2 bg-white border rounded shadow-sm" style="font-size: 11.5px;">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="text-secondary"><i class="fa-solid fa-qrcode text-primary me-1"></i> Unique Product QR Codes to Generate:</span>
+                                    <strong id="plan-po-qr-count-badge" class="text-primary font-monospace fs-6">0 pcs</strong>
+                                </div>
+                                <div class="text-muted small mt-1" style="font-size: 10.5px;" id="plan-po-qr-sample-preview">
+                                    Preview: <code>BATCH-S-0001</code> to <code>BATCH-XXL-0010</code>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Close</button>
-                        <button type="submit" id="btn_plan_batch_submit" class="btn btn-primary px-4">Plan Batch</button>
+                        <button type="submit" id="btn_plan_batch_submit" class="btn btn-primary px-4">Plan Batch & Generate QRs</button>
                     </div>
                 </div>
             </form>
@@ -597,5 +620,90 @@ function validateBatchNoRealtime(inputEl) {
             });
     }, 300);
 }
+
+const buyerPoDetails = {
+    <?php foreach ($buyer_pos as $bp): ?>
+        "<?= $bp['id'] ?>": {
+            "po_no": <?= json_encode($bp['po_no']) ?>,
+            "quantity": <?= (int)($bp['quantity'] ?? 0) ?>,
+            "sizes_json": <?= json_encode(json_decode($bp['sizes_json'] ?? '[]', true) ?: []) ?>,
+            "size_range": <?= json_encode($bp['size_range'] ?? '') ?>,
+            "style_display": <?= json_encode(($bp['style_no'] ?? '') . ' - ' . ($bp['style_name'] ?? '')) ?>
+        },
+    <?php endforeach; ?>
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    const poSelect = document.querySelector('#addProductionOrderModal select[name="po_id"]');
+    const sizesContainer = document.getElementById('plan-po-sizes-container');
+    const fieldsWrapper = document.getElementById('plan-po-size-fields-wrapper');
+    const qrCountBadge = document.getElementById('plan-po-qr-count-badge');
+    const qrSamplePreview = document.getElementById('plan-po-qr-sample-preview');
+    const batchInput = document.getElementById('create_production_no');
+
+    if (poSelect) {
+        poSelect.addEventListener('change', function() {
+            const poId = this.value;
+            const po = buyerPoDetails[poId];
+
+            if (!po) {
+                sizesContainer.style.display = 'none';
+                fieldsWrapper.innerHTML = '';
+                return;
+            }
+
+            sizesContainer.style.display = 'block';
+            fieldsWrapper.innerHTML = '';
+
+            let sizesObj = po.sizes_json || {};
+            let sizeKeys = Object.keys(sizesObj);
+
+            if (sizeKeys.length === 0 && po.size_range) {
+                const arr = po.size_range.split(',').map(s => s.trim()).filter(Boolean);
+                arr.forEach(s => sizesObj[s] = Math.max(1, Math.floor((po.quantity || 1) / (arr.length || 1))));
+                sizeKeys = Object.keys(sizesObj);
+            }
+
+            if (sizeKeys.length === 0) {
+                sizesObj = { 'FREE': po.quantity || 1 };
+                sizeKeys = ['FREE'];
+            }
+
+            sizeKeys.forEach(sz => {
+                const col = document.createElement('div');
+                col.className = 'col mb-2';
+                col.innerHTML = `
+                    <label class="form-label small fw-bold mb-1 text-secondary" style="font-size: 11px;">Size ${sz}</label>
+                    <input type="number" name="size_qty[${sz}]" class="form-control form-control-sm plan-size-input font-monospace" min="0" value="${sizesObj[sz] || 0}" style="font-size: 12px;">
+                `;
+                fieldsWrapper.appendChild(col);
+            });
+
+            document.querySelectorAll('.plan-size-input').forEach(input => {
+                input.addEventListener('input', updateQrPreviewCount);
+            });
+
+            updateQrPreviewCount();
+        });
+    }
+
+    function updateQrPreviewCount() {
+        let total = 0;
+        document.querySelectorAll('.plan-size-input').forEach(inp => {
+            total += parseInt(inp.value) || 0;
+        });
+
+        const batchNo = (batchInput ? batchInput.value.trim() : '') || 'BATCH-001';
+
+        if (qrCountBadge) qrCountBadge.innerText = total.toLocaleString() + ' pcs';
+        if (qrSamplePreview) {
+            qrSamplePreview.innerHTML = `Piece QR Format: <code>${batchNo}-SIZE-0001</code> (Total: <strong>${total}</strong> unique QR codes ready for generation)`;
+        }
+    }
+
+    if (batchInput) {
+        batchInput.addEventListener('input', updateQrPreviewCount);
+    }
+});
 </script>
 
