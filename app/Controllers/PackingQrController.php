@@ -659,6 +659,26 @@ class PackingQrController extends Controller {
                     continue; // Skip duplicates
                 }
 
+                // Global Uniqueness Check per Company across different production orders
+                $stmtChkOtherOrder = $db->prepare("
+                    SELECT c.carton_no, pro.production_no 
+                    FROM carton_items ci
+                    JOIN cartons c ON ci.carton_id = c.id
+                    JOIN production_orders pro ON ci.production_order_id = pro.id
+                    WHERE c.company_id = ? AND (ci.product_qr_code = ? OR ci.qr_code = ?) AND ci.production_order_id != ? 
+                    LIMIT 1
+                ");
+                $stmtChkOtherOrder->execute([$companyId, $cleanQr, $cleanQr, $carton['production_order_id']]);
+                $crossCarton = $stmtChkOtherOrder->fetch();
+                if ($crossCarton) {
+                    $db->rollBack();
+                    echo json_encode([
+                        'success' => false,
+                        'message' => "Uniqueness Error: Product QR '{$cleanQr}' is already linked to Carton '{$crossCarton['carton_no']}' in Batch '{$crossCarton['production_no']}'. All QR codes must be globally unique per company!"
+                    ]);
+                    return;
+                }
+
                 $stmtInsItem->execute([$cartonId, $carton['production_order_id'], $cleanQr, $cleanQr, $userId]);
                 $stmtStageLog->execute([$companyId, $carton['production_order_id'], $userId, $userId, $cleanQr, $cleanQr, "Assigned to Carton {$carton['carton_no']} ({$assignmentMode})"]);
                 $addedCount++;

@@ -861,6 +861,25 @@ class ProductionController extends Controller {
             exit;
         }
 
+        // Global Uniqueness Check per Company: Ensure QR code is never reused across different production orders/batches/styles/POs
+        $stmtCheckCrossBatch = $db->prepare("
+            SELECT psl.production_order_id, pro.production_no 
+            FROM production_stage_logs psl
+            JOIN production_orders pro ON psl.production_order_id = pro.id
+            WHERE psl.company_id = ? AND (psl.qr_code = ? OR psl.scanned_qr_code = ?) AND psl.production_order_id != ? 
+            LIMIT 1
+        ");
+        $stmtCheckCrossBatch->execute([$companyId, $qrCode, $qrCode, (int)$batch['id']]);
+        $existingCross = $stmtCheckCrossBatch->fetch();
+        if ($existingCross) {
+            echo json_encode([
+                'success' => false,
+                'duplicate_qr' => true,
+                'message' => "QR Code Duplicate Error: QR code '{$qrCode}' is already registered to another Production Batch '{$existingCross['production_no']}'. All QR codes must be globally unique per company!"
+            ]);
+            exit;
+        }
+
         // Verify preceding stage order sequence & quality PASS compliance for QR code scan
         $batchStages = self::getBatchStagesList((int)$batch['id']);
         $stageKeys = array_column($batchStages, 'key');
