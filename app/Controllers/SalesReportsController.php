@@ -57,7 +57,7 @@ class SalesReportsController {
         $stmtWarehouses->execute([$companyId]);
         $warehouses = $stmtWarehouses->fetchAll();
 
-        $stmtBatches = $db->prepare("SELECT id, production_no, target_qty FROM production_orders WHERE company_id = ? AND deleted_at IS NULL ORDER BY id DESC");
+        $stmtBatches = $db->prepare("SELECT pro.id, pro.production_no, COALESCE(po.quantity, 0) as target_qty FROM production_orders pro LEFT JOIN buyer_pos po ON pro.po_id = po.id WHERE pro.company_id = ? AND pro.deleted_at IS NULL ORDER BY pro.id DESC");
         $stmtBatches->execute([$companyId]);
         $batches = $stmtBatches->fetchAll();
 
@@ -91,7 +91,7 @@ class SalesReportsController {
         $batchWhereStr = implode(' AND ', $batchWhere);
 
         $sqlBatches = "
-            SELECT pro.id as batch_id, pro.production_no, pro.target_qty, pro.status as production_status, pro.start_date, pro.created_at,
+            SELECT pro.id as batch_id, pro.production_no, COALESCE(po.quantity, 0) as target_qty, pro.status as production_status, pro.start_date, pro.created_at,
                    po.id as po_id, po.po_no, po.delivery_date, po.quantity as po_qty, po.unit_price, po.total_amount as po_total, po.status as po_status,
                    s.style_no, s.name as style_name, s.category as garment_category,
                    b.name as buyer_name,
@@ -461,7 +461,7 @@ class SalesReportsController {
 
         $stmt = $db->prepare("
             SELECT pro.production_no, b.name as buyer_name, po.po_no, s.style_no, s.name as style_name, s.category,
-                   pro.target_qty, pro.status, po.unit_price, cs.total_cost as cs_total_cost, po.delivery_date
+                   COALESCE(po.quantity, 0) as target_qty, pro.status, po.unit_price, cs.total_cost as cs_total_cost, po.delivery_date
             FROM production_orders pro
             LEFT JOIN buyer_pos po ON pro.po_id = po.id
             LEFT JOIN styles s ON po.style_id = s.id
