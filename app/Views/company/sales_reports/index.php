@@ -1,315 +1,311 @@
+<!-- EXECUTIVE SALES & FINANCIAL REPORTS HEADER -->
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
-        <h3 class="fw-bold font-outfit m-0 text-dark">Executive Sales & Financial Reports</h3>
-        <p class="text-secondary small m-0">Real-time consolidated profitability, manufacturing performance & warehouse sales analysis</p>
+        <h3 class="fw-bold font-outfit m-0 text-dark d-flex align-items-center">
+            <i class="fa-solid fa-chart-pie text-primary me-2.5"></i> Executive Sales & Financial Reports
+        </h3>
+        <p class="text-secondary small m-0 mt-0.5">Real-time executive dashboard for order profitability, manufacturing cost, and warehouse sales</p>
     </div>
     <div class="d-flex gap-2">
-        <a href="<?= base_url('company/sales-reports/export-batch-financials') ?>" class="btn btn-sm btn-outline-success fw-bold rounded-pill shadow-sm">
+        <a href="<?= base_url('company/sales-reports/export-batch-financials') ?>" class="btn btn-sm btn-outline-success fw-bold rounded-pill px-3 shadow-sm">
             <i class="fa-solid fa-file-excel me-1.5"></i> Export Batch Financials
         </a>
-        <a href="<?= base_url('company/sales-reports/export-carton-analysis') ?>" class="btn btn-sm btn-success fw-bold rounded-pill shadow-sm">
+        <a href="<?= base_url('company/sales-reports/export-carton-analysis') ?>" class="btn btn-sm btn-success fw-bold rounded-pill px-3 shadow-sm">
             <i class="fa-solid fa-file-excel me-1.5"></i> Export Carton Analysis
         </a>
     </div>
 </div>
 
-<!-- MULTI-FILTER CONTROL HUB BAR -->
+<!-- SLEEK MULTI-FILTER CONTROL BAR -->
 <div class="card p-3 mb-4 border-0 shadow-sm rounded-4 bg-white" style="border: 1px solid #e2e8f0;">
     <form method="GET" action="<?= base_url('company/sales-reports') ?>" class="row g-2 align-items-end font-monospace" style="font-size: 12px;">
         <div class="col-6 col-md-2">
-            <label class="form-label small fw-bold text-muted mb-1">Start Date</label>
-            <input type="date" name="start_date" class="form-control form-control-sm text-dark bg-light" value="<?= htmlspecialchars($filters['start_date']) ?>">
+            <label class="form-label small fw-bold text-muted mb-1"><i class="fa-regular fa-calendar me-1"></i> Start Date</label>
+            <input type="date" name="start_date" class="form-control form-control-sm text-dark bg-light rounded-3" value="<?= htmlspecialchars($filters['start_date']) ?>">
         </div>
         <div class="col-6 col-md-2">
-            <label class="form-label small fw-bold text-muted mb-1">End Date</label>
-            <input type="date" name="end_date" class="form-control form-control-sm text-dark bg-light" value="<?= htmlspecialchars($filters['end_date']) ?>">
+            <label class="form-label small fw-bold text-muted mb-1"><i class="fa-regular fa-calendar me-1"></i> End Date</label>
+            <input type="date" name="end_date" class="form-control form-control-sm text-dark bg-light rounded-3" value="<?= htmlspecialchars($filters['end_date']) ?>">
         </div>
-        <div class="col-12 col-md-2">
-            <label class="form-label small fw-bold text-muted mb-1">Buyer / Client</label>
-            <select name="buyer_id" class="form-select form-select-sm text-dark bg-light">
-                <option value="">All Buyers</option>
+        <div class="col-12 col-md-3">
+            <label class="form-label small fw-bold text-muted mb-1"><i class="fa-solid fa-user-tie me-1"></i> Buyer / Client</label>
+            <select name="buyer_id" class="form-select form-select-sm text-dark bg-light rounded-3">
+                <option value="">All Buyers & Clients</option>
                 <?php foreach ($buyers as $b): ?>
                     <option value="<?= $b['id'] ?>" <?= $filters['buyer_id'] == $b['id'] ? 'selected' : '' ?>><?= htmlspecialchars($b['name']) ?></option>
                 <?php endforeach; ?>
             </select>
         </div>
         <div class="col-6 col-md-2">
-            <label class="form-label small fw-bold text-muted mb-1">Warehouse</label>
-            <select name="warehouse_id" class="form-select form-select-sm text-dark bg-light">
-                <option value="">All Warehouses</option>
+            <label class="form-label small fw-bold text-muted mb-1"><i class="fa-solid fa-warehouse me-1"></i> Warehouse</label>
+            <select name="warehouse_id" class="form-select form-select-sm text-dark bg-light rounded-3">
+                <option value="">All Storage Locations</option>
                 <?php foreach ($warehouses as $wh): ?>
                     <option value="<?= $wh['id'] ?>" <?= $filters['warehouse_id'] == $wh['id'] ? 'selected' : '' ?>><?= htmlspecialchars($wh['name']) ?></option>
                 <?php endforeach; ?>
             </select>
         </div>
-        <div class="col-6 col-md-2">
-            <label class="form-label small fw-bold text-muted mb-1">Status</label>
-            <select name="status" class="form-select form-select-sm text-dark bg-light">
-                <option value="">All Statuses</option>
+        <div class="col-6 col-md-1">
+            <label class="form-label small fw-bold text-muted mb-1"><i class="fa-solid fa-spinner me-1"></i> Status</label>
+            <select name="status" class="form-select form-select-sm text-dark bg-light rounded-3">
+                <option value="">All</option>
                 <option value="completed" <?= $filters['status'] === 'completed' ? 'selected' : '' ?>>Completed</option>
-                <option value="in_progress" <?= $filters['status'] === 'in_progress' ? 'selected' : '' ?>>Work in Progress (WIP)</option>
-                <option value="draft" <?= $filters['status'] === 'draft' ? 'selected' : '' ?>>Planned / Draft</option>
-                <option value="cancelled" <?= $filters['status'] === 'cancelled' ? 'selected' : '' ?>>Cancelled</option>
+                <option value="in_progress" <?= $filters['status'] === 'in_progress' ? 'selected' : '' ?>>WIP Running</option>
+                <option value="draft" <?= $filters['status'] === 'draft' ? 'selected' : '' ?>>Planned</option>
             </select>
         </div>
-        <div class="col-12 col-md-2 d-flex gap-1">
-            <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold rounded-3">
-                <i class="fa-solid fa-filter me-1"></i> Apply
+        <div class="col-12 col-md-2 d-flex gap-1.5">
+            <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold rounded-3 shadow-sm">
+                <i class="fa-solid fa-filter me-1"></i> Filter
             </button>
-            <a href="<?= base_url('company/sales-reports') ?>" class="btn btn-outline-secondary btn-sm rounded-3">Reset</a>
+            <a href="<?= base_url('company/sales-reports') ?>" class="btn btn-outline-secondary btn-sm rounded-3 px-3">Reset</a>
         </div>
     </form>
 </div>
 
-<!-- EXECUTIVE CONSOLIDATED KPI CARDS GRID -->
-<div class="row row-cols-2 row-cols-md-3 row-cols-lg-6 g-2 mb-4 font-monospace">
-    <div class="col">
-        <div class="card p-2.5 border-0 shadow-sm bg-white rounded-3 border-start border-primary border-4 h-100">
-            <small class="text-muted d-block" style="font-size: 9.5px;">TOTAL BUYER ORDERS</small>
-            <strong class="text-primary h5 fw-bold mb-0"><?= number_format($kpis['total_buyer_orders']) ?></strong>
-            <small class="text-secondary d-block" style="font-size: 9px;"><?= number_format($kpis['delivered_orders_count']) ?> Delivered</small>
+<!-- EXECUTIVE CONSOLIDATED 4-PILLAR KPI SUMMARY CARDS -->
+<div class="row g-3 mb-4 font-monospace">
+    <!-- Pillar 1: Net Revenue & Profitability -->
+    <div class="col-12 col-md-6 col-lg-3">
+        <div class="card p-3 border-0 shadow-sm bg-white rounded-4 h-100 border-start border-success border-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-muted small fw-bold text-uppercase" style="font-size: 10px;">NET PROFIT & REVENUE</span>
+                <div class="bg-success-subtle text-success d-flex align-items-center justify-content-center rounded-circle" style="width: 32px; height: 32px;">
+                    <i class="fa-solid fa-chart-line"></i>
+                </div>
+            </div>
+            <h4 class="fw-bold text-success m-0 mb-1">₹<?= number_format($kpis['net_profit'], 0) ?></h4>
+            <div class="d-flex justify-content-between align-items-center pt-2 border-top mt-2" style="font-size: 11px;">
+                <span class="text-secondary">Gross Sales: <strong>₹<?= number_format($kpis['total_sales_value'], 0) ?></strong></span>
+                <span class="badge bg-success-subtle text-success border"><?= number_format($kpis['profit_margin_pct'], 1) ?>% Margin</span>
+            </div>
         </div>
     </div>
-    <div class="col">
-        <div class="card p-2.5 border-0 shadow-sm bg-white rounded-3 border-start border-info border-4 h-100">
-            <small class="text-muted d-block" style="font-size: 9.5px;">PRODUCTION BATCHES</small>
-            <strong class="text-dark h5 fw-bold mb-0"><?= number_format($kpis['total_batches']) ?></strong>
-            <small class="text-success d-block" style="font-size: 9px;"><?= $kpis['completed_batches'] ?> Done | <?= $kpis['wip_batches'] ?> WIP</small>
-        </div>
-    </div>
-    <div class="col">
-        <div class="card p-2.5 border-0 shadow-sm bg-white rounded-3 border-start border-warning border-4 h-100">
-            <small class="text-muted d-block" style="font-size: 9.5px;">PROCUREMENT COST</small>
-            <strong class="text-dark h5 fw-bold mb-0">₹<?= number_format($kpis['procurement_cost'], 0) ?></strong>
-            <small class="text-muted d-block" style="font-size: 9px;">Raw Materials Used</small>
-        </div>
-    </div>
-    <div class="col">
-        <div class="card p-2.5 border-0 shadow-sm bg-white rounded-3 border-start border-danger border-4 h-100">
-            <small class="text-muted d-block" style="font-size: 9.5px;">MANUFACTURING COST</small>
-            <strong class="text-danger h5 fw-bold mb-0">₹<?= number_format($kpis['mfg_cost'], 0) ?></strong>
-            <small class="text-muted d-block" style="font-size: 9px;">Processing & Labor</small>
-        </div>
-    </div>
-    <div class="col">
-        <div class="card p-2.5 border-0 shadow-sm bg-white rounded-3 border-start border-success border-4 h-100">
-            <small class="text-muted d-block" style="font-size: 9.5px;">TOTAL SALES VALUE</small>
-            <strong class="text-success h5 fw-bold mb-0">₹<?= number_format($kpis['total_sales_value'], 0) ?></strong>
-            <small class="text-success d-block" style="font-size: 9px;">Gross Order Revenue</small>
-        </div>
-    </div>
-    <div class="col">
-        <div class="card p-2.5 border-0 shadow-sm bg-white rounded-3 border-start border-secondary border-4 h-100">
-            <small class="text-muted d-block" style="font-size: 9.5px;">NET PROFIT & MARGIN</small>
-            <strong class="text-success h5 fw-bold mb-0">₹<?= number_format($kpis['net_profit'], 0) ?></strong>
-            <small class="badge bg-success-subtle text-success border" style="font-size: 9px;"><?= number_format($kpis['profit_margin_pct'], 1) ?>% Margin</small>
-        </div>
-    </div>
-</div>
 
-<!-- SECONDARY FINANCIAL & WAREHOUSE KPI STRIP -->
-<div class="row row-cols-2 row-cols-md-4 g-2 mb-4 font-monospace">
-    <div class="col">
-        <div class="card p-2.5 border-0 shadow-sm bg-white rounded-3">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <small class="text-muted d-block" style="font-size: 9.5px;">PENDING / OUTSTANDING RECEIVABLES</small>
-                    <strong class="text-warning h6 fw-bold mb-0">₹<?= number_format($kpis['outstanding_receivables'], 0) ?></strong>
+    <!-- Pillar 2: Manufacturing & Production Performance -->
+    <div class="col-12 col-md-6 col-lg-3">
+        <div class="card p-3 border-0 shadow-sm bg-white rounded-4 h-100 border-start border-primary border-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-muted small fw-bold text-uppercase" style="font-size: 10px;">MANUFACTURING OUTPUT</span>
+                <div class="bg-primary-subtle text-primary d-flex align-items-center justify-content-center rounded-circle" style="width: 32px; height: 32px;">
+                    <i class="fa-solid fa-industry"></i>
                 </div>
-                <span class="badge bg-warning-subtle text-warning p-2 rounded-circle"><i class="fa-solid fa-clock-rotate-left"></i></span>
+            </div>
+            <h4 class="fw-bold text-dark m-0 mb-1"><?= number_format($kpis['total_batches']) ?> <span class="fs-6 text-muted font-monospace fw-normal">Batches</span></h4>
+            <div class="d-flex justify-content-between align-items-center pt-2 border-top mt-2" style="font-size: 11px;">
+                <span class="text-success fw-semibold"><i class="fa-solid fa-circle-check me-1"></i><?= $kpis['completed_batches'] ?> Done</span>
+                <span class="text-primary fw-semibold"><i class="fa-solid fa-spinner fa-spin me-1"></i><?= $kpis['wip_batches'] ?> WIP</span>
+                <span class="badge bg-info-subtle text-info border"><?= number_format($kpis['overall_efficiency_pct'], 0) ?>% Efficiency</span>
             </div>
         </div>
     </div>
-    <div class="col">
-        <div class="card p-2.5 border-0 shadow-sm bg-white rounded-3">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <small class="text-muted d-block" style="font-size: 9.5px;">FULLY RECEIVED PAYMENTS</small>
-                    <strong class="text-success h6 fw-bold mb-0">₹<?= number_format($kpis['fully_received'], 0) ?></strong>
+
+    <!-- Pillar 3: Cash Flow & Financial Receivables -->
+    <div class="col-12 col-md-6 col-lg-3">
+        <div class="card p-3 border-0 shadow-sm bg-white rounded-4 h-100 border-start border-warning border-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-muted small fw-bold text-uppercase" style="font-size: 10px;">OUTSTANDING RECEIVABLES</span>
+                <div class="bg-warning-subtle text-warning d-flex align-items-center justify-content-center rounded-circle" style="width: 32px; height: 32px;">
+                    <i class="fa-solid fa-wallet"></i>
                 </div>
-                <span class="badge bg-success-subtle text-success p-2 rounded-circle"><i class="fa-solid fa-circle-check"></i></span>
+            </div>
+            <h4 class="fw-bold text-warning m-0 mb-1">₹<?= number_format($kpis['outstanding_receivables'], 0) ?></h4>
+            <div class="d-flex justify-content-between align-items-center pt-2 border-top mt-2" style="font-size: 11px;">
+                <span class="text-success">Received: <strong>₹<?= number_format($kpis['fully_received'], 0) ?></strong></span>
+                <span class="text-danger">Pending: <strong>₹<?= number_format($kpis['pending_payments'], 0) ?></strong></span>
             </div>
         </div>
     </div>
-    <div class="col">
-        <div class="card p-2.5 border-0 shadow-sm bg-white rounded-3">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <small class="text-muted d-block" style="font-size: 9.5px;">WAREHOUSE STOCK VALUE</small>
-                    <strong class="text-primary h6 fw-bold mb-0">₹<?= number_format($kpis['warehouse_stock_value'], 0) ?></strong>
+
+    <!-- Pillar 4: Warehouse Stock Valuation -->
+    <div class="col-12 col-md-6 col-lg-3">
+        <div class="card p-3 border-0 shadow-sm bg-white rounded-4 h-100 border-start border-info border-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-muted small fw-bold text-uppercase" style="font-size: 10px;">FINISHED GOODS IN STOCK</span>
+                <div class="bg-info-subtle text-info d-flex align-items-center justify-content-center rounded-circle" style="width: 32px; height: 32px;">
+                    <i class="fa-solid fa-warehouse"></i>
                 </div>
-                <span class="badge bg-primary-subtle text-primary p-2 rounded-circle"><i class="fa-solid fa-warehouse"></i></span>
             </div>
-        </div>
-    </div>
-    <div class="col">
-        <div class="card p-2.5 border-0 shadow-sm bg-white rounded-3">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <small class="text-muted d-block" style="font-size: 9.5px;">OVERALL MFG EFFICIENCY</small>
-                    <strong class="text-dark h6 fw-bold mb-0"><?= number_format($kpis['overall_efficiency_pct'], 1) ?>%</strong>
-                </div>
-                <span class="badge bg-info-subtle text-info p-2 rounded-circle"><i class="fa-solid fa-gauge-high"></i></span>
+            <h4 class="fw-bold text-dark m-0 mb-1">₹<?= number_format($kpis['warehouse_stock_value'], 0) ?></h4>
+            <div class="d-flex justify-content-between align-items-center pt-2 border-top mt-2" style="font-size: 11px;">
+                <span class="text-secondary">Ready Dispatch: <strong>₹<?= number_format($kpis['ready_dispatch_value'], 0) ?></strong></span>
+                <span class="badge bg-light text-dark border"><?= $kpis['delivered_orders_count'] ?> Delivered</span>
             </div>
         </div>
     </div>
 </div>
 
-<!-- ================= SECTION 1: PRODUCTION BATCH FINANCIALS & PROFITABILITY ================= -->
-<div class="card border-0 shadow-sm rounded-4 mb-4 bg-white" style="border: 1px solid #e2e8f0;">
-    <div class="card-header bg-transparent border-bottom p-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <div>
-            <h5 class="fw-bold font-outfit m-0 text-dark"><i class="fa-solid fa-industry text-primary me-2"></i> Section 1: Production Batch Financials & Profitability Ledger</h5>
-            <small class="text-secondary">Comprehensive order cost sheets, manufacturing expenses, revenue, and net profit margins</small>
-        </div>
-        <div class="d-flex gap-2">
-            <input type="text" id="batch-search-input" class="form-control form-control-sm font-monospace" placeholder="Search batch, buyer, style, PO..." style="width: 220px;">
-        </div>
+<!-- TABBED EXECUTIVE SECTION DATA HUB -->
+<div class="card border-0 shadow-sm rounded-4 bg-white overflow-hidden" style="border: 1px solid #e2e8f0;">
+    <div class="card-header bg-light border-bottom p-2">
+        <ul class="nav nav-pills card-header-pills font-monospace" id="salesReportsTab" role="tablist" style="font-size: 12.5px;">
+            <li class="nav-item" role="presentation">
+                <button class="nav-item-btn nav-link active fw-bold py-2 px-3.5 rounded-3" id="batch-tab" data-bs-toggle="tab" data-bs-target="#batch-pane" type="button" role="tab">
+                    <i class="fa-solid fa-file-invoice-dollar me-2"></i> Section 1: Production Batch Financials
+                    <span class="badge bg-primary text-white rounded-pill ms-2"><?= count($batchReportList) ?></span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-item-btn nav-link fw-bold py-2 px-3.5 rounded-3 text-secondary" id="carton-tab" data-bs-toggle="tab" data-bs-target="#carton-pane" type="button" role="tab">
+                    <i class="fa-solid fa-boxes-stacked me-2"></i> Section 2: Carton & Warehouse Sales Analysis
+                    <span class="badge bg-secondary text-white rounded-pill ms-2"><?= count($cartonAnalysisList) ?></span>
+                </button>
+            </li>
+        </ul>
     </div>
+
     <div class="card-body p-0">
-        <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
-            <table class="table table-hover table-striped align-middle mb-0 font-monospace" id="batch-table" style="font-size: 11.5px;">
-                <thead class="bg-dark text-white text-uppercase" style="position: sticky; top: 0; z-index: 10;">
-                    <tr>
-                        <th class="ps-3">Batch No</th>
-                        <th>Buyer / Client</th>
-                        <th>PO No</th>
-                        <th>Garment Style</th>
-                        <th>Target / Produced</th>
-                        <th>Status</th>
-                        <th>Procurement (₹)</th>
-                        <th>Mfg Cost (₹)</th>
-                        <th>Total Cost (₹)</th>
-                        <th>Unit Price (₹)</th>
-                        <th>Sales Value (₹)</th>
-                        <th>Net Profit (₹)</th>
-                        <th>Margin %</th>
-                        <th>Payment</th>
-                        <th class="pe-3 text-end">Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (!empty($batchReportList)): ?>
-                        <?php foreach ($batchReportList as $b): ?>
+        <div class="tab-content" id="salesReportsTabContent">
+            
+            <!-- TAB 1: PRODUCTION BATCH FINANCIALS -->
+            <div class="tab-pane fade show active p-3" id="batch-pane" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 font-monospace">
+                    <div>
+                        <h6 class="fw-bold text-dark m-0">Production Batch Profitability Ledger</h6>
+                        <small class="text-muted">Breakdown of target quantity, total cost, unit pricing, gross revenue, net profit, and payment status</small>
+                    </div>
+                    <input type="text" id="batch-search-input" class="form-control form-control-sm font-monospace" placeholder="Quick search batch, buyer, style..." style="width: 240px;">
+                </div>
+
+                <div class="table-responsive border rounded-3" style="max-height: 480px; overflow-y: auto;">
+                    <table class="table table-hover table-striped align-middle mb-0 font-monospace" id="batch-table" style="font-size: 11.5px;">
+                        <thead class="bg-dark text-white text-uppercase" style="position: sticky; top: 0; z-index: 10;">
                             <tr>
-                                <td class="ps-3"><strong class="text-primary font-monospace"><?= htmlspecialchars($b['batch_no']) ?></strong></td>
-                                <td><span class="fw-semibold text-dark"><?= htmlspecialchars($b['buyer_name']) ?></span></td>
-                                <td><span class="badge bg-light text-dark border"><?= htmlspecialchars($b['po_no']) ?></span></td>
-                                <td><small class="text-secondary"><?= htmlspecialchars($b['style_display']) ?></small></td>
-                                <td>
-                                    <span class="fw-bold text-dark"><?= number_format($b['completed_qty']) ?></span> / <?= number_format($b['target_qty']) ?> pcs
-                                </td>
-                                <td>
-                                    <?php if ($b['production_status'] === 'completed'): ?>
-                                        <span class="badge bg-success-subtle text-success border">Completed</span>
-                                    <?php elseif ($b['production_status'] === 'in_progress'): ?>
-                                        <span class="badge bg-primary-subtle text-primary border">WIP Running</span>
-                                    <?php else: ?>
-                                        <span class="badge bg-secondary-subtle text-secondary border">Planned</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td class="text-muted">₹<?= number_format($b['procurement_cost'], 0) ?></td>
-                                <td class="text-muted">₹<?= number_format($b['mfg_cost'], 0) ?></td>
-                                <td><strong class="text-danger">₹<?= number_format($b['total_cost'], 0) ?></strong></td>
-                                <td class="text-success">₹<?= number_format($b['selling_price'], 2) ?></td>
-                                <td><strong class="text-success">₹<?= number_format($b['total_sales_value'], 0) ?></strong></td>
-                                <td><strong class="<?= $b['net_profit'] >= 0 ? 'text-success' : 'text-danger' ?>">₹<?= number_format($b['net_profit'], 0) ?></strong></td>
-                                <td>
-                                    <span class="badge <?= $b['margin_pct'] >= 15 ? 'bg-success' : ($b['margin_pct'] >= 0 ? 'bg-warning text-dark' : 'bg-danger') ?>">
-                                        <?= number_format($b['margin_pct'], 1) ?>%
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="badge bg-light text-dark border"><?= $b['payment_status'] ?></span>
-                                </td>
-                                <td class="pe-3 text-end">
-                                    <a href="<?= base_url('company/production/stage/' . $b['batch_id'] . '/live-report') ?>" class="btn btn-xs btn-outline-primary rounded-circle" title="View Stage Live Report">
-                                        <i class="fa-solid fa-arrow-right"></i>
-                                    </a>
-                                </td>
+                                <th class="ps-3 py-2.5">Batch No</th>
+                                <th>Buyer / Client</th>
+                                <th>Customer PO</th>
+                                <th>Garment Style</th>
+                                <th>Qty (Produced / Target)</th>
+                                <th>Status</th>
+                                <th>Total Cost (₹)</th>
+                                <th>Unit Price (₹)</th>
+                                <th>Total Revenue (₹)</th>
+                                <th>Net Profit (₹)</th>
+                                <th>Margin %</th>
+                                <th>Payment</th>
+                                <th class="pe-3 text-end">Action</th>
                             </tr>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <tr><td colspan="15" class="text-center py-4 text-muted">No production batches found for selected filters.</td></tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
+                        </thead>
+                        <tbody>
+                            <?php if (!empty($batchReportList)): ?>
+                                <?php foreach ($batchReportList as $b): ?>
+                                    <tr>
+                                        <td class="ps-3"><strong class="text-primary font-monospace"><?= htmlspecialchars($b['batch_no']) ?></strong></td>
+                                        <td><span class="fw-semibold text-dark"><?= htmlspecialchars($b['buyer_name']) ?></span></td>
+                                        <td><span class="badge bg-light text-dark border"><?= htmlspecialchars($b['po_no']) ?></span></td>
+                                        <td><small class="text-secondary"><?= htmlspecialchars($b['style_display']) ?></small></td>
+                                        <td>
+                                            <span class="fw-bold text-dark"><?= number_format($b['completed_qty']) ?></span> / <?= number_format($b['target_qty']) ?> pcs
+                                        </td>
+                                        <td>
+                                            <?php if ($b['production_status'] === 'completed'): ?>
+                                                <span class="badge bg-success-subtle text-success border">Completed</span>
+                                            <?php elseif ($b['production_status'] === 'in_progress'): ?>
+                                                <span class="badge bg-primary-subtle text-primary border">WIP Running</span>
+                                            <?php else: ?>
+                                                <span class="badge bg-secondary-subtle text-secondary border">Planned</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td><strong class="text-danger">₹<?= number_format($b['total_cost'], 0) ?></strong></td>
+                                        <td class="text-success">₹<?= number_format($b['selling_price'], 2) ?></td>
+                                        <td><strong class="text-success">₹<?= number_format($b['total_sales_value'], 0) ?></strong></td>
+                                        <td><strong class="<?= $b['net_profit'] >= 0 ? 'text-success' : 'text-danger' ?>">₹<?= number_format($b['net_profit'], 0) ?></strong></td>
+                                        <td>
+                                            <span class="badge <?= $b['margin_pct'] >= 15 ? 'bg-success' : ($b['margin_pct'] >= 0 ? 'bg-warning text-dark' : 'bg-danger') ?>">
+                                                <?= number_format($b['margin_pct'], 1) ?>%
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-light text-dark border"><?= $b['payment_status'] ?></span>
+                                        </td>
+                                        <td class="pe-3 text-end">
+                                            <a href="<?= base_url('company/production/stage/' . $b['batch_id'] . '/live-report') ?>" class="btn btn-xs btn-outline-primary rounded-circle" title="View Stage Live Report">
+                                                <i class="fa-solid fa-arrow-right"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <tr><td colspan="13" class="text-center py-4 text-muted">No production batch financial records found.</td></tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 2: CARTON & WAREHOUSE SALES ANALYSIS -->
+            <div class="tab-pane fade p-3" id="carton-pane" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 font-monospace">
+                    <div>
+                        <h6 class="fw-bold text-dark m-0">Carton & Warehouse Stock Valuation</h6>
+                        <small class="text-muted">Sealed carton box analysis, warehouse locations, estimated selling value, and expected profit margin</small>
+                    </div>
+                    <input type="text" id="carton-search-input" class="form-control form-control-sm font-monospace" placeholder="Quick search carton, location..." style="width: 240px;">
+                </div>
+
+                <div class="table-responsive border rounded-3" style="max-height: 480px; overflow-y: auto;">
+                    <table class="table table-hover table-striped align-middle mb-0 font-monospace" id="carton-table" style="font-size: 11.5px;">
+                        <thead class="bg-dark text-white text-uppercase" style="position: sticky; top: 0; z-index: 10;">
+                            <tr>
+                                <th class="ps-3 py-2.5">Carton ID</th>
+                                <th>Shipment No</th>
+                                <th>Garment Style</th>
+                                <th>Qty (pcs)</th>
+                                <th>Batch No</th>
+                                <th>Warehouse Location</th>
+                                <th>Dispatch Status</th>
+                                <th>Total Mfg Cost (₹)</th>
+                                <th>Estimated Value (₹)</th>
+                                <th>Expected Profit (₹)</th>
+                                <th>Expected Margin</th>
+                                <th class="pe-3 text-end">Drill Down</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (!empty($cartonAnalysisList)): ?>
+                                <?php foreach ($cartonAnalysisList as $c): ?>
+                                    <tr>
+                                        <td class="ps-3"><strong class="text-primary font-monospace"><?= htmlspecialchars($c['carton_no']) ?></strong></td>
+                                        <td><span class="badge bg-light text-dark border"><?= htmlspecialchars($c['shipment_no']) ?></span></td>
+                                        <td><small class="text-secondary"><?= htmlspecialchars($c['style_display']) ?></small></td>
+                                        <td><span class="badge bg-success-subtle text-success border"><?= number_format($c['total_qty']) ?> pcs</span></td>
+                                        <td><small class="font-monospace text-dark"><?= htmlspecialchars($c['batch_no']) ?></small></td>
+                                        <td><span class="fw-semibold text-dark"><?= htmlspecialchars($c['location']) ?></span></td>
+                                        <td>
+                                            <?php if ($c['dispatch_status'] === 'Delivered'): ?>
+                                                <span class="badge bg-success">Delivered</span>
+                                            <?php elseif ($c['dispatch_status'] === 'Dispatched'): ?>
+                                                <span class="badge bg-info text-dark">Dispatched</span>
+                                            <?php else: ?>
+                                                <span class="badge bg-warning text-dark">In Warehouse</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="text-muted">₹<?= number_format($c['total_mfg_cost'], 0) ?></td>
+                                        <td><strong class="text-success">₹<?= number_format($c['estimated_sales_value'], 0) ?></strong></td>
+                                        <td><strong class="<?= $c['expected_profit'] >= 0 ? 'text-success' : 'text-danger' ?>">₹<?= number_format($c['expected_profit'], 0) ?></strong></td>
+                                        <td>
+                                            <span class="badge bg-light text-dark border"><?= number_format($c['expected_margin_pct'], 1) ?>%</span>
+                                        </td>
+                                        <td class="pe-3 text-end">
+                                            <button type="button" class="btn btn-xs btn-outline-primary rounded-pill btn-carton-drilldown" data-carton-id="<?= $c['carton_id'] ?>">
+                                                <i class="fa-solid fa-magnifying-glass me-1"></i> Contents
+                                            </button>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <tr><td colspan="12" class="text-center py-4 text-muted">No carton analysis records found.</td></tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
         </div>
     </div>
 </div>
 
-<!-- ================= SECTION 2: CARTON & WAREHOUSE SALES ANALYSIS ================= -->
-<div class="card border-0 shadow-sm rounded-4 bg-white mb-4" style="border: 1px solid #e2e8f0;">
-    <div class="card-header bg-transparent border-bottom p-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <div>
-            <h5 class="fw-bold font-outfit m-0 text-dark"><i class="fa-solid fa-boxes-stacked text-warning me-2"></i> Section 2: Carton & Warehouse Sales Analysis</h5>
-            <small class="text-secondary">Sealed carton box inventory, warehouse storage, estimated sales value & expected profitability</small>
-        </div>
-        <div class="d-flex gap-2">
-            <input type="text" id="carton-search-input" class="form-control form-control-sm font-monospace" placeholder="Search carton, shipment, warehouse..." style="width: 220px;">
-        </div>
-    </div>
-    <div class="card-body p-0">
-        <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
-            <table class="table table-hover table-striped align-middle mb-0 font-monospace" id="carton-table" style="font-size: 11.5px;">
-                <thead class="bg-dark text-white text-uppercase" style="position: sticky; top: 0; z-index: 10;">
-                    <tr>
-                        <th class="ps-3">Carton ID</th>
-                        <th>Shipment No</th>
-                        <th>Garment Style</th>
-                        <th>Qty (pcs)</th>
-                        <th>Batch No</th>
-                        <th>Warehouse / Location</th>
-                        <th>Dispatch Status</th>
-                        <th>Total Mfg Cost (₹)</th>
-                        <th>Sales Value (₹)</th>
-                        <th>Expected Profit (₹)</th>
-                        <th>Expected Margin</th>
-                        <th class="pe-3 text-end">Drill Down</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (!empty($cartonAnalysisList)): ?>
-                        <?php foreach ($cartonAnalysisList as $c): ?>
-                            <tr>
-                                <td class="ps-3"><strong class="text-primary font-monospace"><?= htmlspecialchars($c['carton_no']) ?></strong></td>
-                                <td><span class="badge bg-light text-dark border"><?= htmlspecialchars($c['shipment_no']) ?></span></td>
-                                <td><small class="text-secondary"><?= htmlspecialchars($c['style_display']) ?></small></td>
-                                <td><span class="badge bg-success-subtle text-success border"><?= number_format($c['total_qty']) ?> pcs</span></td>
-                                <td><small class="font-monospace text-dark"><?= htmlspecialchars($c['batch_no']) ?></small></td>
-                                <td><span class="fw-semibold text-dark"><?= htmlspecialchars($c['location']) ?></span></td>
-                                <td>
-                                    <?php if ($c['dispatch_status'] === 'Delivered'): ?>
-                                        <span class="badge bg-success">Delivered</span>
-                                    <?php elseif ($c['dispatch_status'] === 'Dispatched'): ?>
-                                        <span class="badge bg-info text-dark">Dispatched</span>
-                                    <?php else: ?>
-                                        <span class="badge bg-warning text-dark">In Warehouse Stock</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td class="text-muted">₹<?= number_format($c['total_mfg_cost'], 0) ?></td>
-                                <td><strong class="text-success">₹<?= number_format($c['estimated_sales_value'], 0) ?></strong></td>
-                                <td><strong class="<?= $c['expected_profit'] >= 0 ? 'text-success' : 'text-danger' ?>">₹<?= number_format($c['expected_profit'], 0) ?></strong></td>
-                                <td>
-                                    <span class="badge bg-light text-dark border"><?= number_format($c['expected_margin_pct'], 1) ?>%</span>
-                                </td>
-                                <td class="pe-3 text-end">
-                                    <button type="button" class="btn btn-xs btn-outline-primary rounded-pill btn-carton-drilldown" data-carton-id="<?= $c['carton_id'] ?>">
-                                        <i class="fa-solid fa-magnifying-glass me-1"></i> Contents
-                                    </button>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <tr><td colspan="12" class="text-center py-4 text-muted">No carton records found.</td></tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<!-- DRILL DOWN MODAL FOR CARTON CONTENTS -->
+<!-- ITEMDRILL DOWN MODAL FOR CARTON CONTENTS -->
 <div class="modal fade" id="cartonDetailModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content" style="border-radius: 16px;">
@@ -331,7 +327,21 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // 1. Batch Table Search Filter
+    // Tab active text styling toggle
+    const batchTabBtn = document.getElementById('batch-tab');
+    const cartonTabBtn = document.getElementById('carton-tab');
+
+    batchTabBtn.addEventListener('shown.bs.tab', function() {
+        batchTabBtn.classList.remove('text-secondary');
+        cartonTabBtn.classList.add('text-secondary');
+    });
+
+    cartonTabBtn.addEventListener('shown.bs.tab', function() {
+        cartonTabBtn.classList.remove('text-secondary');
+        batchTabBtn.classList.add('text-secondary');
+    });
+
+    // Batch Table Search
     const batchSearchInput = document.getElementById('batch-search-input');
     const batchTableRows = document.querySelectorAll('#batch-table tbody tr');
 
@@ -345,7 +355,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // 2. Carton Table Search Filter
+    // Carton Table Search
     const cartonSearchInput = document.getElementById('carton-search-input');
     const cartonTableRows = document.querySelectorAll('#carton-table tbody tr');
 
@@ -359,7 +369,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // 3. Drill-down AJAX Modal for Carton Contents
+    // Carton Drill-Down Modal
     const cartonModal = new bootstrap.Modal(document.getElementById('cartonDetailModal'));
     const cartonModalTitle = document.getElementById('carton-modal-title');
     const cartonModalBody = document.getElementById('carton-modal-body');
