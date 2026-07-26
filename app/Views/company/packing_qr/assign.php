@@ -254,19 +254,23 @@
                         <?php if (!empty($assignedItems)): ?>
                             <?php foreach ($assignedItems as $ai): 
                                 $itemQr = !empty($ai['product_qr_code']) ? (string)$ai['product_qr_code'] : ('ITEM-' . $ai['id']);
+                                $displayItemQr = $itemQr;
+                                if (!empty($carton['production_no']) && str_starts_with(strtoupper($displayItemQr), strtoupper($carton['production_no']) . '-')) {
+                                    $displayItemQr = substr($displayItemQr, strlen($carton['production_no']) + 1);
+                                }
                                 $sizeVal = !empty($ai['size']) ? (string)$ai['size'] : 'FREE';
                                 $colorVal = !empty($ai['color']) ? (string)$ai['color'] : 'N/A';
                                 $assignedDate = !empty($ai['assigned_at']) ? date('d M Y, h:i A', strtotime($ai['assigned_at'])) : (!empty($ai['created_at']) ? date('d M Y, h:i A', strtotime($ai['created_at'])) : 'N/A');
                             ?>
                                 <tr>
                                     <td class="ps-3">
-                                        <strong class="font-monospace text-primary"><?= htmlspecialchars($itemQr) ?></strong>
+                                        <strong class="font-monospace text-primary"><?= htmlspecialchars($displayItemQr) ?></strong>
                                     </td>
                                     <td><span class="font-monospace text-dark fw-bold"><?= htmlspecialchars($carton['production_no']) ?></span></td>
                                     <td><span class="badge bg-light text-dark border font-monospace"><?= htmlspecialchars($sizeVal) ?> / <?= htmlspecialchars($colorVal) ?></span></td>
                                     <td class="font-monospace small text-muted"><?= htmlspecialchars($assignedDate) ?></td>
                                     <td class="text-end pe-3">
-                                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2.5" title="Remove / Unassign" onclick="removeProductFromCarton('<?= htmlspecialchars($itemQr) ?>', <?= (int)$ai['id'] ?>)">
+                                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2.5" title="Remove / Unassign" onclick="removeProductFromCarton('<?= htmlspecialchars($itemQr) ?>', <?= (int)$ai['id'] ?>, '<?= htmlspecialchars($displayItemQr) ?>')">
                                             <i class="fa-solid fa-trash-can me-1"></i> Unassign
                                         </button>
                                     </td>
@@ -307,6 +311,15 @@
     let scannedSessionProducts = [];
     let html5QrScanner = null;
     let isCameraActive = false;
+
+    function formatDisplayQr(qr, batchNo) {
+        if (!qr) return '';
+        const bNo = batchNo || '<?= htmlspecialchars($carton['production_no']) ?>';
+        if (bNo && qr.toUpperCase().startsWith(bNo.toUpperCase() + '-')) {
+            return qr.substring(bNo.length + 1);
+        }
+        return qr;
+    }
 
     document.addEventListener('DOMContentLoaded', function() {
         loadEligibleManualProducts();
@@ -361,6 +374,7 @@
             const isCurrentCarton = p.is_current_carton;
             const isDisabled = isAssignedToOther || isCurrentCarton;
             const disabledAttr = isDisabled ? 'disabled data-originally-disabled="true"' : '';
+            const displayQr = formatDisplayQr(p.qr_code, p.production_no);
             
             const statusBadge = isAssignedToOther ? 
                 `<span class="badge bg-warning text-dark"><i class="fa-solid fa-lock me-1"></i> In ${p.existing_carton_no}</span>` :
@@ -371,7 +385,7 @@
                     <td class="ps-3">
                         <input type="checkbox" value="${p.qr_code}" class="form-check-input manual-chk" ${disabledAttr} onchange="updateManualSelectionCount()">
                     </td>
-                    <td><strong class="font-monospace text-dark">${p.qr_code}</strong></td>
+                    <td><strong class="font-monospace text-dark">${displayQr}</strong></td>
                     <td><span class="font-monospace text-primary">${p.production_no}</span></td>
                     <td><div class="fw-bold" style="font-size: 12px;">${p.style_no}</div><small class="text-muted" style="font-size: 10px;">PO: ${p.buyer_po}</small></td>
                     <td><span class="badge bg-light text-dark border font-monospace">${p.size} / ${p.color}</span></td>
@@ -572,10 +586,11 @@
 
         let html = '';
         scannedSessionProducts.forEach((p, idx) => {
+            const displayQr = formatDisplayQr(p.qr_code, p.production_no);
             html += `
                 <tr>
                     <td class="ps-3 font-monospace fw-bold">${count - idx}</td>
-                    <td><strong class="font-monospace text-primary">${p.qr_code}</strong></td>
+                    <td><strong class="font-monospace text-primary">${displayQr}</strong></td>
                     <td><span class="font-monospace text-dark">${p.production_no}</span></td>
                     <td class="font-monospace small text-muted">${p.scanned_at}</td>
                     <td class="text-end pe-3">
@@ -616,8 +631,9 @@
         .catch(err => alert('Network error finalizing session.'));
     }
 
-    function removeProductFromCarton(qrCode, itemId) {
-        if (!confirm(`Authorised Reversal: Are you sure you want to unassign item '${qrCode}' from Carton ${CARTON_NO}?`)) return;
+    function removeProductFromCarton(qrCode, itemId, displayQr) {
+        const showQr = displayQr || formatDisplayQr(qrCode);
+        if (!confirm(`Authorised Reversal: Are you sure you want to unassign item '${showQr}' from Carton ${CARTON_NO}?`)) return;
 
         fetch('<?= base_url('company/packing-qr/api/remove-product') ?>', {
             method: 'POST',
