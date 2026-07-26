@@ -71,6 +71,7 @@ class DeveloperController extends Controller {
 
         // Ensure required tenant permissions exist dynamically in permissions table
         $requiredTenantPerms = [
+            ['name' => 'company.sales_reports', 'description' => 'Executive Sales, Profitability & Manufacturing Reports', 'module' => 'tenant'],
             ['name' => 'company.production.rfid_tracking', 'description' => 'Access QR Code / RFID Production Scanner page', 'module' => 'tenant'],
             ['name' => 'company.dispatch.view', 'description' => 'View finished goods dispatch and packing hub', 'module' => 'tenant'],
             ['name' => 'company.dispatch.manage', 'description' => 'Manage carton packing, printing QR labels, and dispatching shipments', 'module' => 'tenant'],

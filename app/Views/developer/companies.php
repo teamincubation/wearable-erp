@@ -257,7 +257,11 @@
                                                             $bgColor = '#6c757d';
                                                             $textColor = '#ffffff';
 
-                                                            if ($perm['name'] === 'company.production.rfid_tracking') {
+                                                            if ($perm['name'] === 'company.sales_reports') {
+                                                                $moduleName = 'Sales & Reports';
+                                                                $bgColor = '#4f46e5';
+                                                                $cleanLabel = 'Sales & Reports (Executive Financials & Profitability)';
+                                                            } elseif ($perm['name'] === 'company.production.rfid_tracking') {
                                                                 $moduleName = 'Production QR';
                                                                 $bgColor = '#00acb5';
                                                                 $cleanLabel = 'Production QR (Mobile & Floor Scanner)';
@@ -512,7 +516,11 @@
                                     $bgColor = '#6c757d';
                                     $textColor = '#ffffff';
 
-                                    if ($perm['name'] === 'company.production.rfid_tracking') {
+                                    if ($perm['name'] === 'company.sales_reports') {
+                                        $moduleName = 'Sales & Reports';
+                                        $bgColor = '#4f46e5';
+                                        $cleanLabel = 'Sales & Reports (Executive Financials & Profitability)';
+                                    } elseif ($perm['name'] === 'company.production.rfid_tracking') {
                                         $moduleName = 'Production QR';
                                         $bgColor = '#00acb5';
                                         $cleanLabel = 'Production QR (Mobile & Floor Scanner)';
