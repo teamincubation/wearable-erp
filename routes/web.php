@@ -812,6 +812,27 @@ $router->get('/company/tally/vouchers/csv', [\App\Controllers\TallyController::c
        ->middleware(PermissionMiddleware::class)
        ->permission('company.tally.export');
 
+// Executive Sales & Reports Dashboard
+$router->get('/company/sales-reports', [\App\Controllers\SalesReportsController::class, 'index'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.sales_reports');
+
+$router->get('/company/sales-reports/api/carton-details/{id}', [\App\Controllers\SalesReportsController::class, 'getCartonDetails'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.sales_reports');
+
+$router->get('/company/sales-reports/export-batch-financials', [\App\Controllers\SalesReportsController::class, 'exportBatchFinancials'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.sales_reports');
+
+$router->get('/company/sales-reports/export-carton-analysis', [\App\Controllers\SalesReportsController::class, 'exportCartonAnalysis'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.sales_reports');
+
 // Settings
 $router->get('/company/settings', [CompanyController::class, 'settings'])
        ->middleware(AuthMiddleware::class)

@@ -288,6 +288,9 @@
                                                             } elseif (strpos($perm['name'], 'company.dispatch') !== false) {
                                                                 $moduleName = 'Dispatch';
                                                                 $bgColor = '#fd7e14';
+                                                            } elseif (strpos($perm['name'], 'company.sales') !== false) {
+                                                                $moduleName = 'Sales & Reports';
+                                                                $bgColor = '#4f46e5';
                                                             } elseif (strpos($perm['name'], 'company.tally') !== false) {
                                                                 $moduleName = 'Tally';
                                                                 $bgColor = '#6610f2';
@@ -537,6 +540,9 @@
                                     } elseif (strpos($perm['name'], 'company.production') !== false) {
                                         $moduleName = 'Production';
                                         $bgColor = '#0d6efd';
+                                    } elseif (strpos($perm['name'], 'company.sales') !== false) {
+                                        $moduleName = 'Sales & Reports';
+                                        $bgColor = '#4f46e5';
                                     } elseif (strpos($perm['name'], 'company.tally') !== false) {
                                         $moduleName = 'Tally';
                                         $bgColor = '#6610f2';

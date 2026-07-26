@@ -169,6 +169,7 @@ class Auth {
 
         $defaultMenu = [
             'dashboard' => ['url' => 'company/dashboard', 'permission' => 'company.dashboard'],
+            'sales_reports' => ['url' => 'company/sales-reports', 'permission' => 'company.sales_reports'],
             'hr' => ['url' => 'company/hr/attendance', 'permission' => 'company.users.view'],
             'production' => ['url' => 'company/production/orders', 'permission' => 'company.production.view'],
             'dispatch' => ['url' => 'company/dispatch', 'permission' => 'company.dispatch.view'],

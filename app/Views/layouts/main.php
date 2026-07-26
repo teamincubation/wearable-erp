@@ -51,11 +51,12 @@ if (!$isCompanyExpired && $currentPagePermission) {
 }
 
 // Sidebar menu: fixed default order (hardcoded — no DB override)
-$savedOrder = ['dashboard','hr','production','dispatch','packing_qr','merchandising','styles','buyers','inventory','procurement','masterdata','users','roles','tally','logs','settings','rfid_tracking'];
+$savedOrder = ['dashboard','sales_reports','hr','production','dispatch','packing_qr','merchandising','styles','buyers','inventory','procurement','masterdata','users','roles','tally','logs','settings','rfid_tracking'];
 
 
 $defaultMenu = [
     'dashboard' => ['name' => 'Dashboard', 'icon' => 'fa-solid fa-chart-line', 'url' => 'company/dashboard', 'permission' => 'company.dashboard', 'active_check' => '/company/dashboard', 'is_exact' => true],
+    'sales_reports' => ['name' => 'Sales & Reports', 'icon' => 'fa-solid fa-chart-pie', 'url' => 'company/sales-reports', 'permission' => 'company.sales_reports', 'active_check' => 'company/sales-reports'],
     'hr' => ['name' => 'HR & Attendance', 'icon' => 'fa-solid fa-user-clock', 'url' => 'company/hr/attendance', 'permission' => 'company.users.view', 'active_check' => 'company/hr'],
     'production' => ['name' => 'Production & Quality', 'icon' => 'fa-solid fa-industry', 'url' => 'company/production/orders', 'permission' => 'company.production.view', 'active_check' => 'company/production'],
     'dispatch' => ['name' => 'Finished Goods Dispatch', 'icon' => 'fa-solid fa-truck-ramp-box', 'url' => 'company/dispatch', 'permission' => 'company.dispatch.view', 'active_check' => 'company/dispatch'],
