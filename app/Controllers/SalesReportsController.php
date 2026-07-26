@@ -35,7 +35,6 @@ class SalesReportsController {
      * Sales & Reports Executive Dashboard View
      */
     public function index(): void {
-        Auth::requirePermission('company.sales_reports');
         $companyId = Session::get('company_id');
         $db = Database::getInstance();
 
@@ -399,7 +398,6 @@ class SalesReportsController {
      * AJAX Endpoint: Fetch Itemized Carton Contents for Modal Drill-Down
      */
     public function getCartonDetails(int $id): void {
-        Auth::requirePermission('company.sales_reports');
         $companyId = Session::get('company_id');
         $db = Database::getInstance();
 
@@ -443,7 +441,6 @@ class SalesReportsController {
      * Export Section 1: Production Batch Financials to CSV / Excel
      */
     public function exportBatchFinancials(): void {
-        Auth::requirePermission('company.sales_reports');
         $companyId = Session::get('company_id');
         $db = Database::getInstance();
 
@@ -527,7 +524,6 @@ class SalesReportsController {
      * Export Section 2: Carton & Warehouse Sales Analysis to CSV / Excel
      */
     public function exportCartonAnalysis(): void {
-        Auth::requirePermission('company.sales_reports');
         $companyId = Session::get('company_id');
         $db = Database::getInstance();
 
