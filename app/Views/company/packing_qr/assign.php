@@ -33,16 +33,10 @@
 </style>
 
 <div class="container-fluid py-3 px-2 px-md-4">
-    <!-- Top Navigation & Breadcrumb -->
+    <!-- Top Navigation -->
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0 font-monospace small">
-                    <li class="breadcrumb-item"><a href="<?= base_url('company/packing-qr') ?>" class="text-decoration-none">Packing QR</a></li>
-                    <li class="breadcrumb-item active" aria-current="page"><?= htmlspecialchars($carton['carton_no']) ?></li>
-                </ol>
-            </nav>
-            <h4 class="fw-bold text-dark m-0 d-flex align-items-center mt-1">
+            <h4 class="fw-bold text-dark m-0 d-flex align-items-center">
                 <i class="fa-solid fa-box-open text-primary me-2"></i> Carton Packing: <span class="font-monospace text-primary ms-1.5"><?= htmlspecialchars($carton['carton_no']) ?></span>
             </h4>
         </div>
@@ -61,9 +55,6 @@
         <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2">
             <div>
                 <div class="d-flex align-items-center flex-wrap gap-1.5 mb-1">
-                    <span class="badge bg-primary font-monospace fs-6 px-3 py-1.5">
-                        <i class="fa-solid fa-qrcode me-1"></i> <?= htmlspecialchars($carton['carton_no']) ?>
-                    </span>
                     <span class="badge bg-dark-subtle text-dark border font-monospace">
                         Batch: <?= htmlspecialchars($carton['production_no']) ?>
                     </span>
@@ -243,14 +234,9 @@
 
     <!-- Currently Linked Products Table -->
     <div class="mobile-pack-card mt-3">
-        <div class="card-header bg-white py-3 px-3 border-bottom">
-            <div class="d-flex justify-content-between align-items-center">
-                <h6 class="fw-bold text-dark m-0 font-monospace"><i class="fa-solid fa-boxes-stacked text-primary me-2"></i> Currently Linked Items in Carton</h6>
-                <span class="badge bg-light text-dark border font-monospace"><?= count($assignedItems) ?> / <?= (int)($carton['max_capacity_pcs'] ?: 50) ?> pcs Sealed Capacity</span>
-            </div>
-            <small class="text-secondary d-block font-monospace mt-1" style="font-size: 11.5px;">
-                <i class="fa-solid fa-circle-info me-1 text-primary"></i> To add new items to this carton when capacity is reached, click <strong>"Unassign"</strong> on any item below to free up item slots.
-            </small>
+        <div class="card-header bg-white py-3 px-3 border-bottom d-flex justify-content-between align-items-center">
+            <h6 class="fw-bold text-dark m-0 font-monospace"><i class="fa-solid fa-boxes-stacked text-primary me-2"></i> Currently Linked Items in Carton</h6>
+            <span class="badge bg-light text-dark border font-monospace"><?= count($assignedItems) ?> Linked Items</span>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -260,7 +246,6 @@
                             <th class="ps-3">Product QR Code</th>
                             <th>Batch No</th>
                             <th>Size / Color</th>
-                            <th>Quantity</th>
                             <th>Assigned Date & Time</th>
                             <th class="text-end pe-3">Action</th>
                         </tr>
@@ -279,7 +264,6 @@
                                     </td>
                                     <td><span class="font-monospace text-dark fw-bold"><?= htmlspecialchars($carton['production_no']) ?></span></td>
                                     <td><span class="badge bg-light text-dark border font-monospace"><?= htmlspecialchars($sizeVal) ?> / <?= htmlspecialchars($colorVal) ?></span></td>
-                                    <td><span class="badge bg-success-subtle text-success border font-monospace"><?= number_format((int)($ai['qty'] ?: 1)) ?> pcs</span></td>
                                     <td class="font-monospace small text-muted"><?= htmlspecialchars($assignedDate) ?></td>
                                     <td class="text-end pe-3">
                                         <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-2.5" title="Remove / Unassign" onclick="removeProductFromCarton('<?= htmlspecialchars($itemQr) ?>', <?= (int)$ai['id'] ?>)">
@@ -290,7 +274,7 @@
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="6" class="text-center py-4 text-muted font-monospace">
+                                <td colspan="5" class="text-center py-4 text-muted font-monospace">
                                     No products currently assigned to this carton.
                                 </td>
                             </tr>
@@ -452,9 +436,9 @@
 
             if (warningDiv) {
                 warningDiv.innerHTML = `
-                    <div class="alert alert-warning py-2.5 px-3 rounded-3 font-monospace small mb-2 shadow-sm" style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); color: #b45309;">
-                        <i class="fa-solid fa-triangle-exclamation me-1.5 fs-6 text-warning"></i>
-                        <strong>Carton Capacity Limit Reached (${MAX_CAPACITY} pcs max):</strong> Further selection is restricted. Unassign items below under <u>"Currently Linked Items in Carton"</u> to add items to this carton.
+                    <div class="alert alert-warning py-2 px-3 rounded-3 font-monospace small mb-2 shadow-sm" style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); color: #b45309;">
+                        <i class="fa-solid fa-triangle-exclamation me-1.5 text-warning"></i>
+                        <strong>Selection Limit Reached:</strong> Unassign items below under "Currently Linked Items in Carton" to add new items.
                     </div>
                 `;
             }
@@ -467,15 +451,10 @@
             if (masterCb) masterCb.disabled = false;
 
             if (warningDiv) {
-                if (REAL_CURRENT_ASSIGNED > 0 || DUMMY_ITEM_COUNT > 0) {
-                    const remaining = MAX_CAPACITY - totalInCarton;
-                    let noticeText = `Carton capacity: <strong>${MAX_CAPACITY} pcs</strong> | Currently linked: <strong>${REAL_CURRENT_ASSIGNED} pcs</strong> | Available slots: <strong>${remaining} pcs</strong>.`;
-                    if (DUMMY_ITEM_COUNT > 0) {
-                        noticeText += ` <span class="text-primary fw-bold"><i class="fa-solid fa-wand-magic-sparkles ms-1"></i> (${DUMMY_ITEM_COUNT} placeholder ITEM entries will be auto-replaced on save)</span>`;
-                    }
+                if (DUMMY_ITEM_COUNT > 0) {
                     warningDiv.innerHTML = `
                         <div class="alert alert-info py-2 px-3 rounded-3 font-monospace small mb-2" style="font-size: 11.5px;">
-                            <i class="fa-solid fa-box text-primary me-1"></i> ${noticeText}
+                            <i class="fa-solid fa-wand-magic-sparkles text-primary me-1"></i> ${DUMMY_ITEM_COUNT} placeholder ITEM entries will be auto-replaced on save.
                         </div>
                     `;
                 } else {
@@ -492,7 +471,7 @@
         if (qrs.length === 0) return;
 
         if (REAL_CURRENT_ASSIGNED + qrs.length > MAX_CAPACITY) {
-            alert(`Carton Capacity Exceeded: Maximum capacity is ${MAX_CAPACITY} pcs. Unassign items below under "Currently Linked Items in Carton" to add items.`);
+            alert(`Selection Limit Reached: Unassign items below under "Currently Linked Items in Carton" to add items.`);
             return;
         }
 
@@ -541,7 +520,7 @@
         if (!qrCode) return;
 
         if (CURRENT_ASSIGNED + scannedSessionProducts.length >= MAX_CAPACITY) {
-            showScanAlert('danger', `<i class="fa-solid fa-triangle-exclamation me-1"></i> SCAN REJECTED: Carton item capacity limit reached (${MAX_CAPACITY} pcs max). Unassign items below under "Currently Linked Items in Carton" to add item to this carton.`);
+            showScanAlert('danger', `<i class="fa-solid fa-triangle-exclamation me-1"></i> SCAN REJECTED: Selection limit reached. Unassign items below under "Currently Linked Items in Carton" to add items.`);
             return;
         }
 
