@@ -413,7 +413,7 @@ class ProductionController extends Controller {
     /**
      * Edit individual production stage log
      */
-    public function editStageLog(Request $request, Response $response, string $id): void {
+    public function editStageLog($request = null, $response = null, $id = null): void {
         $db = Database::getInstance();
         $companyId = Session::get('company_id');
         $userId = Session::get('user_id');

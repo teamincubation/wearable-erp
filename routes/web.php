@@ -599,6 +599,12 @@ $router->post('/company/production/stage-log/delete/{id}', [\App\Controllers\Pro
        ->middleware(PermissionMiddleware::class)
        ->permission('company.production.manage');
 
+$router->post('/company/production/stage/{id}/clear-logs', [\App\Controllers\ProductionController::class, 'clearLogs'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.production.manage');
+
 $router->get('/company/production/stage/{id}/export', [\App\Controllers\ProductionController::class, 'exportStageLogs'])
        ->middleware(AuthMiddleware::class)
        ->middleware(PermissionMiddleware::class)

@@ -26,8 +26,10 @@ define('ROOT_DOMAIN', 'mywellgro.online');
 // Active Timezone
 date_default_timezone_set('Asia/Kolkata');
 
-// Helper function to get base URL
 function base_url($path = '') {
+    if (strpos($path, 'http://') === 0 || strpos($path, 'https://') === 0) {
+        return $path;
+    }
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost:8000';
     return $protocol . $host . '/' . ltrim($path, '/');

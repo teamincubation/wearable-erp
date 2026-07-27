@@ -54,6 +54,10 @@ class Controller {
      * Redirect helper
      */
     protected function redirect(string $url): void {
-        $this->response->redirect(base_url($url));
+        if (strpos($url, 'http://') === 0 || strpos($url, 'https://') === 0) {
+            $this->response->redirect($url);
+        } else {
+            $this->response->redirect(base_url($url));
+        }
     }
 }
