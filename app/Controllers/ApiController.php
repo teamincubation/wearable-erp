@@ -5,6 +5,7 @@ use App\Core\Controller;
 use App\Core\Request;
 use App\Core\Response;
 use App\Core\Database;
+use App\Helpers\StageHelper;
 
 /**
  * Mobile App REST API Controller
@@ -296,21 +297,10 @@ class ApiController extends Controller {
     }
 
     /**
-     * Helper: Convert any WIP stage input into a standardized system key (e.g. "#1 Cutting" -> "cutting", "Stage 1" -> "stage_1")
+     * Helper: Convert any WIP stage input into a standardized system key via StageHelper
      */
     public function toStageKey(string $input): string {
-        $input = trim($input);
-        if (empty($input)) {
-            return 'general';
-        }
-        // Strip leading prefix like "#1 ", "1. ", "Stage 1", "Step 1"
-        $clean = preg_replace('/^(#|\d+[\.\-\:\)]\s*|(Stage|Step)\s*\d+[\.\-\:\)]?\s*)/i', '', $input);
-        $clean = trim((string)$clean);
-        if (empty($clean)) {
-            $clean = $input;
-        }
-        $key = strtolower(trim((string)preg_replace('/[^a-zA-Z0-9]+/', '_', $clean), '_'));
-        return !empty($key) ? $key : 'general';
+        return StageHelper::toStageKey($input);
     }
 
     /**

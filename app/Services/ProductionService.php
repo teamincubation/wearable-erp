@@ -2,6 +2,7 @@
 namespace App\Services;
 
 use App\Core\Database;
+use App\Helpers\StageHelper;
 use Exception;
 use PDO;
 
@@ -146,12 +147,7 @@ class ProductionService {
 
         foreach ($stages as $s) {
             $rawStage = (string)$s['stage'];
-            $cleanKey = strtolower(trim((string)preg_replace('/^(#|\d+[\.\-\:\)]\s*|(Stage|Step)\s*\d+[\.\-\:\)]?\s*)/i', '', $rawStage)));
-            $cleanKey = trim((string)preg_replace('/[^a-z0-9]+/', '_', $cleanKey), '_');
-
-            if (empty($cleanKey)) {
-                $cleanKey = strtolower(trim($rawStage));
-            }
+            $cleanKey = StageHelper::toStageKey($rawStage);
 
             $in = (int)$s['total_in'];
             $out = (int)$s['total_out'];
@@ -184,8 +180,7 @@ class ProductionService {
             $stgKey = is_array($stg) ? ($stg['key'] ?? '') : (string)$stg;
             $stgName = is_array($stg) ? ($stg['name'] ?? '') : (string)$stg;
             
-            $cleanStgKey = strtolower(trim((string)preg_replace('/^(#|\d+[\.\-\:\)]\s*|(Stage|Step)\s*\d+[\.\-\:\)]?\s*)/i', '', $stgKey)));
-            $cleanStgKey = trim((string)preg_replace('/[^a-z0-9]+/', '_', $cleanStgKey), '_');
+            $cleanStgKey = StageHelper::toStageKey($stgKey);
 
             if (isset($wip[$cleanStgKey])) {
                 $wip[$stgKey] = $wip[$cleanStgKey];
@@ -198,8 +193,7 @@ class ProductionService {
         $allKeys = array_keys($wip);
         foreach ($allKeys as $k) {
             $data = $wip[$k];
-            $cleanK = strtolower(trim((string)preg_replace('/^(#|\d+[\.\-\:\)]\s*|(Stage|Step)\s*\d+[\.\-\:\)]?\s*)/i', '', (string)$k)));
-            $cleanK = trim((string)preg_replace('/[^a-z0-9]+/', '_', $cleanK), '_');
+            $cleanK = StageHelper::toStageKey((string)$k);
             
             $wip[$cleanK] = $data;
             $spaceName = str_replace('_', ' ', $cleanK);

@@ -15,6 +15,7 @@ use App\Models\Machine;
 use App\Models\User;
 use App\Services\ProductionService;
 use App\Models\AuditLog;
+use App\Helpers\StageHelper;
 
 /**
  * Production and Quality Control Controller
@@ -339,7 +340,7 @@ class ProductionController extends Controller {
      * Submit Production Stage Log
      */
     public function logStage(Request $request, Response $response, string $id): void {
-        $stage = $request->get('stage');
+        $stage = StageHelper::toStageKey((string)$request->get('stage'));
         $qtyIn = $request->get('qty_in') !== null && $request->get('qty_in') !== '' ? (int)$request->get('qty_in') : 0;
         $qtyOut = $request->get('qty_out') !== null && $request->get('qty_out') !== '' ? (int)$request->get('qty_out') : 0;
         $wasteQty = (int)$request->get('waste_qty');
@@ -429,7 +430,7 @@ class ProductionController extends Controller {
             return;
         }
 
-        $stage = $request->get('stage');
+        $stage = StageHelper::toStageKey((string)$request->get('stage'));
         $qtyIn = $request->get('qty_in') !== null && $request->get('qty_in') !== '' ? (int)$request->get('qty_in') : 0;
         $qtyOut = $request->get('qty_out') !== null && $request->get('qty_out') !== '' ? (int)$request->get('qty_out') : 0;
         $wasteQty = (int)$request->get('waste_qty');
@@ -877,8 +878,7 @@ class ProductionController extends Controller {
 
         $qrCode = trim((string)$request->get('qr_code'));
         $rawStage = trim((string)$request->get('stage'));
-        $cleanStage = strtolower(trim(preg_replace('/^(#|\d+\.|\d+\s*-\s*|\d+\s*:\s*|Stage\s*\d+\s*:?\s*)/i', '', $rawStage)));
-        $stage = !empty($cleanStage) ? $cleanStage : (strtolower(trim($rawStage)) ?: 'general');
+        $stage = StageHelper::toStageKey($rawStage);
         $status = strtolower(trim((string)$request->get('status'))); // 'pass' or 'fail'
         $durationSeconds = (int)$request->get('duration_seconds');
 
@@ -889,19 +889,22 @@ class ProductionController extends Controller {
 
         // Duplicate check: Prevent logging the same QR code twice under the same WIP stage
         $stmtCheckAlready = $db->prepare("
-            SELECT id FROM production_stage_logs 
-            WHERE company_id = ? AND qr_code = ? AND stage = ? 
-            LIMIT 1
+            SELECT stage FROM production_stage_logs 
+            WHERE company_id = ? AND LOWER(TRIM(qr_code)) = LOWER(TRIM(?))
         ");
-        $stmtCheckAlready->execute([$companyId, $qrCode, $stage]);
-        if ($stmtCheckAlready->fetchColumn()) {
-            $formattedStage = strtoupper(str_replace('_', ' ', $stage));
-            echo json_encode([
-                'success' => false,
-                'already_validated' => true,
-                'message' => "This QR Code ({$qrCode}) has ALREADY been validated in stage '{$formattedStage}'."
-            ]);
-            exit;
+        $stmtCheckAlready->execute([$companyId, $qrCode]);
+        $existingLogs = $stmtCheckAlready->fetchAll() ?: [];
+
+        foreach ($existingLogs as $l) {
+            if (StageHelper::toStageKey($l['stage']) === $stage) {
+                $formattedStage = StageHelper::toStageName($stage);
+                echo json_encode([
+                    'success' => false,
+                    'already_validated' => true,
+                    'message' => "This QR Code ({$qrCode}) has ALREADY been validated in stage '{$formattedStage}'."
+                ]);
+                exit;
+            }
         }
 
         // Parse QR Code e.g. BATCH-TOCCO-001-S-0005
@@ -1068,7 +1071,8 @@ class ProductionController extends Controller {
         date_default_timezone_set($companyTz);
 
         $qrCode = trim($request->get('qr_code'));
-        $stage = trim($request->get('stage'));
+        $rawStage = trim((string)$request->get('stage'));
+        $stageKey = !empty($rawStage) ? StageHelper::toStageKey($rawStage) : '';
 
         if (empty($qrCode)) {
             echo json_encode(['success' => false, 'message' => 'Scanned QR code is empty.']);
@@ -1076,28 +1080,30 @@ class ProductionController extends Controller {
         }
 
         // Duplicate check: Prevent validating QR code if it was already processed in this exact WIP stage
-        if (!empty($stage)) {
+        if (!empty($stageKey)) {
             $stmtCheckAlready = $db->prepare("
                 SELECT psl.*, u.name as operator_name 
                 FROM production_stage_logs psl
                 LEFT JOIN users u ON psl.employee_id = u.id
-                WHERE psl.company_id = ? AND psl.qr_code = ? AND psl.stage = ?
-                ORDER BY psl.id DESC LIMIT 1
+                WHERE psl.company_id = ? AND LOWER(TRIM(psl.qr_code)) = LOWER(TRIM(?))
+                ORDER BY psl.id DESC
             ");
-            $stmtCheckAlready->execute([$companyId, $qrCode, $stage]);
-            $alreadyLogged = $stmtCheckAlready->fetch();
+            $stmtCheckAlready->execute([$companyId, $qrCode]);
+            $allUserLogs = $stmtCheckAlready->fetchAll() ?: [];
 
-            if ($alreadyLogged) {
-                $formattedStage = strtoupper(str_replace('_', ' ', $stage));
-                $operatorName = $alreadyLogged['operator_name'] ?: 'Operator';
-                $logTime = date('d-M-Y h:i A', strtotime($alreadyLogged['created_at'] ?? $alreadyLogged['end_time']));
-                
-                echo json_encode([
-                    'success' => false,
-                    'already_validated' => true,
-                    'message' => "This QR Code ({$qrCode}) has ALREADY been validated in stage {$formattedStage} by {$operatorName} on {$logTime}."
-                ]);
-                exit;
+            foreach ($allUserLogs as $alreadyLogged) {
+                if (StageHelper::toStageKey($alreadyLogged['stage']) === $stageKey) {
+                    $formattedStage = StageHelper::toStageName($stageKey);
+                    $operatorName = $alreadyLogged['operator_name'] ?: 'Operator';
+                    $logTime = date('d-M-Y h:i A', strtotime($alreadyLogged['created_at'] ?? $alreadyLogged['end_time']));
+                    
+                    echo json_encode([
+                        'success' => false,
+                        'already_validated' => true,
+                        'message' => "This QR Code ({$qrCode}) has ALREADY been validated in stage '{$formattedStage}' by {$operatorName} on {$logTime}."
+                    ]);
+                    exit;
+                }
             }
         }
 

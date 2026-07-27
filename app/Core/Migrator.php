@@ -186,6 +186,20 @@ class Migrator {
                 } catch (\PDOException $e) {}
             }
 
+            // One-time backfill: Normalize historical production_stage_logs.stage values to canonical keys
+            try {
+                $unnormalizedLogs = $db->query("SELECT id, stage FROM production_stage_logs WHERE stage LIKE '% %' OR stage LIKE '#%' OR stage LIKE 'Stage%' OR stage LIKE 'Step%'")->fetchAll();
+                if ($unnormalizedLogs) {
+                    $stmtUpdStage = $db->prepare("UPDATE production_stage_logs SET stage = ? WHERE id = ?");
+                    foreach ($unnormalizedLogs as $ul) {
+                        $canonicalKey = \App\Helpers\StageHelper::toStageKey((string)$ul['stage']);
+                        if ($canonicalKey !== $ul['stage']) {
+                            $stmtUpdStage->execute([$canonicalKey, $ul['id']]);
+                        }
+                    }
+                }
+            } catch (\Exception $e) {}
+
             // Auto-heal bom_categories table columns for update tracking
             $bomCatColumns = [
                 'updated_by' => "INT DEFAULT NULL",

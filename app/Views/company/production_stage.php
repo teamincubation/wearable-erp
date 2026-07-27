@@ -44,9 +44,8 @@
                     <?php 
                         $stagesList = $stagesList ?? ['knitting', 'dyeing', 'compacting', 'relaxing', 'spreading', 'cutting', 'bundling', 'printing', 'embroidery', 'sewing', 'checking', 'thread_cutting', 'washing', 'ironing', 'packing', 'carton_packing', 'shipment'];
                         foreach ($stagesList as $stg):
-                            $cleanStgKey = strtolower(trim((string)preg_replace('/^(#|\d+[\.\-\:\)]\s*|(Stage|Step)\s*\d+[\.\-\:\)]?\s*)/i', '', (string)$stg)));
-                            $cleanStgKey = trim((string)preg_replace('/[^a-z0-9]+/', '_', $cleanStgKey), '_');
-                            $stgData = $wip_summary[$stg] ?? $wip_summary[$cleanStgKey] ?? $wip_summary[strtolower($stg)] ?? $wip_summary[str_replace(' ', '_', strtolower($stg))] ?? [];
+                            $cleanStgKey = \App\Helpers\StageHelper::toStageKey((string)$stg);
+                            $stgData = $wip_summary[$cleanStgKey] ?? $wip_summary[$stg] ?? $wip_summary[strtolower($stg)] ?? [];
                             $inVal = $stgData['in'] ?? 0;
                             $outVal = $stgData['out'] ?? 0;
                             $wasteVal = $stgData['waste'] ?? 0;
