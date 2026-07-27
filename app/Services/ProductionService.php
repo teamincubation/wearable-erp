@@ -195,4 +195,196 @@ class ProductionService {
         $stmt->execute([$companyId, $daysLimit]);
         return $stmt->fetchAll() ?: [];
     }
+
+    /**
+     * Shared logic to retrieve unit production logs, carton assignment, and dispatch/shipment tracking history
+     */
+    public function getUnitTrackingHistory(int $companyId, string $qrCode, int $batchId = 0): array {
+        $qrCode = trim($qrCode);
+        if (empty($qrCode)) {
+            return [
+                'success' => false,
+                'message' => 'Please enter a valid QR Code or serial number.'
+            ];
+        }
+
+        // Get company timezone
+        $stmtComp = $this->db->prepare("SELECT timezone FROM companies WHERE id = ?");
+        $stmtComp->execute([$companyId]);
+        $tzStr = $stmtComp->fetchColumn() ?: 'Asia/Kolkata';
+
+        // 1. Search stage logs matching QR code or partial match
+        $stmtLogs = $this->db->prepare("
+            SELECT psl.*, u.name as operator_name, r.name as operator_role, u_edit.name as edited_by_name, pro.production_no
+            FROM production_stage_logs psl
+            LEFT JOIN users u ON psl.employee_id = u.id
+            LEFT JOIN roles r ON u.role_id = r.id
+            LEFT JOIN users u_edit ON psl.edited_by = u_edit.id
+            LEFT JOIN production_orders pro ON psl.production_order_id = pro.id
+            WHERE psl.company_id = ? AND (psl.qr_code = ? OR psl.scanned_qr_code = ? OR psl.qr_code LIKE ? OR psl.scanned_qr_code LIKE ?)
+            ORDER BY psl.id ASC
+        ");
+        $stmtLogs->execute([$companyId, $qrCode, $qrCode, "%{$qrCode}%", "%{$qrCode}%"]);
+        $logs = $stmtLogs->fetchAll() ?: [];
+
+        // If no logs found by QR code, but batchId is provided:
+        if (empty($logs) && $batchId > 0) {
+            $stmtLogs2 = $this->db->prepare("
+                SELECT psl.*, u.name as operator_name, r.name as operator_role, u_edit.name as edited_by_name, pro.production_no
+                FROM production_stage_logs psl
+                LEFT JOIN users u ON psl.employee_id = u.id
+                LEFT JOIN roles r ON u.role_id = r.id
+                LEFT JOIN users u_edit ON psl.edited_by = u_edit.id
+                LEFT JOIN production_orders pro ON psl.production_order_id = pro.id
+                WHERE psl.company_id = ? AND psl.production_order_id = ? AND (psl.qr_code LIKE ? OR psl.scanned_qr_code LIKE ?)
+                ORDER BY psl.id ASC
+            ");
+            $stmtLogs2->execute([$companyId, $batchId, "%{$qrCode}%", "%{$qrCode}%"]);
+            $logs = $stmtLogs2->fetchAll() ?: [];
+        }
+
+        // Determine Batch Code & Full QR Code
+        $batchCode = '';
+        $foundProdOrderId = 0;
+        foreach ($logs as $l) {
+            if (!empty($l['production_no'])) {
+                $batchCode = $l['production_no'];
+            }
+            if (!empty($l['production_order_id'])) {
+                $foundProdOrderId = (int)$l['production_order_id'];
+            }
+        }
+
+        if (empty($batchCode) && $batchId > 0) {
+            $stmtB = $this->db->prepare("SELECT production_no FROM production_orders WHERE id = ? AND company_id = ?");
+            $stmtB->execute([$batchId, $companyId]);
+            $batchCode = (string)$stmtB->fetchColumn();
+            $foundProdOrderId = $batchId;
+        }
+
+        // Auto construct full QR code e.g. B2507002-XXL-0001 if input is XXL-0001
+        $fullQrCode = $qrCode;
+        if (!empty($batchCode) && !str_starts_with(strtoupper($qrCode), strtoupper($batchCode))) {
+            $fullQrCode = $batchCode . '-' . ltrim($qrCode, '-');
+        }
+
+        // Format stage logs
+        $formattedLogs = [];
+        foreach ($logs as $l) {
+            $dt = new \DateTime($l['created_at'] ?? $l['start_time'] ?? 'now', new \DateTimeZone('UTC'));
+            try { $dt->setTimezone(new \DateTimeZone($tzStr)); } catch (\Exception $ex) {}
+
+            $dtEdit = !empty($l['edited_at']) ? new \DateTime($l['edited_at'], new \DateTimeZone('UTC')) : null;
+            if ($dtEdit) { try { $dtEdit->setTimezone(new \DateTimeZone($tzStr)); } catch (\Exception $ex) {} }
+
+            $isPass = ((int)($l['qty_out'] ?? 0) > 0 && (int)($l['waste_qty'] ?? 0) === 0);
+
+            $formattedLogs[] = [
+                'stage' => str_replace('_', ' ', strtoupper($l['stage'])),
+                'status' => $isPass ? 'PASS' : 'FAIL',
+                'operator_name' => $l['operator_name'] ?: 'System Operator',
+                'operator_role' => $l['operator_role'] ?: 'Production Staff',
+                'good_qty' => (int)($l['qty_out'] ?? 1),
+                'waste_qty' => (int)($l['waste_qty'] ?? 0),
+                'updated_at' => $dt->format('d M Y, h:i A'),
+                'time_ago' => \App\Helpers\TimezoneHelper::timeAgo($l['created_at'] ?? 'now'),
+                'duration' => !empty($l['duration_minutes']) ? $l['duration_minutes'] . ' mins' : '1 mins',
+                'edited_by_name' => $l['edited_by_name'] ?? null,
+                'edited_at_formatted' => $dtEdit ? $dtEdit->format('d M Y, h:i A') : null,
+                'edit_remarks' => $l['edit_remarks'] ?? null
+            ];
+        }
+
+        // Fetch Carton & Dispatch/Delivery details using fullQrCode, qrCode, or batch/order ID
+        $cartonInfo = null;
+        $stmtCarton = $this->db->prepare("
+            SELECT ci.carton_id, ci.assigned_at,
+                   c.carton_no, c.destination_type, c.status as carton_status, c.tracking_no, c.created_at as carton_created_at,
+                   b.name as client_name, w.name as warehouse_name,
+                   shp.shipment_no, shp.status as shipment_status, shp.vehicle_courier_details, shp.dispatch_note, shp.created_at as dispatch_date
+            FROM carton_items ci
+            JOIN cartons c ON ci.carton_id = c.id
+            LEFT JOIN contacts b ON c.client_id = b.id
+            LEFT JOIN warehouses w ON c.warehouse_id = w.id
+            LEFT JOIN shipment_cartons sc ON c.id = sc.carton_id
+            LEFT JOIN shipments shp ON sc.shipment_id = shp.id
+            WHERE c.company_id = ? AND (
+                ci.product_qr_code = ? OR ci.qr_code = ? OR
+                ci.product_qr_code = ? OR ci.qr_code = ? OR
+                ci.product_qr_code LIKE ? OR ci.qr_code LIKE ?
+            )
+            ORDER BY ci.id DESC LIMIT 1
+        ");
+        $stmtCarton->execute([
+            $companyId,
+            $fullQrCode, $fullQrCode,
+            $qrCode, $qrCode,
+            "%{$qrCode}%", "%{$qrCode}%"
+        ]);
+        $ctnRow = $stmtCarton->fetch();
+
+        if (!$ctnRow && $foundProdOrderId > 0) {
+            $stmtCarton2 = $this->db->prepare("
+                SELECT ci.carton_id, ci.assigned_at,
+                       c.carton_no, c.destination_type, c.status as carton_status, c.tracking_no, c.created_at as carton_created_at,
+                       b.name as client_name, w.name as warehouse_name,
+                       shp.shipment_no, shp.status as shipment_status, shp.vehicle_courier_details, shp.dispatch_note, shp.created_at as dispatch_date
+                FROM carton_items ci
+                JOIN cartons c ON ci.carton_id = c.id
+                LEFT JOIN contacts b ON c.client_id = b.id
+                LEFT JOIN warehouses w ON c.warehouse_id = w.id
+                LEFT JOIN shipment_cartons sc ON c.id = sc.carton_id
+                LEFT JOIN shipments shp ON sc.shipment_id = shp.id
+                WHERE c.company_id = ? AND c.production_order_id = ?
+                ORDER BY ci.id DESC LIMIT 1
+            ");
+            $stmtCarton2->execute([$companyId, $foundProdOrderId]);
+            $ctnRow = $stmtCarton2->fetch();
+        }
+
+        if ($ctnRow) {
+            $dest = ($ctnRow['destination_type'] === 'client') 
+                ? ($ctnRow['client_name'] ?: 'Client Direct') 
+                : (($ctnRow['destination_type'] === 'warehouse') 
+                    ? ($ctnRow['warehouse_name'] ?: 'Company Warehouse') 
+                    : 'Unassigned');
+
+            $cStatusStr = match($ctnRow['carton_status']) {
+                'dispatched' => 'Dispatched',
+                'delivered' => 'Delivered',
+                'packed' => 'Packed & Sealed in Carton',
+                default => ucfirst((string)$ctnRow['carton_status'])
+            };
+
+            $dtCtn = !empty($ctnRow['carton_created_at']) ? new \DateTime($ctnRow['carton_created_at'], new \DateTimeZone('UTC')) : null;
+            if ($dtCtn) { try { $dtCtn->setTimezone(new \DateTimeZone($tzStr)); } catch (\Exception $e) {} }
+
+            $dtDisp = !empty($ctnRow['dispatch_date']) ? new \DateTime($ctnRow['dispatch_date'], new \DateTimeZone('UTC')) : null;
+            if ($dtDisp) { try { $dtDisp->setTimezone(new \DateTimeZone($tzStr)); } catch (\Exception $e) {} }
+
+            $cartonInfo = [
+                'carton_id' => (int)$ctnRow['carton_id'],
+                'carton_no' => $ctnRow['carton_no'],
+                'destination' => $dest,
+                'destination_type' => ucfirst((string)$ctnRow['destination_type']),
+                'status' => $ctnRow['carton_status'],
+                'status_label' => $cStatusStr,
+                'tracking_no' => $ctnRow['tracking_no'] ?: null,
+                'shipment_no' => $ctnRow['shipment_no'] ?: null,
+                'shipment_status' => $ctnRow['shipment_status'] ? ucfirst((string)$ctnRow['shipment_status']) : null,
+                'courier_details' => $ctnRow['vehicle_courier_details'] ?: null,
+                'dispatch_note' => $ctnRow['dispatch_note'] ?: null,
+                'packed_at_formatted' => $dtCtn ? $dtCtn->format('d M Y, h:i A') : null,
+                'dispatched_at_formatted' => $dtDisp ? $dtDisp->format('d M Y, h:i A') : null
+            ];
+        }
+
+        return [
+            'success' => true,
+            'qr_code' => $fullQrCode,
+            'total_stages' => count($formattedLogs),
+            'carton_info' => $cartonInfo,
+            'logs' => $formattedLogs
+        ];
+    }
 }

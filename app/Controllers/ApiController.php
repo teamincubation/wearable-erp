@@ -121,12 +121,8 @@ class ApiController extends Controller {
             return;
         }
 
-        // Verify password with Bcrypt hash, legacy plain text, MD5, SHA1, or master password
-        $passwordValid = password_verify($password, $user['password_hash'])
-            || $password === 'Admin@1234'
-            || $password === $user['password_hash']
-            || md5($password) === $user['password_hash']
-            || sha1($password) === $user['password_hash'];
+        // Verify password using secure Bcrypt hash
+        $passwordValid = password_verify($password, (string)$user['password_hash']);
 
         if (!$passwordValid) {
             $response->json([
@@ -644,14 +640,6 @@ class ApiController extends Controller {
         }
         $validCreatedBy = $validEmployeeId;
 
-        // Auto-heal production_stage_logs.scanned_qr_code column
-        try {
-            $checkSqrCode = $db->query("SHOW COLUMNS FROM `production_stage_logs` LIKE 'scanned_qr_code'");
-            if (!$checkSqrCode || $checkSqrCode->rowCount() === 0) {
-                $db->exec("ALTER TABLE `production_stage_logs` ADD COLUMN `scanned_qr_code` VARCHAR(100) DEFAULT NULL AFTER `qr_code`");
-            }
-        } catch (\Exception $e) {}
-
         try {
             $stmtLog = $db->prepare("
                 INSERT INTO production_stage_logs 
@@ -979,6 +967,41 @@ class ApiController extends Controller {
                 'history' => $history
             ],
             'product' => $productPayload
+        ], 200);
+    }
+
+    /**
+     * Get carton assignment, dispatch, shipment tracking & stage history for a scanned QR code
+     * GET /api/v1/qr/unit-history?qr_code=X&batch_id=Y
+     */
+    public function getUnitHistory(Request $request, Response $response): void {
+        $userData = $this->extractToken($request);
+        if (!$userData) {
+            $response->json([
+                'status' => 'error',
+                'message' => 'Unauthorized or missing company context.'
+            ], 401);
+            return;
+        }
+
+        $companyId = (int)$userData['company_id'];
+        $qrCode = trim((string)($request->get('qr_code') ?: $request->get('qr', '')));
+        $batchId = (int)$request->get('batch_id', 0);
+
+        if (empty($qrCode)) {
+            $response->json([
+                'status' => 'error',
+                'message' => 'Please provide a valid qr_code parameter.'
+            ], 400);
+            return;
+        }
+
+        $productionService = new ProductionService();
+        $historyData = $productionService->getUnitTrackingHistory($companyId, $qrCode, $batchId);
+
+        $response->json([
+            'status' => 'success',
+            'data' => $historyData
         ], 200);
     }
 

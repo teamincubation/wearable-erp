@@ -7,6 +7,11 @@ namespace App\Core;
  */
 class Request {
     /**
+     * Cached parsed input array computed once per request
+     */
+    private ?array $parsedInput = null;
+
+    /**
      * Get the request method (GET, POST, etc.)
      */
     public function getMethod(): string {
@@ -49,8 +54,13 @@ class Request {
 
     /**
      * Fetch all raw and sanitized inputs (GET, POST, JSON)
+     * Computes and caches parsed inputs ONCE per request
      */
     public function all(): array {
+        if ($this->parsedInput !== null) {
+            return $this->parsedInput;
+        }
+
         $data = [];
 
         // Parse query params
@@ -65,14 +75,16 @@ class Request {
 
         // Parse JSON inputs
         $inputJSON = file_get_contents('php://input');
-        $decoded = json_decode($inputJSON, true);
-        if (is_array($decoded)) {
-            foreach ($decoded as $key => $value) {
-                $data[$key] = $this->sanitize($value);
+        if (!empty($inputJSON)) {
+            $decoded = json_decode($inputJSON, true);
+            if (is_array($decoded)) {
+                foreach ($decoded as $key => $value) {
+                    $data[$key] = $this->sanitize($value);
+                }
             }
         }
 
-        return $data;
+        return $this->parsedInput = $data;
     }
 
     /**
@@ -84,7 +96,7 @@ class Request {
     }
 
     /**
-     * Sanitize input recursively to prevent XSS
+     * Sanitize input recursively (trims string values without blanket HTML-encoding)
      */
     private function sanitize(mixed $value): mixed {
         if (is_array($value)) {
@@ -94,7 +106,7 @@ class Request {
             return $value;
         }
         if (is_string($value)) {
-            return htmlspecialchars(trim($value), ENT_QUOTES, 'UTF-8');
+            return trim($value);
         }
         return $value;
     }
