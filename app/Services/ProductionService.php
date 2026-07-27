@@ -143,6 +143,8 @@ class ProductionService {
         $stages = $stmt->fetchAll() ?: [];
 
         $wip = [];
+        $rawStageMap = [];
+
         foreach ($stages as $s) {
             $rawStage = (string)$s['stage'];
             $cleanKey = strtolower(trim((string)preg_replace('/^(#|\d+[\.\-\:\)]\s*|(Stage|Step)\s*\d+[\.\-\:\)]?\s*)/i', '', $rawStage)));
@@ -164,8 +166,14 @@ class ProductionService {
             $wip[$cleanKey]['waste'] += $waste;
             $wip[$cleanKey]['wip_balance'] += ($in - $out - $waste);
 
-            $wip[$rawStage] = $wip[$cleanKey];
-            $wip[strtolower($rawStage)] = $wip[$cleanKey];
+            $rawStageMap[$rawStage] = $cleanKey;
+        }
+
+        foreach ($rawStageMap as $rawStage => $cleanKey) {
+            if (isset($wip[$cleanKey])) {
+                $wip[$rawStage] = $wip[$cleanKey];
+                $wip[strtolower($rawStage)] = $wip[$cleanKey];
+            }
         }
 
         return $wip;

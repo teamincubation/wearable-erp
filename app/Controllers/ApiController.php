@@ -644,11 +644,19 @@ class ApiController extends Controller {
         }
         $validCreatedBy = $validEmployeeId;
 
+        // Auto-heal production_stage_logs.scanned_qr_code column
+        try {
+            $checkSqrCode = $db->query("SHOW COLUMNS FROM `production_stage_logs` LIKE 'scanned_qr_code'");
+            if (!$checkSqrCode || $checkSqrCode->rowCount() === 0) {
+                $db->exec("ALTER TABLE `production_stage_logs` ADD COLUMN `scanned_qr_code` VARCHAR(100) DEFAULT NULL AFTER `qr_code`");
+            }
+        } catch (\Exception $e) {}
+
         try {
             $stmtLog = $db->prepare("
                 INSERT INTO production_stage_logs 
-                (company_id, production_order_id, stage, employee_id, qty_in, qty_out, waste_qty, start_time, end_time, duration_minutes, created_by, qr_code)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (company_id, production_order_id, stage, employee_id, qty_in, qty_out, waste_qty, start_time, end_time, duration_minutes, created_by, qr_code, scanned_qr_code)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             $stmtLog->execute([
                 $companyId,
@@ -662,6 +670,7 @@ class ApiController extends Controller {
                 $endTime,
                 $durationMinutes,
                 $validCreatedBy,
+                $qrCode,
                 $qrCode
             ]);
 

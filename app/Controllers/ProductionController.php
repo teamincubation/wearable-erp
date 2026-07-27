@@ -1632,7 +1632,9 @@ class ProductionController extends Controller {
                 $wasteQty = (int)($log['waste_qty'] ?? $log['reject_qty'] ?? 0);
 
                 // Actual Finished Output strictly from "checking" stage
-                if (($log['stage'] ?? '') === 'checking') {
+                $stgCleanKey = strtolower(trim((string)preg_replace('/^(#|\d+[\.\-\:\)]\s*|(Stage|Step)\s*\d+[\.\-\:\)]?\s*)/i', '', $log['stage'] ?? '')));
+                $stgCleanKey = trim((string)preg_replace('/[^a-z0-9]+/', '_', $stgCleanKey), '_');
+                if ($stgCleanKey === 'checking' || strtolower(trim($log['stage'] ?? '')) === 'checking') {
                     $checkingOutput += $goodQty;
                 }
                 $totalWastage += $wasteQty;
