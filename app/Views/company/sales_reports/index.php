@@ -16,7 +16,7 @@
 
 <!-- DASHBOARD-MATCHING CONTROL & MULTI-FILTER HUB BAR -->
 <div class="card p-3 mb-4 border-0 shadow-sm" style="border-radius: 16px; background: #ffffff; border: 1px solid #e2e8f0;">
-    <form method="GET" action="<?= base_url('company/sales-reports') ?>" class="row g-2 align-items-end font-monospace" style="font-size: 12px;">
+    <form method="GET" action="<?= base_url('company/sales-reports') ?>" class="row g-2 align-items-end" style="font-size: 13px;">
         <div class="col-6 col-md-2">
             <label class="form-label small fw-bold text-dark mb-1"><i class="fa-regular fa-calendar text-primary me-1"></i> Start Date</label>
             <input type="date" name="start_date" class="form-control form-control-sm text-dark bg-light rounded-3" value="<?= htmlspecialchars($filters['start_date']) ?>">
@@ -70,7 +70,7 @@
             </div>
             <div class="stat-number">₹<?= number_format($kpis['net_profit'], 0) ?></div>
             <div class="stat-label">NET PROFIT (MARGIN <?= number_format($kpis['profit_margin_pct'], 1) ?>%)</div>
-            <div class="small text-muted mt-2 pt-2 border-top d-flex justify-content-between font-monospace" style="font-size: 11px;">
+            <div class="small text-muted mt-2 pt-2 border-top d-flex justify-content-between" style="font-size: 11.5px;">
                 <span>Total Sales: <strong>₹<?= number_format($kpis['total_sales_value'], 0) ?></strong></span>
             </div>
         </div>
@@ -83,7 +83,7 @@
             </div>
             <div class="stat-number"><?= number_format($kpis['total_batches']) ?></div>
             <div class="stat-label">TOTAL PRODUCTION BATCHES</div>
-            <div class="small text-muted mt-2 pt-2 border-top d-flex justify-content-between font-monospace" style="font-size: 11px;">
+            <div class="small text-muted mt-2 pt-2 border-top d-flex justify-content-between" style="font-size: 11.5px;">
                 <span class="text-success"><i class="fa-solid fa-circle-check me-1"></i><?= $kpis['completed_batches'] ?> Done</span>
                 <span class="text-primary"><i class="fa-solid fa-spinner fa-spin me-1"></i><?= $kpis['wip_batches'] ?> WIP</span>
             </div>
@@ -97,7 +97,7 @@
             </div>
             <div class="stat-number">₹<?= number_format($kpis['outstanding_receivables'], 0) ?></div>
             <div class="stat-label">OUTSTANDING RECEIVABLES</div>
-            <div class="small text-muted mt-2 pt-2 border-top d-flex justify-content-between font-monospace" style="font-size: 11px;">
+            <div class="small text-muted mt-2 pt-2 border-top d-flex justify-content-between" style="font-size: 11.5px;">
                 <span class="text-success">Received: <strong>₹<?= number_format($kpis['fully_received'] + $kpis['partially_received'], 0) ?></strong></span>
                 <span class="text-danger">Pending: <strong>₹<?= number_format($kpis['pending_payments'], 0) ?></strong></span>
             </div>
@@ -111,7 +111,7 @@
             </div>
             <div class="stat-number">₹<?= number_format($kpis['warehouse_stock_value'], 0) ?></div>
             <div class="stat-label">FINISHED GOODS STOCK VALUATION</div>
-            <div class="small text-muted mt-2 pt-2 border-top d-flex justify-content-between font-monospace" style="font-size: 11px;">
+            <div class="small text-muted mt-2 pt-2 border-top d-flex justify-content-between" style="font-size: 11.5px;">
                 <span>Ready Dispatch: <strong>₹<?= number_format($kpis['ready_dispatch_value'], 0) ?></strong></span>
             </div>
         </div>
@@ -121,7 +121,7 @@
 <!-- TABBED EXECUTIVE SECTION DATA HUB (MATCHING DASHBOARD CARD STYLING) -->
 <div class="pepp-card border-0 shadow-sm overflow-hidden" style="border-radius: 16px; background: #ffffff;">
     <div class="pepp-card-header bg-light border-bottom p-2.5">
-        <ul class="nav nav-pills card-header-pills font-monospace" id="salesReportsTab" role="tablist" style="font-size: 12.5px;">
+        <ul class="nav nav-pills card-header-pills" id="salesReportsTab" role="tablist" style="font-size: 13px;">
             <li class="nav-item" role="presentation">
                 <button class="nav-link active fw-bold py-2.5 px-4 rounded-3" id="batch-tab" data-bs-toggle="tab" data-bs-target="#batch-pane" type="button" role="tab">
                     <i class="fa-solid fa-file-invoice-dollar me-2"></i> Section 1: Production Batch Profitability Ledger
@@ -142,16 +142,16 @@
             
             <!-- TAB 1: PRODUCTION BATCH FINANCIALS -->
             <div class="tab-pane fade show active p-3.5" id="batch-pane" role="tabpanel">
-                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 font-monospace">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                     <div>
                         <h5 class="pepp-card-title m-0"><i class="fa-solid fa-file-invoice-dollar text-primary me-2"></i> Production Batch Profitability Ledger</h5>
                         <p class="text-secondary small m-0 mt-0.5">Real-time target quantity, manufacturing costs, sales revenue, net profit, and payment receipt tracking</p>
                     </div>
-                    <input type="text" id="batch-search-input" class="form-control form-control-sm font-monospace rounded-3" placeholder="Quick search batch, buyer, style..." style="width: 260px;">
+                    <input type="text" id="batch-search-input" class="form-control form-control-sm rounded-3" placeholder="Quick search batch, buyer, style..." style="width: 260px;">
                 </div>
 
                 <div class="table-responsive border-0">
-                    <table class="table pepp-table table-hover align-middle mb-0 font-monospace" id="batch-table" style="font-size: 11.5px;">
+                    <table class="table pepp-table table-hover align-middle mb-0" id="batch-table">
                         <thead>
                             <tr>
                                 <th class="ps-3">Batch No</th>
@@ -231,16 +231,16 @@
 
             <!-- TAB 2: CARTON & WAREHOUSE SALES ANALYSIS -->
             <div class="tab-pane fade p-3.5" id="carton-pane" role="tabpanel">
-                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 font-monospace">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                     <div>
                         <h5 class="pepp-card-title m-0"><i class="fa-solid fa-boxes-stacked text-primary me-2"></i> Carton & Warehouse Stock Sales Analysis</h5>
                         <p class="text-secondary small m-0 mt-0.5">Sealed carton box analysis, warehouse storage locations, estimated sales value, and expected profit margin</p>
                     </div>
-                    <input type="text" id="carton-search-input" class="form-control form-control-sm font-monospace rounded-3" placeholder="Quick search carton, location..." style="width: 260px;">
+                    <input type="text" id="carton-search-input" class="form-control form-control-sm rounded-3" placeholder="Quick search carton, location..." style="width: 260px;">
                 </div>
 
                 <div class="table-responsive border-0">
-                    <table class="table pepp-table table-hover align-middle mb-0 font-monospace" id="carton-table" style="font-size: 11.5px;">
+                    <table class="table pepp-table table-hover align-middle mb-0" id="carton-table">
                         <thead>
                             <tr>
                                 <th class="ps-3">Carton ID</th>
@@ -264,7 +264,7 @@
                                         <td class="ps-3"><strong class="text-primary font-monospace fs-6"><?= htmlspecialchars($c['carton_no']) ?></strong></td>
                                         <td><span class="badge bg-light text-dark border font-monospace"><?= htmlspecialchars($c['shipment_no']) ?></span></td>
                                         <td><small class="text-secondary"><?= htmlspecialchars($c['style_display']) ?></small></td>
-                                        <td><span class="badge bg-success-subtle text-success border font-monospace px-2.5 py-1"><?= number_format($c['total_qty']) ?> pcs</span></td>
+                                        <td><span class="badge bg-success-subtle text-success border px-2.5 py-1"><?= number_format($c['total_qty']) ?> pcs</span></td>
                                         <td><small class="font-monospace text-dark"><?= htmlspecialchars($c['batch_no']) ?></small></td>
                                         <td><span class="fw-semibold text-dark"><?= htmlspecialchars($c['location']) ?></span></td>
                                         <td>
@@ -311,7 +311,7 @@
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body p-4 font-monospace" id="payment-modal-body" style="font-size: 12.5px;">
+            <div class="modal-body p-4" id="payment-modal-body" style="font-size: 13px;">
                 <div class="text-center py-5"><i class="fa-solid fa-spinner fa-spin fa-2x text-primary"></i></div>
             </div>
             <div class="modal-footer bg-light py-2.5 px-4" style="border-bottom-left-radius: 16px; border-bottom-right-radius: 16px;">
@@ -331,7 +331,7 @@
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body p-4 font-monospace" id="carton-modal-body" style="font-size: 12px;">
+            <div class="modal-body p-4" id="carton-modal-body" style="font-size: 13px;">
                 <div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin fa-2x text-primary"></i></div>
             </div>
             <div class="modal-footer bg-light py-2.5 px-4" style="border-bottom-left-radius: 16px; border-bottom-right-radius: 16px;">
@@ -423,7 +423,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             itemsHtml += `
                                 <tr>
                                     <td>${idx + 1}</td>
-                                    <td class="fw-bold text-primary">${item.product_qr_code || item.qr_code}</td>
+                                    <td class="fw-bold text-primary font-monospace">${item.product_qr_code || item.qr_code}</td>
                                     <td>${item.size || 'FREE'} / ${item.color || 'N/A'}</td>
                                     <td><span class="badge bg-success-subtle text-success border">1 pc</span></td>
                                     <td class="text-muted small">${item.assigned_at || item.created_at || 'N/A'}</td>
@@ -436,8 +436,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     cartonModalBody.innerHTML = `
                         <div class="row g-2 mb-3 bg-light p-3 rounded-3 border">
-                            <div class="col-6 col-md-3"><small class="text-muted d-block">CARTON ID</small><strong>${c.carton_no}</strong></div>
-                            <div class="col-6 col-md-3"><small class="text-muted d-block">BATCH NO</small><strong class="text-primary">${c.production_no || 'N/A'}</strong></div>
+                            <div class="col-6 col-md-3"><small class="text-muted d-block">CARTON ID</small><strong class="font-monospace">${c.carton_no}</strong></div>
+                            <div class="col-6 col-md-3"><small class="text-muted d-block">BATCH NO</small><strong class="text-primary font-monospace">${c.production_no || 'N/A'}</strong></div>
                             <div class="col-6 col-md-3"><small class="text-muted d-block">STYLE</small><strong>${c.style_no || 'N/A'} - ${c.style_name || ''}</strong></div>
                             <div class="col-6 col-md-3"><small class="text-muted d-block">LOCATION</small><strong class="text-dark">${c.warehouse_name || 'Factory Storage'}</strong></div>
                         </div>
@@ -513,7 +513,6 @@ function openPaymentModal(batchId) {
                 historyRows = `<tr><td colspan="6" class="text-center text-muted py-3">No payments recorded yet for this production batch.</td></tr>`;
             }
 
-            // Options for Payment Collected To Dropdown
             let accountOpts = '<option value="">-- Choose Account (from Settings) --</option>';
             if (accounts.length > 0) {
                 accounts.forEach(acc => {
@@ -535,16 +534,16 @@ function openPaymentModal(batchId) {
                     <div class="row g-2 align-items-center">
                         <div class="col-12 col-md-4">
                             <small class="text-muted d-block" style="font-size: 10px;">BATCH & BUYER CONTRACT</small>
-                            <strong class="text-primary fs-6">${b.production_no}</strong>
+                            <strong class="text-primary fs-6 font-monospace">${b.production_no}</strong>
                             <div class="text-dark small">${b.buyer_name || 'Direct Buyer'} (${b.po_no || 'N/A'})</div>
                         </div>
                         <div class="col-6 col-md-3 border-start ps-3">
                             <small class="text-muted d-block" style="font-size: 10px;">TOTAL ORDER REVENUE</small>
-                            <strong class="text-dark fs-6 font-monospace">₹${totalSales.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong>
+                            <strong class="text-dark fs-6">₹${totalSales.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong>
                         </div>
                         <div class="col-6 col-md-3 border-start ps-3">
                             <small class="text-muted d-block" style="font-size: 10px;">CUMULATIVE RECEIVED</small>
-                            <strong class="text-success fs-6 font-monospace">₹${totalReceived.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong>
+                            <strong class="text-success fs-6">₹${totalReceived.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong>
                         </div>
                         <div class="col-12 col-md-2 text-md-end border-start ps-3">
                             <small class="text-muted d-block mb-1" style="font-size: 10px;">PAYMENT STATUS</small>
@@ -582,7 +581,7 @@ function openPaymentModal(batchId) {
                             <div class="row g-2">
                                 <div class="col-12 col-md-4">
                                     <label class="form-label small fw-bold text-dark mb-1">Received Amount (₹) <span class="text-danger">*</span></label>
-                                    <input type="number" step="0.01" id="pay_amount" class="form-control form-control-sm font-monospace fw-bold" max="${balanceDue.toFixed(2)}" placeholder="Max ₹${balanceDue.toFixed(2)}" required>
+                                    <input type="number" step="0.01" id="pay_amount" class="form-control form-control-sm fw-bold" max="${balanceDue.toFixed(2)}" placeholder="Max ₹${balanceDue.toFixed(2)}" required>
                                 </div>
                                 <div class="col-12 col-md-4">
                                     <label class="form-label small fw-bold text-dark mb-1">Payment Collected To <span class="text-danger">*</span></label>
@@ -638,7 +637,7 @@ function submitPaymentForm(event, batchId, totalSales, currentReceived) {
     const paidDate = dateInput.value;
     const reference = refInput.value.trim();
 
-    const balanceDue = max(0, totalSales - currentReceived);
+    const balanceDue = Math.max(0, totalSales - currentReceived);
 
     if (amount <= 0) {
         feedbackEl.innerHTML = `<div class="text-danger fw-bold"><i class="fa-solid fa-circle-xmark me-1"></i> Please enter a valid payment amount > 0.</div>`;
@@ -651,7 +650,7 @@ function submitPaymentForm(event, batchId, totalSales, currentReceived) {
     }
 
     saveBtn.disabled = true;
-    feedbackEl.innerHTML = `<div class="text-primary font-monospace"><i class="fa-solid fa-spinner fa-spin me-1"></i> Saving payment entry...</div>`;
+    feedbackEl.innerHTML = `<div class="text-primary"><i class="fa-solid fa-spinner fa-spin me-1"></i> Saving payment entry...</div>`;
 
     fetch('<?= base_url('company/sales-reports/api/record-payment') ?>', {
         method: 'POST',
