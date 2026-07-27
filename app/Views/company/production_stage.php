@@ -44,10 +44,13 @@
                     <?php 
                         $stagesList = $stagesList ?? ['knitting', 'dyeing', 'compacting', 'relaxing', 'spreading', 'cutting', 'bundling', 'printing', 'embroidery', 'sewing', 'checking', 'thread_cutting', 'washing', 'ironing', 'packing', 'carton_packing', 'shipment'];
                         foreach ($stagesList as $stg):
-                            $inVal = $wip_summary[$stg]['in'] ?? 0;
-                            $outVal = $wip_summary[$stg]['out'] ?? 0;
-                            $wasteVal = $wip_summary[$stg]['waste'] ?? 0;
-                            $balance = $wip_summary[$stg]['wip_balance'] ?? 0;
+                            $cleanStgKey = strtolower(trim((string)preg_replace('/^(#|\d+[\.\-\:\)]\s*|(Stage|Step)\s*\d+[\.\-\:\)]?\s*)/i', '', (string)$stg)));
+                            $cleanStgKey = trim((string)preg_replace('/[^a-z0-9]+/', '_', $cleanStgKey), '_');
+                            $stgData = $wip_summary[$stg] ?? $wip_summary[$cleanStgKey] ?? $wip_summary[strtolower($stg)] ?? $wip_summary[str_replace(' ', '_', strtolower($stg))] ?? [];
+                            $inVal = $stgData['in'] ?? 0;
+                            $outVal = $stgData['out'] ?? 0;
+                            $wasteVal = $stgData['waste'] ?? 0;
+                            $balance = $stgData['wip_balance'] ?? 0;
 
                             // Determine status & color scheme
                             if ($inVal == 0 && $outVal == 0) {

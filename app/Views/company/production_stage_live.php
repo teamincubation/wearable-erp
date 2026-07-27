@@ -616,7 +616,11 @@
 
                     // 3. Update Chart.js
                     if (window.liveChartInstance && data.stages_list && data.wip_summary) {
-                        const updatedCompletedData = data.stages_list.map(stg => (data.wip_summary[stg] ? parseInt(data.wip_summary[stg].out) || 0 : 0));
+                        const updatedCompletedData = data.stages_list.map(stg => {
+                            let cleanKey = stg.toLowerCase().replace(/^(#|\d+[\.\-\:\)]\s*|(stage|step)\s*\d+[\.\-\:\)]?\s*)/i, '').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+                            let item = data.wip_summary[stg] || data.wip_summary[cleanKey] || data.wip_summary[stg.toLowerCase()] || data.wip_summary[stg.replace(/_/g, ' ')] || {};
+                            return parseInt(item.out) || 0;
+                        });
                         window.liveChartInstance.data.datasets[0].data = updatedCompletedData;
                         window.liveChartInstance.update('none'); // smooth update without full chart redraw
                     }

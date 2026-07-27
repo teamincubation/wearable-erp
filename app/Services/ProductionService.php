@@ -194,6 +194,22 @@ class ProductionService {
             }
         }
 
+        // Populate all possible string variations (spaces, uppercase, ucwords, dashes) for every entry in wip
+        $allKeys = array_keys($wip);
+        foreach ($allKeys as $k) {
+            $data = $wip[$k];
+            $cleanK = strtolower(trim((string)preg_replace('/^(#|\d+[\.\-\:\)]\s*|(Stage|Step)\s*\d+[\.\-\:\)]?\s*)/i', '', (string)$k)));
+            $cleanK = trim((string)preg_replace('/[^a-z0-9]+/', '_', $cleanK), '_');
+            
+            $wip[$cleanK] = $data;
+            $spaceName = str_replace('_', ' ', $cleanK);
+            $wip[$spaceName] = $data;
+            $wip[strtolower($spaceName)] = $data;
+            $wip[strtoupper($spaceName)] = $data;
+            $wip[ucwords($spaceName)] = $data;
+            $wip[str_replace(' ', '_', $k)] = $data;
+        }
+
         return $wip;
     }
 
