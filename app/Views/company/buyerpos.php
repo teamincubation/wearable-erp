@@ -271,7 +271,7 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label small fw-bold">Buyer PO Reference Number <span class="text-danger">*</span></label>
-                            <input type="text" name="po_no" class="form-control font-monospace" placeholder="e.g. PO-TOCCO-2026-9021" required>
+                            <input type="text" name="po_no" class="form-control font-monospace" placeholder="e.g. PO-2026-9021" required>
                         </div>
                         <div class="row g-3 mb-3">
                             <div class="col-6">

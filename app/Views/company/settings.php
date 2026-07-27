@@ -209,7 +209,7 @@
 
         <div class="pepp-card bg-light border-dashed">
             <div class="pepp-card-body" style="font-size: 13.5px;">
-                <h6 class="fw-bold"><i class="fa-solid fa-industry me-1 text-primary"></i> TOCCO Exports Instance</h6>
+                <h6 class="fw-bold"><i class="fa-solid fa-industry me-1 text-primary"></i> Tenant Company Instance</h6>
                 <p class="text-secondary mt-2 mb-0">
                     This instance is optimized specifically for apparel manufacturing exports, with customized workflows and real-time WIP operations tracking.
                 </p>

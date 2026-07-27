@@ -115,7 +115,7 @@
                                                     </div>
                                                     <div class="mb-3">
                                                         <label class="form-label small fw-bold">Cost Sheet Reference Code <span class="text-danger">*</span></label>
-                                                        <input type="text" name="cost_sheet_no" class="form-control font-monospace" placeholder="e.g. CST-TOCCO-2026-01" value="<?= htmlspecialchars($cs['cost_sheet_no']) ?>" required>
+                                                        <input type="text" name="cost_sheet_no" class="form-control font-monospace" placeholder="e.g. CST-2026-01" value="<?= htmlspecialchars($cs['cost_sheet_no']) ?>" required>
                                                     </div>
                                                     <div class="row g-3">
                                                         <div class="col-6 mb-3">
@@ -201,7 +201,7 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label small fw-bold">Cost Sheet Reference Code <span class="text-danger">*</span></label>
-                            <input type="text" name="cost_sheet_no" class="form-control font-monospace" placeholder="e.g. CST-TOCCO-2026-01" required>
+                            <input type="text" name="cost_sheet_no" class="form-control font-monospace" placeholder="e.g. CST-2026-01" required>
                         </div>
                         <div class="row g-3">
                             <div class="col-6 mb-3">

@@ -112,7 +112,7 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label small fw-bold">Requisition Reference Number <span class="text-danger">*</span></label>
-                            <input type="text" name="requisition_no" class="form-control font-monospace" placeholder="e.g. REQ-TOCCO-2026-101" required>
+                            <input type="text" name="requisition_no" class="form-control font-monospace" placeholder="e.g. REQ-2026-101" required>
                         </div>
                         <div class="mb-3">
                             <label class="form-label small fw-bold">Requisition Date <span class="text-danger">*</span></label>

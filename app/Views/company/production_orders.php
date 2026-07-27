@@ -189,7 +189,7 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label small fw-bold">Production Batch Number <span class="text-danger">*</span></label>
-                            <input type="text" id="create_production_no" name="production_no" class="form-control font-monospace" placeholder="e.g. BATCH-TOCCO-001" required oninput="validateBatchNoRealtime(this)">
+                            <input type="text" id="create_production_no" name="production_no" class="form-control font-monospace" placeholder="e.g. BATCH-2026-001" required oninput="validateBatchNoRealtime(this)">
                             <div id="batch_no_status_feedback" class="mt-1" style="font-size: 11.5px; min-height: 18px;"></div>
                         </div>
                         <div class="mb-3">

@@ -105,7 +105,7 @@ function resolveSizeForSerialNum($serial, $sizes) {
             <div class="qr-card-content">
                 <!-- Header -->
                 <div class="qr-card-header d-flex justify-content-between align-items-center pb-1 mb-2 border-bottom">
-                    <span class="fw-bold" style="font-size: 11px; letter-spacing: 0.5px; color: #000;">TOCCO QR CODE</span>
+                    <span class="fw-bold" style="font-size: 11px; letter-spacing: 0.5px; color: #000;"><?= htmlspecialchars($company['name'] ?? 'GARMENT') ?> PRODUCT QR</span>
                     <span class="font-monospace text-secondary" style="font-size: 9px;">Sl: <?= $s ?> / <?= $batch['target_qty'] ?></span>
                 </div>
                 

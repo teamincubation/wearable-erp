@@ -126,7 +126,7 @@ class AuthController extends Controller {
         }
 
         $userModel = new User();
-        $user = $userModel->findGlobalByEmail('adnan@toccoexports.com');
+        $user = $userModel->findGlobalByEmail(Session::get('reset_email') ?: '');
 
         if ($user) {
             $userModel->update($user['id'], [

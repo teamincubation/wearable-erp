@@ -169,7 +169,7 @@ class InventoryController extends Controller {
         $bundleNo = $request->get('bundle_no') ?: 'BDL-001';
         $qty = $request->get('qty') ?: '50';
 
-        $barcodeText = "TOCCO-{$styleNo}-{$size}-{$bundleNo}";
+        $barcodeText = "{$styleNo}-{$size}-{$bundleNo}";
 
         $this->renderView('company/barcode', [
             'title' => 'Barcode Ticket | ERP',

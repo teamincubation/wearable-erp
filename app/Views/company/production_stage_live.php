@@ -300,7 +300,7 @@
                     <span class="input-group-text border-end-0 bg-transparent text-primary" style="border-color: #334155; border-top-left-radius: 10px; border-bottom-left-radius: 10px;">
                         <i class="fa-solid fa-barcode"></i>
                     </span>
-                    <input type="text" id="track-qr-unit-input" class="form-control qr-lookup-input font-monospace fw-bold ps-1" placeholder="Scan or type QR Code e.g. PO-TOCCO-2026-001-S-0001" required style="border-top-left-radius: 0; border-bottom-left-radius: 0;">
+                    <input type="text" id="track-qr-unit-input" class="form-control qr-lookup-input font-monospace fw-bold ps-1" placeholder="Scan or type Product QR e.g. BATCH-XXL-0001" required style="border-top-left-radius: 0; border-bottom-left-radius: 0;">
                 </div>
             </div>
             <div class="col-md-2 col-4 text-end pe-3">

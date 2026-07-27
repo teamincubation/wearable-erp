@@ -774,7 +774,7 @@ class ApiController extends Controller {
                    s.id as style_id, s.style_no, s.name as style_name, s.wip_stages, 
                    COALESCE(s.composition, s.fabric_composition, '100% Premium Cotton') as fabric_composition, s.fit_type,
                    COALESCE(c.name, 'Internal') as buyer_name, 
-                   COALESCE(b.name, s.brand, 'Tocco') as brand_name, 
+                   COALESCE(b.name, s.brand, '') as brand_name, 
                    COALESCE(cat.name, s.category, 'General') as category_name,
                    po.quantity as po_target_qty
             FROM production_orders pro
@@ -796,7 +796,7 @@ class ApiController extends Controller {
                        COALESCE(s.composition, s.fabric_composition, '100% Premium Cotton') as fabric_composition, 
                        s.fit_type, 
                        COALESCE(cat.name, s.category, 'General') as category_name, 
-                       COALESCE(b.name, s.brand, 'Tocco') as brand_name
+                       COALESCE(b.name, s.brand, '') as brand_name
                 FROM styles s
                 LEFT JOIN brands b ON s.brand_id = b.id
                 LEFT JOIN categories cat ON s.category_id = cat.id
@@ -881,7 +881,7 @@ class ApiController extends Controller {
             'style_no' => !empty($batchData['style_no']) ? $batchData['style_no'] : 'ST-MASTER',
             'style_name' => !empty($batchData['style_name']) ? $batchData['style_name'] : 'Garment Style Item',
             'category' => !empty($batchData['category_name']) ? $batchData['category_name'] : 'Apparel',
-            'brand' => !empty($batchData['brand_name']) ? $batchData['brand_name'] : 'Tocco',
+            'brand' => !empty($batchData['brand_name']) ? $batchData['brand_name'] : '',
             'composition' => !empty($batchData['fabric_composition']) ? $batchData['fabric_composition'] : '100% Premium Cotton',
             'fit_type' => !empty($batchData['fit_type']) ? $batchData['fit_type'] : 'Regular',
             'size' => $size,

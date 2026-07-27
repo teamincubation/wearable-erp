@@ -362,7 +362,7 @@
                         </label>
                         <div class="input-group">
                             <span class="input-group-text bg-white"><i class="fa-solid fa-envelope text-primary"></i></span>
-                            <input type="text" name="email" class="form-control check-uniqueness" data-status-target="#add-emp-email-status" placeholder="ramesh or ramesh@toccoexports.com" required>
+                            <input type="text" name="email" class="form-control check-uniqueness" data-status-target="#add-emp-email-status" placeholder="ramesh or ramesh@company.com" required>
                         </div>
                     </div>
                     <div class="mb-3">

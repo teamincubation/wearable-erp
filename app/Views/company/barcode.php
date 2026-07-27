@@ -15,7 +15,7 @@
     <!-- Physical Label Mock -->
     <div class="barcode-label">
         <div class="barcode-label-header">
-            <div class="fw-bold fs-5">TOCCO EXPORTS</div>
+            <div class="fw-bold fs-5"><?= htmlspecialchars($company['name'] ?? 'GARMENT ERP') ?></div>
             <div class="small text-secondary">Tiruppur, India</div>
         </div>
         

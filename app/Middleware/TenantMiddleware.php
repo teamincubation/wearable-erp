@@ -29,7 +29,7 @@ class TenantMiddleware extends Middleware {
 
                 if (!$company) {
                     // Self-healing: If company_id does not exist, resolve company by subdomain or fall back to active company
-                    $subdomain = \App\Core\Session::get('active_tenant_subdomain', 'tocco');
+                    $subdomain = \App\Core\Session::get('active_tenant_subdomain', '');
                     $stmt2 = $db->prepare("SELECT * FROM companies WHERE (subdomain = ? OR status = 'active') AND deleted_at IS NULL ORDER BY id ASC LIMIT 1");
                     $stmt2->execute([$subdomain]);
                     $company = $stmt2->fetch();

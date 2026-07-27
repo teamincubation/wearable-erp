@@ -145,7 +145,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label small fw-bold">Party / Ledger Account Name <span class="text-danger">*</span></label>
-                        <input type="text" name="ledger_name" class="form-control" placeholder="e.g. TOCCO Exports Sales, Supplier Account" required>
+                        <input type="text" name="ledger_name" class="form-control" placeholder="e.g. Sales Account, Supplier Account" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label small fw-bold">Voucher Value Amount (₹) <span class="text-danger">*</span></label>

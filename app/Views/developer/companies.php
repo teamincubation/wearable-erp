@@ -376,12 +376,12 @@
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold">Company Name <span class="text-danger">*</span></label>
-                                <input type="text" name="name" class="form-control" placeholder="e.g. TOCCO Exports" required>
+                                <input type="text" name="name" class="form-control" placeholder="e.g. Acme Garments" required>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold">Subdomain Name <span class="text-danger">*</span></label>
                                 <div class="input-group">
-                                    <input type="text" name="subdomain" id="subdomain-input" class="form-control" placeholder="e.g. tocco" required>
+                                    <input type="text" name="subdomain" id="subdomain-input" class="form-control" placeholder="e.g. acme" required>
                                     <span class="input-group-text">.mywellgro.online</span>
                                 </div>
                                 <div class="form-text">Alphabets, digits and hyphens only.</div>
@@ -497,7 +497,7 @@
                             </div>
                             <div class="col-md-12">
                                 <label class="form-label fw-semibold">Payment Slip Info / Link / Code (Optional)</label>
-                                <input type="text" name="payment_slip" class="form-control" placeholder="e.g. SLIP-TOCCO-901">
+                                <input type="text" name="payment_slip" class="form-control" placeholder="e.g. SLIP-2026-901">
                             </div>
                         </div>
                     </div>
