@@ -143,7 +143,6 @@ class ProductionService {
         $stages = $stmt->fetchAll() ?: [];
 
         $wip = [];
-        $rawStageMap = [];
 
         foreach ($stages as $s) {
             $rawStage = (string)$s['stage'];
@@ -158,6 +157,7 @@ class ProductionService {
             $out = (int)$s['total_out'];
             $waste = (int)$s['total_waste'];
 
+            // Aggregate metrics under cleanKey
             if (!isset($wip[$cleanKey])) {
                 $wip[$cleanKey] = ['in' => 0, 'out' => 0, 'waste' => 0, 'wip_balance' => 0];
             }
@@ -166,13 +166,31 @@ class ProductionService {
             $wip[$cleanKey]['waste'] += $waste;
             $wip[$cleanKey]['wip_balance'] += ($in - $out - $waste);
 
-            $rawStageMap[$rawStage] = $cleanKey;
+            // Also aggregate metrics under rawStage if different
+            if ($rawStage !== $cleanKey) {
+                if (!isset($wip[$rawStage])) {
+                    $wip[$rawStage] = ['in' => 0, 'out' => 0, 'waste' => 0, 'wip_balance' => 0];
+                }
+                $wip[$rawStage]['in'] += $in;
+                $wip[$rawStage]['out'] += $out;
+                $wip[$rawStage]['waste'] += $waste;
+                $wip[$rawStage]['wip_balance'] += ($in - $out - $waste);
+            }
         }
 
-        foreach ($rawStageMap as $rawStage => $cleanKey) {
-            if (isset($wip[$cleanKey])) {
-                $wip[$rawStage] = $wip[$cleanKey];
-                $wip[strtolower($rawStage)] = $wip[$cleanKey];
+        // Fetch batch stages list to populate all stage key/name aliases
+        $batchStagesObj = \App\Controllers\ProductionController::getBatchStagesList($productionOrderId, $companyId);
+        foreach ($batchStagesObj as $stg) {
+            $stgKey = is_array($stg) ? ($stg['key'] ?? '') : (string)$stg;
+            $stgName = is_array($stg) ? ($stg['name'] ?? '') : (string)$stg;
+            
+            $cleanStgKey = strtolower(trim((string)preg_replace('/^(#|\d+[\.\-\:\)]\s*|(Stage|Step)\s*\d+[\.\-\:\)]?\s*)/i', '', $stgKey)));
+            $cleanStgKey = trim((string)preg_replace('/[^a-z0-9]+/', '_', $cleanStgKey), '_');
+
+            if (isset($wip[$cleanStgKey])) {
+                $wip[$stgKey] = $wip[$cleanStgKey];
+                $wip[$stgName] = $wip[$cleanStgKey];
+                $wip[strtolower($stgName)] = $wip[$cleanStgKey];
             }
         }
 
