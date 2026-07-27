@@ -766,9 +766,17 @@ class ProductionController extends Controller {
     /**
      * Retrieve batch stage sequence from tech pack specifications
      */
-    public static function getBatchStagesList(int $batchId): array {
+    public static function getBatchStagesList(int $batchId, ?int $companyId = null): array {
         $db = Database::getInstance();
-        $companyId = Session::get('company_id');
+        if (empty($companyId)) {
+            $companyId = Session::get('company_id');
+        }
+
+        if (empty($companyId)) {
+            $stmtC = $db->prepare("SELECT company_id FROM production_orders WHERE id = ? LIMIT 1");
+            $stmtC->execute([$batchId]);
+            $companyId = (int)($stmtC->fetchColumn() ?: 0);
+        }
 
         $stmt = $db->prepare("
             SELECT tp.stages_json
@@ -791,7 +799,7 @@ class ProductionController extends Controller {
             }
         }
 
-        return \App\Controllers\CompanyController::getCompanyWipStages($companyId);
+        return \App\Controllers\CompanyController::getCompanyWipStages((int)$companyId);
     }
 
     /**

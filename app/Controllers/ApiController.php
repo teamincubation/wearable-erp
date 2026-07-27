@@ -307,8 +307,8 @@ class ApiController extends Controller {
         if (empty($input)) {
             return 'general';
         }
-        // Only strip leading prefix like "#1 " or "1. " if followed by non-digit letters
-        $clean = preg_replace('/^(#|\d+[\.\-\:]\s*)/i', '', $input);
+        // Strip leading prefix like "#1 ", "1. ", "Stage 1", "Step 1"
+        $clean = preg_replace('/^(#|\d+[\.\-\:\)]\s*|(Stage|Step)\s*\d+[\.\-\:\)]?\s*)/i', '', $input);
         $clean = trim((string)$clean);
         if (empty($clean)) {
             $clean = $input;
@@ -389,56 +389,73 @@ class ApiController extends Controller {
         $batchId = (int)$request->get('batch_id', 0);
         $batchNo = trim((string)$request->get('batch_no', '') ?: (string)$request->get('production_no', ''));
 
-        if ($styleId === 0 && !empty($batchNo)) {
+        if ($batchId === 0 && !empty($batchNo)) {
             $stmtBatch = $db->prepare("
-                SELECT po.style_id 
-                FROM production_orders pro 
-                JOIN buyer_pos po ON pro.po_id = po.id 
-                WHERE (pro.production_no = ? OR pro.id = ?) AND pro.company_id = ? AND pro.deleted_at IS NULL 
+                SELECT id 
+                FROM production_orders 
+                WHERE (production_no = ? OR id = ?) AND company_id = ? AND deleted_at IS NULL 
                 LIMIT 1
             ");
             $stmtBatch->execute([$batchNo, is_numeric($batchNo) ? (int)$batchNo : 0, $companyId]);
-            $styleId = (int)($stmtBatch->fetchColumn() ?: 0);
+            $batchId = (int)($stmtBatch->fetchColumn() ?: 0);
         }
 
-        if ($styleId === 0 && $batchId > 0) {
-            $stmtBatch = $db->prepare("
-                SELECT po.style_id 
-                FROM production_orders pro 
-                JOIN buyer_pos po ON pro.po_id = po.id 
-                WHERE pro.id = ? AND pro.company_id = ? AND pro.deleted_at IS NULL 
-                LIMIT 1
-            ");
-            $stmtBatch->execute([$batchId, $companyId]);
-            $styleId = (int)($stmtBatch->fetchColumn() ?: 0);
-        }
-
-        if ($styleId === 0 && !empty($styleNo)) {
+        if ($batchId === 0 && $styleId === 0 && !empty($styleNo)) {
             $stmtStyle = $db->prepare("SELECT id FROM styles WHERE LOWER(style_no) = LOWER(?) AND company_id = ? AND deleted_at IS NULL LIMIT 1");
             $stmtStyle->execute([$styleNo, $companyId]);
             $styleId = (int)($stmtStyle->fetchColumn() ?: 0);
         }
 
-        $stagesList = [];
-        if ($styleId > 0) {
-            $stmt = $db->prepare("SELECT wip_stages FROM styles WHERE id = ? AND company_id = ? AND deleted_at IS NULL LIMIT 1");
-            $stmt->execute([$styleId, $companyId]);
-            $rawJson = $stmt->fetchColumn();
+        $rawStagesList = [];
+        if ($batchId > 0) {
+            $rawStagesList = ProductionController::getBatchStagesList($batchId);
+        } elseif ($styleId > 0) {
+            $stmtTp = $db->prepare("SELECT stages_json FROM tech_packs WHERE style_id = ? AND company_id = ? AND deleted_at IS NULL LIMIT 1");
+            $stmtTp->execute([$styleId, $companyId]);
+            $rawJson = $stmtTp->fetchColumn();
             if ($rawJson) {
                 $decoded = json_decode($rawJson, true);
-                if (is_array($decoded)) {
-                    $stagesList = $decoded;
+                if (is_array($decoded) && !empty($decoded)) {
+                    $rawStagesList = $decoded;
                 }
             }
         }
 
-        if (empty($stagesList)) {
-            $stagesList = ['Cutting', 'Stitching', 'Checking', 'Thread cutting', 'Ironing', 'Packing'];
+        if (empty($rawStagesList)) {
+            $rawStagesList = \App\Controllers\CompanyController::getCompanyWipStages($companyId);
+        }
+
+        $formattedStages = [];
+        $seqIndex = 1;
+        foreach ($rawStagesList as $stg) {
+            if (is_array($stg) && !empty($stg['key'])) {
+                $key = $stg['key'];
+                $name = $stg['name'] ?? ucwords(str_replace('_', ' ', $key));
+                $order = (int)($stg['order'] ?? $seqIndex);
+            } elseif (is_string($stg) && !empty($stg)) {
+                $key = $this->toStageKey($stg);
+                $name = trim(preg_replace('/^(#|\d+[\.\-\:]\s*)/i', '', $stg));
+                $order = $seqIndex;
+            } else {
+                continue;
+            }
+
+            $hasPrefix = preg_match('/^(#|\d+[\.\-\:\)]\s*|(Stage|Step)\s*\d+)/i', $name);
+            $displayName = $hasPrefix ? $name : "#{$order} {$name}";
+
+            $formattedStages[] = [
+                'key' => $key,
+                'name' => $name,
+                'display_name' => $displayName,
+                'order' => $order
+            ];
+            $seqIndex++;
         }
 
         $response->json([
             'status' => 'success',
-            'data' => array_values(array_filter($stagesList))
+            'data' => $formattedStages,
+            'stages' => $formattedStages
         ], 200);
     }
 
@@ -472,19 +489,6 @@ class ApiController extends Controller {
         $companyTz = $stmtTz->fetchColumn() ?: 'Asia/Kolkata';
         date_default_timezone_set($companyTz);
 
-        // Auto-heal production_stage_logs.stage column to VARCHAR(100) to allow any WIP stage key
-        try {
-            $db->exec("ALTER TABLE `production_stage_logs` MODIFY COLUMN `stage` VARCHAR(100) NOT NULL");
-        } catch (\Exception $e) {}
-
-        // Auto-heal production_stage_logs.qr_code column
-        try {
-            $checkQrCode = $db->query("SHOW COLUMNS FROM `production_stage_logs` LIKE 'qr_code'");
-            if (!$checkQrCode || $checkQrCode->rowCount() === 0) {
-                $db->exec("ALTER TABLE `production_stage_logs` ADD COLUMN `qr_code` VARCHAR(100) DEFAULT NULL");
-            }
-        } catch (\Exception $e) {}
-
         $qrCode = trim((string)($request->get('qr_code') ?: $request->get('qr', '')));
         $rawStage = trim((string)($request->get('raw_stage') ?: $request->get('stage') ?: $request->get('stage_key') ?: $request->get('stage_name', '')));
         $stageKey = $this->toStageKey($rawStage);
@@ -504,42 +508,52 @@ class ApiController extends Controller {
         }
 
         // 1. Duplicate check: Prevent logging the same QR code twice under the same WIP stage key
-        $stmtCheckAlready = $db->prepare("
-            SELECT id FROM production_stage_logs 
-            WHERE company_id = ? AND LOWER(TRIM(qr_code)) = LOWER(TRIM(?)) 
-              AND (LOWER(TRIM(stage)) = ? OR LOWER(TRIM(stage)) = ?)
-            LIMIT 1
+        $stmtLogs = $db->prepare("
+            SELECT stage FROM production_stage_logs 
+            WHERE company_id = ? AND LOWER(TRIM(qr_code)) = LOWER(TRIM(?))
         ");
-        $stmtCheckAlready->execute([$companyId, $qrCode, $stageKey, $rawStage]);
-        if ($stmtCheckAlready->fetchColumn()) {
-            $formattedStage = strtoupper(str_replace('_', ' ', $stageKey));
-            $response->json([
-                'status' => 'already_validated',
-                'already_validated' => true,
-                'message' => "This QR Code ({$qrCode}) has ALREADY been validated in stage '{$formattedStage}'."
-            ], 409);
-            return;
-        }
+        $stmtLogs->execute([$companyId, $qrCode]);
+        $existingLogs = $stmtLogs->fetchAll() ?: [];
 
-        // Find associated production batch order
-        $batchNo = trim((string)($request->get('batch_no') ?: $request->get('production_no', '')));
-        if (empty($batchNo)) {
-            $parts = explode('-', $qrCode);
-            if (count($parts) >= 3) {
-                $batchNo = implode('-', array_slice($parts, 0, count($parts) - 2));
-            } else {
-                $batchNo = $qrCode;
+        foreach ($existingLogs as $l) {
+            if ($this->toStageKey($l['stage']) === $stageKey) {
+                $formattedStage = strtoupper(str_replace('_', ' ', $stageKey));
+                $response->json([
+                    'status' => 'already_validated',
+                    'already_validated' => true,
+                    'already_scanned' => true,
+                    'message' => "This QR Code ({$qrCode}) has ALREADY been validated in stage '{$formattedStage}'."
+                ], 409);
+                return;
             }
         }
 
-        $stmtBatch = $db->prepare("
-            SELECT id, status 
-            FROM production_orders 
-            WHERE company_id = ? AND (production_no = ? OR id = ?) 
-            LIMIT 1
-        ");
-        $stmtBatch->execute([$companyId, $batchNo, is_numeric($batchNo) ? (int)$batchNo : 0]);
-        $batch = $stmtBatch->fetch();
+        // Find associated production batch order accurately
+        $reqBatchId = (int)$request->get('batch_id', 0);
+        $batchNo = trim((string)($request->get('batch_no') ?: $request->get('production_no', '')));
+        
+        $batch = null;
+        if ($reqBatchId > 0) {
+            $stmtB = $db->prepare("SELECT id, status FROM production_orders WHERE company_id = ? AND id = ? AND deleted_at IS NULL LIMIT 1");
+            $stmtB->execute([$companyId, $reqBatchId]);
+            $batch = $stmtB->fetch();
+        }
+
+        if (!$batch && !empty($batchNo)) {
+            $stmtB = $db->prepare("SELECT id, status FROM production_orders WHERE company_id = ? AND (production_no = ? OR id = ?) AND deleted_at IS NULL LIMIT 1");
+            $stmtB->execute([$companyId, $batchNo, is_numeric($batchNo) ? (int)$batchNo : 0]);
+            $batch = $stmtB->fetch();
+        }
+
+        if (!$batch) {
+            $parts = explode('-', $qrCode);
+            if (count($parts) >= 3) {
+                $extractedBatchNo = implode('-', array_slice($parts, 0, count($parts) - 2));
+                $stmtB = $db->prepare("SELECT id, status FROM production_orders WHERE company_id = ? AND production_no = ? AND deleted_at IS NULL LIMIT 1");
+                $stmtB->execute([$companyId, $extractedBatchNo]);
+                $batch = $stmtB->fetch();
+            }
+        }
 
         if (!$batch) {
             $stmtFirstBatch = $db->prepare("
@@ -558,8 +572,9 @@ class ApiController extends Controller {
             ], 404);
             return;
         }
+
         // WIP Stage Sequential Order & Quality PASS Enforcement
-        $batchStagesObj = ProductionController::getBatchStagesList((int)$batch['id']);
+        $batchStagesObj = ProductionController::getBatchStagesList((int)$batch['id'], $companyId);
         $stageKeys = array_column($batchStagesObj, 'key');
         $targetIndex = array_search($stageKey, $stageKeys);
 
@@ -569,14 +584,21 @@ class ApiController extends Controller {
                 $precedingName = $batchStagesObj[$i]['name'];
 
                 $stmtCheckPrec = $db->prepare("
-                    SELECT id, qty_out, waste_qty 
+                    SELECT id, qty_out, waste_qty, stage 
                     FROM production_stage_logs 
                     WHERE company_id = ? AND LOWER(TRIM(qr_code)) = LOWER(TRIM(?)) 
-                      AND (LOWER(TRIM(stage)) = ? OR LOWER(TRIM(stage)) = ?)
-                    ORDER BY id DESC LIMIT 1
+                    ORDER BY id DESC
                 ");
-                $stmtCheckPrec->execute([$companyId, $qrCode, strtolower($precedingKey), strtolower($precedingName)]);
-                $precLog = $stmtCheckPrec->fetch();
+                $stmtCheckPrec->execute([$companyId, $qrCode]);
+                $allPrecLogs = $stmtCheckPrec->fetchAll() ?: [];
+
+                $precLog = null;
+                foreach ($allPrecLogs as $pl) {
+                    if ($this->toStageKey($pl['stage']) === strtolower($precedingKey)) {
+                        $precLog = $pl;
+                        break;
+                    }
+                }
 
                 if (!$precLog) {
                     $targetName = $batchStagesObj[$targetIndex]['name'] ?? strtoupper(str_replace('_', ' ', $stageKey));
@@ -594,6 +616,7 @@ class ApiController extends Controller {
                     $response->json([
                         'status' => 'failed_unit_blocked',
                         'failed_unit' => true,
+                        'out_of_order' => true,
                         'message' => "Quality Blocked: Unit ({$qrCode}) was marked as FAILED in preceding stage '{$precedingName}'. Edit entry in stage log to PASS to unblock."
                     ], 409);
                     return;
@@ -650,6 +673,7 @@ class ApiController extends Controller {
             $response->json([
                 'status' => 'success',
                 'already_validated' => false,
+                'already_scanned' => false,
                 'message' => "QR Code '{$qrCode}' logged as " . strtoupper($status) . " for stage '" . strtoupper(str_replace('_', ' ', $stageKey)) . "'."
             ], 200);
         } catch (\Exception $e) {
@@ -665,6 +689,7 @@ class ApiController extends Controller {
      * GET /api/v1/qr/verify or POST /api/v1/qr/verify or GET /api/v1/qr/unit-status
      */
     public function verifyQrCode(Request $request, Response $response): void {
+        $startTimeMs = microtime(true);
         $this->setCorsHeaders();
 
         $token = $this->extractToken($request);
@@ -688,7 +713,7 @@ class ApiController extends Controller {
         date_default_timezone_set($companyTz);
 
         $qrCode = trim((string)($request->get('qr_code') ?: $request->get('qr', '') ?: $request->get('tag', '')));
-        $rawStage = trim((string)($request->get('stage_key') ?: $request->get('stage') ?: $request->get('stage_name', '')));
+        $rawStage = trim((string)($request->get('stage_key') ?: $request->get('stage') ?: $request->get('stage_name', '') ?: $request->get('raw_stage', '')));
         $targetStageKey = !empty($rawStage) ? $this->toStageKey($rawStage) : '';
 
         if (empty($qrCode)) {
@@ -726,15 +751,24 @@ class ApiController extends Controller {
         $parts = explode('-', $qrCode);
         $serial = 0;
         $size = 'FREE';
-        $batchNo = $qrCode;
+        $batchNo = trim((string)($request->get('batch_no') ?: $request->get('production_no', '')));
 
-        if (count($parts) >= 5) {
+        if (empty($batchNo)) {
+            if (count($parts) >= 5) {
+                $serial = (int)end($parts);
+                $size = strtoupper($parts[count($parts) - 2]);
+                $batchNo = implode('-', array_slice($parts, 0, count($parts) - 2));
+            } elseif (count($parts) >= 3) {
+                $serial = (int)end($parts);
+                $batchNo = implode('-', array_slice($parts, 0, count($parts) - 1));
+            } else {
+                $batchNo = $qrCode;
+            }
+        } elseif (count($parts) >= 2) {
             $serial = (int)end($parts);
-            $size = strtoupper($parts[count($parts) - 2]);
-            $batchNo = implode('-', array_slice($parts, 0, count($parts) - 2));
-        } elseif (count($parts) >= 3) {
-            $serial = (int)end($parts);
-            $batchNo = implode('-', array_slice($parts, 0, count($parts) - 1));
+            if (count($parts) >= 3) {
+                $size = strtoupper($parts[count($parts) - 2]);
+            }
         }
 
         // Lookup Production Order Batch & Style Details from Database
@@ -780,16 +814,52 @@ class ApiController extends Controller {
             }
         }
 
-        // Parse WIP stages pipeline definition
-        $wipStagesPipeline = [];
-        if (!empty($batchData['wip_stages'])) {
-            $decoded = json_decode($batchData['wip_stages'], true);
-            if (is_array($decoded)) {
-                $wipStagesPipeline = array_values(array_filter($decoded));
+        // Retrieve dynamic WIP stage sequence object list for this batch order
+        $batchStagesObj = (!empty($batchData['id'])) 
+            ? ProductionController::getBatchStagesList((int)$batchData['id'], $companyId)
+            : \App\Controllers\CompanyController::getCompanyWipStages($companyId);
+
+        $wipStagesPipeline = array_map(function($stg) {
+            return is_array($stg) ? ($stg['name'] ?? $stg['key']) : $stg;
+        }, $batchStagesObj);
+
+        $stageKeys = array_map(function($stg) {
+            return is_array($stg) ? $stg['key'] : $this->toStageKey($stg);
+        }, $batchStagesObj);
+
+        // Sequence Order & Preceding Stage Quality Validation
+        $isOutOfOrder = false;
+        $sequenceErrorMessage = '';
+        $targetIndex = array_search($targetStageKey, $stageKeys);
+
+        if ($targetIndex !== false && $targetIndex > 0) {
+            for ($i = 0; $i < $targetIndex; $i++) {
+                $precedingKey = $stageKeys[$i];
+                $precedingName = $wipStagesPipeline[$i] ?? strtoupper(str_replace('_', ' ', $precedingKey));
+
+                $precLog = null;
+                foreach ($rawLogs as $l) {
+                    if ($this->toStageKey($l['stage']) === $precedingKey) {
+                        $precLog = $l;
+                        break;
+                    }
+                }
+
+                if (!$precLog) {
+                    $isOutOfOrder = true;
+                    $targetName = $wipStagesPipeline[$targetIndex] ?? strtoupper(str_replace('_', ' ', $targetStageKey));
+                    $sequenceErrorMessage = "Order Sequence Error: Unit ({$qrCode}) cannot enter stage '{$targetName}' yet. Preceding stage '{$precedingName}' must be completed first!";
+                    break;
+                }
+
+                $isFail = ((int)($precLog['qty_out'] ?? 0) === 0 || (int)($precLog['waste_qty'] ?? 0) > 0);
+                if ($isFail) {
+                    $isOutOfOrder = true;
+                    $targetName = $wipStagesPipeline[$targetIndex] ?? strtoupper(str_replace('_', ' ', $targetStageKey));
+                    $sequenceErrorMessage = "Quality Blocked: Unit ({$qrCode}) was marked as FAILED in preceding stage '{$precedingName}'. Edit entry in stage log to PASS to unblock.";
+                    break;
+                }
             }
-        }
-        if (empty($wipStagesPipeline)) {
-            $wipStagesPipeline = ['Cutting', 'Stitching', 'Checking', 'Thread cutting', 'Ironing', 'Packing'];
         }
 
         // Determine completed stage keys
@@ -834,13 +904,65 @@ class ApiController extends Controller {
             ];
         }, $rawLogs);
 
+        $latencyMs = (int)round((microtime(true) - $startTimeMs) * 1000);
+
+        if ($isAlreadyScannedInTargetStage) {
+            $formattedStage = strtoupper(str_replace('_', ' ', $targetStageKey));
+            $response->json([
+                'status' => 'already_validated',
+                'already_validated' => true,
+                'already_scanned' => true,
+                'out_of_order' => false,
+                'message' => "This QR Code ({$qrCode}) has ALREADY been validated under stage '{$formattedStage}'.",
+                'latency_ms' => $latencyMs,
+                'data' => [
+                    'qr_code' => $qrCode,
+                    'already_scanned_in_target_stage' => true,
+                    'already_validated' => true,
+                    'current_stage' => ['name' => $currentStageName],
+                    'next_allowed_stage' => ['name' => $nextAllowedStageName],
+                    'pipeline' => $wipStagesPipeline,
+                    'product' => $productPayload,
+                    'history' => $history
+                ],
+                'product' => $productPayload
+            ], 200);
+            return;
+        }
+
+        if ($isOutOfOrder) {
+            $response->json([
+                'status' => 'sequence_error',
+                'already_validated' => false,
+                'already_scanned' => false,
+                'out_of_order' => true,
+                'message' => $sequenceErrorMessage,
+                'latency_ms' => $latencyMs,
+                'data' => [
+                    'qr_code' => $qrCode,
+                    'out_of_order' => true,
+                    'current_stage' => ['name' => $currentStageName],
+                    'next_allowed_stage' => ['name' => $nextAllowedStageName],
+                    'pipeline' => $wipStagesPipeline,
+                    'product' => $productPayload,
+                    'history' => $history
+                ],
+                'product' => $productPayload
+            ], 200);
+            return;
+        }
+
         $response->json([
             'status' => 'success',
-            'already_validated' => $isAlreadyScannedInTargetStage,
-            'already_scanned' => $isAlreadyScannedInTargetStage,
+            'already_validated' => false,
+            'already_scanned' => false,
+            'out_of_order' => false,
+            'message' => 'QR Code verified successfully.',
+            'latency_ms' => $latencyMs,
             'data' => [
                 'qr_code' => $qrCode,
-                'already_scanned_in_target_stage' => $isAlreadyScannedInTargetStage,
+                'already_scanned_in_target_stage' => false,
+                'already_validated' => false,
                 'current_stage' => ['name' => $currentStageName],
                 'next_allowed_stage' => ['name' => $nextAllowedStageName],
                 'pipeline' => $wipStagesPipeline,

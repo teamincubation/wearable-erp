@@ -34,6 +34,8 @@ $router->post('/api/v1/qr/scan', [ApiController::class, 'logQrScan']);
 $router->get('/api/v1/qr/verify', [ApiController::class, 'verifyQrCode']);
 $router->post('/api/v1/qr/verify', [ApiController::class, 'verifyQrCode']);
 $router->get('/api/v1/qr/unit-status', [ApiController::class, 'verifyQrCode']);
+$router->get('/api/v1/qr/details', [ApiController::class, 'verifyQrCode']);
+$router->get('/api/v1/qr/info', [ApiController::class, 'verifyQrCode']);
 
 
 // Style Master & Associated WIP Stages API Routes
