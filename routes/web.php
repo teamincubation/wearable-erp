@@ -837,6 +837,16 @@ $router->get('/company/sales-reports/export-carton-analysis', [\App\Controllers\
        ->middleware(PermissionMiddleware::class)
        ->permission('company.sales_reports');
 
+$router->get('/company/sales-reports/api/batch-payments/{id}', [\App\Controllers\SalesReportsController::class, 'getBatchPayments'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.sales_reports');
+
+$router->post('/company/sales-reports/api/record-payment', [\App\Controllers\SalesReportsController::class, 'recordPayment'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.sales_reports');
+
 // Settings
 $router->get('/company/settings', [CompanyController::class, 'settings'])
        ->middleware(AuthMiddleware::class)

@@ -5,12 +5,13 @@ use App\Core\Database;
 use App\Core\Session;
 use App\Core\Auth;
 use App\Core\Controller;
+use App\Models\AuditLog;
 use PDO;
 
 class SalesReportsController extends Controller {
 
     /**
-     * Auto-seed sales_reports permission if not exists
+     * Auto-seed sales_reports permission & ensure required tables exist
      */
     private function ensurePermissionsExist(PDO $db): void {
         try {
@@ -24,11 +25,29 @@ class SalesReportsController extends Controller {
             }
 
             if ($permId) {
-                // Assign to Company Admin role (role_id = 2) if not mapped
                 $db->exec("INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (2, {$permId})");
             }
+
+            // Ensure batch_payments table exists
+            $db->exec("
+                CREATE TABLE IF NOT EXISTS `batch_payments` (
+                  `id` INT AUTO_INCREMENT PRIMARY KEY,
+                  `company_id` INT NOT NULL,
+                  `production_order_id` INT NOT NULL,
+                  `amount` DECIMAL(12, 2) NOT NULL,
+                  `payment_account_id` INT DEFAULT NULL,
+                  `payment_method` VARCHAR(100) DEFAULT NULL,
+                  `paid_date` DATE NOT NULL,
+                  `reference_no` VARCHAR(150) DEFAULT NULL,
+                  `notes` TEXT DEFAULT NULL,
+                  `created_by` INT DEFAULT NULL,
+                  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                  INDEX `idx_bp_company` (`company_id`),
+                  INDEX `idx_bp_prod_order` (`production_order_id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            ");
         } catch (\Exception $e) {
-            // Ignore if permission already exists or schema mismatch
+            // Ignore if permission or table already exists
         }
     }
 
@@ -61,6 +80,23 @@ class SalesReportsController extends Controller {
         $stmtBatches = $db->prepare("SELECT pro.id, pro.production_no, COALESCE(po.quantity, 0) as target_qty FROM production_orders pro LEFT JOIN buyer_pos po ON pro.po_id = po.id WHERE pro.company_id = ? AND pro.deleted_at IS NULL ORDER BY pro.id DESC");
         $stmtBatches->execute([$companyId]);
         $batches = $stmtBatches->fetchAll();
+
+        // Fetch Payment Accounts from Settings
+        $stmtPayAcc = $db->prepare("SELECT id, name, type FROM payment_accounts WHERE company_id = ? AND deleted_at IS NULL ORDER BY name ASC");
+        $stmtPayAcc->execute([$companyId]);
+        $paymentAccounts = $stmtPayAcc->fetchAll() ?: [];
+
+        // Fetch Total Payments Received per Production Batch
+        $stmtPayments = $db->prepare("SELECT production_order_id, SUM(amount) as total_received, COUNT(id) as payment_count FROM batch_payments WHERE company_id = ? GROUP BY production_order_id");
+        $stmtPayments->execute([$companyId]);
+        $batchPaymentRows = $stmtPayments->fetchAll();
+        $batchPaymentMap = [];
+        foreach ($batchPaymentRows as $pr) {
+            $batchPaymentMap[(int)$pr['production_order_id']] = [
+                'total_received' => (float)$pr['total_received'],
+                'count' => (int)$pr['payment_count']
+            ];
+        }
 
         // -------------------------------------------------------------
         // SECTION 1: PRODUCTION BATCH FINANCIALS & PROFITABILITY QUERY
@@ -152,6 +188,7 @@ class SalesReportsController extends Controller {
         $kpiPendingPayments = 0.00;
         $kpiPartiallyReceived = 0.00;
         $kpiFullyReceived = 0.00;
+        $kpiOutstandingReceivables = 0.00;
         $kpiDeliveredOrdersCount = 0;
 
         foreach ($rawBatches as $bRow) {
@@ -174,7 +211,7 @@ class SalesReportsController extends Controller {
             $fabricCost = (float)($bRow['fabric_cost'] ?: 0);
             $accessoriesCost = (float)($bRow['accessories_cost'] ?: 0);
             $procurementUnitCost = $yarnCost + $fabricCost + $accessoriesCost;
-            if ($procurementUnitCost <= 0) $procurementUnitCost = $costPerPc * 0.60; // 60% default estimation if not specified
+            if ($procurementUnitCost <= 0) $procurementUnitCost = $costPerPc * 0.60;
 
             $processingCost = (float)($bRow['processing_cost'] ?: 0);
             $packingCost = (float)($bRow['packing_cost'] ?: 0);
@@ -183,35 +220,36 @@ class SalesReportsController extends Controller {
 
             $batchProcurementCost = $procurementUnitCost * $targetQty;
             $batchMfgCost = $mfgUnitCost * $producedQty;
-            $batchLogisticsCost = $deliveredQty * 5.00; // Rs 5 per pc logistics allocation
+            $batchLogisticsCost = $deliveredQty * 5.00;
             $batchTotalCost = $batchProcurementCost + $batchMfgCost + $batchLogisticsCost;
 
             $unitCost = $producedQty > 0 ? ($batchTotalCost / $producedQty) : $costPerPc;
             $totalSalesValue = ($deliveredQty > 0 ? $deliveredQty : $producedQty) * $unitPrice;
+            if ($totalSalesValue <= 0 && $targetQty > 0 && $unitPrice > 0) {
+                $totalSalesValue = $targetQty * $unitPrice;
+            }
             $grossMfgValue = $producedQty * $unitPrice;
 
             $grossProfit = $totalSalesValue - ($batchProcurementCost + $batchMfgCost);
             $netProfit = $totalSalesValue - $batchTotalCost;
             $profitMarginPct = $totalSalesValue > 0 ? (($netProfit / $totalSalesValue) * 100) : 0.00;
 
-            // Payment Calculations
-            $poStatus = $bRow['po_status'];
-            if ($poStatus === 'approved' || $status === 'completed') {
+            // REAL-TIME PAYMENT TRACKING
+            $payInfo = $batchPaymentMap[(int)$bRow['batch_id']] ?? ['total_received' => 0.00, 'count' => 0];
+            $paymentReceived = (float)$payInfo['total_received'];
+            $balanceDue = max(0.00, $totalSalesValue - $paymentReceived);
+
+            if ($paymentReceived >= ($totalSalesValue - 0.01) && $totalSalesValue > 0) {
                 $paymentStatus = 'Fully Received';
-                $paymentReceived = $totalSalesValue;
-                $balanceDue = 0.00;
-                $kpiFullyReceived += $totalSalesValue;
-            } elseif ($status === 'in_progress') {
+                $kpiFullyReceived += $paymentReceived;
+            } elseif ($paymentReceived > 0) {
                 $paymentStatus = 'Partially Received';
-                $paymentReceived = $totalSalesValue * 0.50;
-                $balanceDue = $totalSalesValue * 0.50;
                 $kpiPartiallyReceived += $paymentReceived;
             } else {
                 $paymentStatus = 'Pending';
-                $paymentReceived = 0.00;
-                $balanceDue = $totalSalesValue;
                 $kpiPendingPayments += $totalSalesValue;
             }
+            $kpiOutstandingReceivables += $balanceDue;
 
             if ($deliveredQty > 0) $kpiDeliveredOrdersCount++;
 
@@ -247,6 +285,7 @@ class SalesReportsController extends Controller {
                 'payment_status' => $paymentStatus,
                 'payment_received' => $paymentReceived,
                 'balance_due' => $balanceDue,
+                'payment_count' => $payInfo['count'],
                 'expected_delivery' => $bRow['delivery_date'] ?: 'N/A',
                 'batch_status_badge' => $status === 'completed' ? 'Delivered / Closed' : ($status === 'in_progress' ? 'Running WIP' : 'Planned')
             ];
@@ -301,9 +340,9 @@ class SalesReportsController extends Controller {
             ORDER BY c.id DESC
         ";
 
-        $stmtCartons = $db->prepare($sqlCartons);
-        $stmtCartons->execute($cartonParams);
-        $rawCartons = $stmtCartons->fetchAll();
+        $stmtCartonList = $db->prepare($sqlCartons);
+        $stmtCartonList->execute($cartonParams);
+        $rawCartons = $stmtCartonList->fetchAll();
 
         $cartonAnalysisList = [];
         $kpiWarehouseStockValue = 0.00;
@@ -312,20 +351,23 @@ class SalesReportsController extends Controller {
         foreach ($rawCartons as $cRow) {
             $qty = (int)($cRow['total_qty'] ?: 1);
             $unitPrice = (float)($cRow['unit_price'] ?: 0);
-            $unitMfgCost = (float)($cRow['unit_mfg_cost'] ?: 0);
+            $unitCost = (float)($cRow['unit_mfg_cost'] ?: 0);
 
-            $totalMfgCost = $qty * $unitMfgCost;
+            $totalMfgCost = $qty * $unitCost;
             $estimatedSalesValue = $qty * $unitPrice;
             $expectedProfit = $estimatedSalesValue - $totalMfgCost;
             $expectedMarginPct = $estimatedSalesValue > 0 ? (($expectedProfit / $estimatedSalesValue) * 100) : 0.00;
 
             $status = $cRow['carton_status'];
-            if ($status === 'packed' || $status === 'in_warehouse') {
+            $statusLabel = 'In Warehouse';
+            if ($status === 'delivered') {
+                $statusLabel = 'Delivered';
+            } elseif ($status === 'dispatched') {
+                $statusLabel = 'Dispatched';
+            } else {
                 $kpiWarehouseStockValue += $estimatedSalesValue;
                 $kpiReadyDispatchValue += $estimatedSalesValue;
             }
-
-            $location = $cRow['warehouse_name'] ?: ($cRow['client_name'] ?: 'Factory Central Storage');
 
             $cartonAnalysisList[] = [
                 'carton_id' => $cRow['carton_id'],
@@ -334,22 +376,18 @@ class SalesReportsController extends Controller {
                 'style_display' => trim(($cRow['style_no'] ?? '') . ' - ' . ($cRow['style_name'] ?? '')),
                 'total_qty' => $qty,
                 'batch_no' => $cRow['production_no'] ?: 'N/A',
-                'packed_at' => $cRow['packed_at'],
-                'location' => $location,
-                'dispatch_status' => ucfirst($status),
-                'delivery_status' => ucfirst($cRow['shipment_status'] ?: $status),
+                'packed_at' => date('d M Y, H:i', strtotime($cRow['packed_at'])),
+                'location' => $cRow['warehouse_name'] ?: ($cRow['client_name'] ?: 'Factory Storage'),
+                'dispatch_status' => $statusLabel,
                 'total_mfg_cost' => $totalMfgCost,
-                'gross_mfg_value' => $estimatedSalesValue,
                 'estimated_sales_value' => $estimatedSalesValue,
                 'expected_profit' => $expectedProfit,
-                'expected_margin_pct' => $expectedMarginPct,
-                'current_inventory_value' => $estimatedSalesValue
+                'expected_margin_pct' => $expectedMarginPct
             ];
         }
 
         // Overall KPI Aggregates
         $kpiMarginPct = $kpiTotalSalesValue > 0 ? (($kpiNetProfit / $kpiTotalSalesValue) * 100) : 0.00;
-        $kpiOutstandingReceivables = max(0, $kpiTotalSalesValue - ($kpiFullyReceived + $kpiPartiallyReceived));
         $kpiEfficiencyPct = $totalBatchesCount > 0 ? (($completedBatchesCount / $totalBatchesCount) * 100) : 0.00;
 
         $kpis = [
@@ -384,6 +422,7 @@ class SalesReportsController extends Controller {
             'buyers' => $buyers,
             'warehouses' => $warehouses,
             'batches' => $batches,
+            'paymentAccounts' => $paymentAccounts,
             'filters' => [
                 'start_date' => $startDate,
                 'end_date' => $endDate,
@@ -392,6 +431,176 @@ class SalesReportsController extends Controller {
                 'status' => $statusFilter,
                 'batch_id' => $batchId
             ]
+        ]);
+    }
+
+    /**
+     * AJAX Endpoint: Fetch Payment Receipts & History for a Production Batch
+     */
+    public function getBatchPayments(int $id): void {
+        $companyId = Session::get('company_id');
+        $db = Database::getInstance();
+
+        $stmtB = $db->prepare("
+            SELECT pro.id as batch_id, pro.production_no, COALESCE(po.quantity, 0) as target_qty,
+                   po.po_no, po.unit_price, s.style_no, s.name as style_name, b.name as buyer_name
+            FROM production_orders pro
+            LEFT JOIN buyer_pos po ON pro.po_id = po.id
+            LEFT JOIN styles s ON po.style_id = s.id
+            LEFT JOIN contacts b ON po.buyer_id = b.id
+            WHERE pro.id = ? AND pro.company_id = ? AND pro.deleted_at IS NULL
+        ");
+        $stmtB->execute([$id, $companyId]);
+        $batch = $stmtB->fetch();
+
+        if (!$batch) {
+            header('Content-Type: application/json');
+            echo json_encode(['error' => 'Production batch not found']);
+            return;
+        }
+
+        $stmtP = $db->prepare("
+            SELECT bp.*, pa.name as account_name, pa.type as account_type
+            FROM batch_payments bp
+            LEFT JOIN payment_accounts pa ON bp.payment_account_id = pa.id
+            WHERE bp.production_order_id = ? AND bp.company_id = ?
+            ORDER BY bp.paid_date DESC, bp.id DESC
+        ");
+        $stmtP->execute([$id, $companyId]);
+        $payments = $stmtP->fetchAll() ?: [];
+
+        $stmtAcc = $db->prepare("SELECT id, name, type FROM payment_accounts WHERE company_id = ? AND deleted_at IS NULL ORDER BY name ASC");
+        $stmtAcc->execute([$companyId]);
+        $paymentAccounts = $stmtAcc->fetchAll() ?: [];
+
+        $targetQty = (int)($batch['target_qty'] ?: 1);
+        $unitPrice = (float)($batch['unit_price'] ?: 0);
+        $totalSalesValue = $targetQty * $unitPrice;
+        $totalReceived = array_sum(array_column($payments, 'amount'));
+        $balanceDue = max(0.00, $totalSalesValue - $totalReceived);
+
+        if ($totalReceived >= ($totalSalesValue - 0.01) && $totalSalesValue > 0) {
+            $paymentStatus = 'Fully Received';
+        } elseif ($totalReceived > 0) {
+            $paymentStatus = 'Partially Received';
+        } else {
+            $paymentStatus = 'Pending';
+        }
+
+        header('Content-Type: application/json');
+        echo json_encode([
+            'batch' => $batch,
+            'payments' => $payments,
+            'payment_accounts' => $paymentAccounts,
+            'total_sales_value' => $totalSalesValue,
+            'total_received' => $totalReceived,
+            'balance_due' => $balanceDue,
+            'payment_status' => $paymentStatus
+        ]);
+    }
+
+    /**
+     * AJAX Endpoint: Record New Payment for a Production Batch
+     */
+    public function recordPayment(): void {
+        $companyId = Session::get('company_id');
+        $userId = Session::get('user_id');
+        $db = Database::getInstance();
+
+        $rawInput = file_get_contents('php://input');
+        $json = json_decode($rawInput, true) ?: [];
+
+        $batchId = (int)($_POST['batch_id'] ?? ($json['batch_id'] ?? 0));
+        $amount = (float)($_POST['amount'] ?? ($json['amount'] ?? 0));
+        $paymentAccountId = !empty($_POST['payment_account_id']) ? (int)$_POST['payment_account_id'] : (!empty($json['payment_account_id']) ? (int)$json['payment_account_id'] : null);
+        $paidDate = trim($_POST['paid_date'] ?? ($json['paid_date'] ?? date('Y-m-d')));
+        $referenceNo = trim($_POST['reference_no'] ?? ($json['reference_no'] ?? ''));
+        $notes = trim($_POST['notes'] ?? ($json['notes'] ?? ''));
+
+        if ($batchId <= 0 || $amount <= 0.00) {
+            header('Content-Type: application/json');
+            echo json_encode(['error' => 'Batch ID and a valid payment amount > 0 are required.']);
+            return;
+        }
+
+        $stmtB = $db->prepare("
+            SELECT pro.id, pro.production_no, COALESCE(po.quantity, 0) as target_qty, po.unit_price
+            FROM production_orders pro
+            LEFT JOIN buyer_pos po ON pro.po_id = po.id
+            WHERE pro.id = ? AND pro.company_id = ? AND pro.deleted_at IS NULL
+        ");
+        $stmtB->execute([$batchId, $companyId]);
+        $batch = $stmtB->fetch();
+
+        if (!$batch) {
+            header('Content-Type: application/json');
+            echo json_encode(['error' => 'Batch not found.']);
+            return;
+        }
+
+        $targetQty = (int)($batch['target_qty'] ?: 1);
+        $unitPrice = (float)($batch['unit_price'] ?: 0);
+        $totalSalesValue = $targetQty * $unitPrice;
+
+        $stmtSum = $db->prepare("SELECT SUM(amount) FROM batch_payments WHERE production_order_id = ? AND company_id = ?");
+        $stmtSum->execute([$batchId, $companyId]);
+        $currentReceived = (float)($stmtSum->fetchColumn() ?: 0.00);
+
+        if ($currentReceived + $amount > $totalSalesValue + 0.01) {
+            $maxAllowed = max(0.00, $totalSalesValue - $currentReceived);
+            header('Content-Type: application/json');
+            echo json_encode([
+                'error' => "Received amount (₹" . number_format($amount, 2) . ") exceeds total revenue (₹" . number_format($totalSalesValue, 2) . "). Maximum remaining payable amount is ₹" . number_format($maxAllowed, 2)
+            ]);
+            return;
+        }
+
+        $paymentMethod = 'Direct Payment';
+        if ($paymentAccountId) {
+            $stmtAcc = $db->prepare("SELECT name, type FROM payment_accounts WHERE id = ? AND company_id = ?");
+            $stmtAcc->execute([$paymentAccountId, $companyId]);
+            $acc = $stmtAcc->fetch();
+            if ($acc) {
+                $paymentMethod = $acc['name'] . ' (' . $acc['type'] . ')';
+            }
+        }
+
+        $stmtIns = $db->prepare("
+            INSERT INTO batch_payments (company_id, production_order_id, amount, payment_account_id, payment_method, paid_date, reference_no, notes, created_by, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        ");
+        $stmtIns->execute([
+            $companyId,
+            $batchId,
+            $amount,
+            $paymentAccountId,
+            $paymentMethod,
+            $paidDate,
+            $referenceNo,
+            $notes,
+            $userId
+        ]);
+
+        $newReceived = $currentReceived + $amount;
+        $newBalance = max(0.00, $totalSalesValue - $newReceived);
+
+        if ($newReceived >= ($totalSalesValue - 0.01) && $totalSalesValue > 0) {
+            $newStatus = 'Fully Received';
+        } elseif ($newReceived > 0) {
+            $newStatus = 'Partially Received';
+        } else {
+            $newStatus = 'Pending';
+        }
+
+        AuditLog::log($companyId, $userId, 'record_batch_payment', 'BatchPayment', $db->lastInsertId(), null, null, "Recorded payment ₹" . number_format($amount, 2) . " for Batch {$batch['production_no']}");
+
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => true,
+            'message' => "Payment of ₹" . number_format($amount, 2) . " recorded successfully!",
+            'total_received' => $newReceived,
+            'balance_due' => $newBalance,
+            'payment_status' => $newStatus
         ]);
     }
 
@@ -461,7 +670,7 @@ class SalesReportsController extends Controller {
         ]);
 
         $stmt = $db->prepare("
-            SELECT pro.production_no, b.name as buyer_name, po.po_no, s.style_no, s.name as style_name, s.category,
+            SELECT pro.id as batch_id, pro.production_no, b.name as buyer_name, po.po_no, s.style_no, s.name as style_name, s.category,
                    COALESCE(po.quantity, 0) as target_qty, pro.status, po.unit_price, cs.total_cost as cs_total_cost, po.delivery_date
             FROM production_orders pro
             LEFT JOIN buyer_pos po ON pro.po_id = po.id
@@ -473,6 +682,14 @@ class SalesReportsController extends Controller {
         ");
         $stmt->execute([$companyId]);
         $rows = $stmt->fetchAll();
+
+        // Fetch payment totals
+        $stmtPayments = $db->prepare("SELECT production_order_id, SUM(amount) as total_received FROM batch_payments WHERE company_id = ? GROUP BY production_order_id");
+        $stmtPayments->execute([$companyId]);
+        $batchPaymentMap = [];
+        foreach ($stmtPayments->fetchAll() as $pr) {
+            $batchPaymentMap[(int)$pr['production_order_id']] = (float)$pr['total_received'];
+        }
 
         foreach ($rows as $r) {
             $targetQty = (int)($r['target_qty'] ?: 1);
@@ -488,6 +705,17 @@ class SalesReportsController extends Controller {
             $grossProfit = $totalSales - ($procurementCost + $mfgCost);
             $netProfit = $totalSales - $totalCost;
             $marginPct = $totalSales > 0 ? (($netProfit / $totalSales) * 100) : 0.00;
+
+            $received = (float)($batchPaymentMap[(int)$r['batch_id']] ?? 0.00);
+            $balance = max(0.00, $totalSales - $received);
+
+            if ($received >= ($totalSales - 0.01) && $totalSales > 0) {
+                $pStatus = 'Fully Received';
+            } elseif ($received > 0) {
+                $pStatus = 'Partially Received';
+            } else {
+                $pStatus = 'Pending';
+            }
 
             fputcsv($output, [
                 $r['production_no'],
@@ -510,9 +738,9 @@ class SalesReportsController extends Controller {
                 number_format($netProfit, 2, '.', ''),
                 number_format($marginPct, 2, '.', ''),
                 'Issued',
-                'Fully Received',
-                number_format($totalSales, 2, '.', ''),
-                '0.00',
+                $pStatus,
+                number_format($received, 2, '.', ''),
+                number_format($balance, 2, '.', ''),
                 $r['delivery_date'] ?: 'N/A',
                 ucfirst($r['status'])
             ]);

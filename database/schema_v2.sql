@@ -724,4 +724,23 @@ CREATE TABLE IF NOT EXISTS `style_variables` (
   INDEX `idx_style_var_type` (`type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 39. BATCH PAYMENTS TABLE
+CREATE TABLE IF NOT EXISTS `batch_payments` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `company_id` INT NOT NULL,
+  `production_order_id` INT NOT NULL,
+  `amount` DECIMAL(12, 2) NOT NULL,
+  `payment_account_id` INT DEFAULT NULL,
+  `payment_method` VARCHAR(100) DEFAULT NULL,
+  `paid_date` DATE NOT NULL,
+  `reference_no` VARCHAR(150) DEFAULT NULL,
+  `notes` TEXT DEFAULT NULL,
+  `created_by` INT DEFAULT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT `fk_bp_company` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_bp_prod_order` FOREIGN KEY (`production_order_id`) REFERENCES `production_orders` (`id`) ON DELETE CASCADE,
+  INDEX `idx_bp_company` (`company_id`),
+  INDEX `idx_bp_prod_order` (`production_order_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;
