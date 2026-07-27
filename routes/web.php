@@ -9,7 +9,6 @@ use App\Controllers\AuthController;
 use App\Controllers\DashboardController;
 use App\Controllers\DeveloperController;
 use App\Controllers\CompanyController;
-use App\Controllers\ApiController;
 
 use App\Middleware\AuthMiddleware;
 use App\Middleware\PermissionMiddleware;
@@ -21,35 +20,6 @@ use App\Middleware\CsrfMiddleware;
 // 1. PUBLIC & AUTHENTICATION ROUTES
 // ==========================================================
 $router->get('/', [DashboardController::class, 'landing']);
-
-// Flutter Mobile REST API Routes
-$router->post('/api/v1/employee/login', [ApiController::class, 'login']);
-$router->post('/api/v1/login', [ApiController::class, 'login']);
-$router->get('/api/v1/me', [ApiController::class, 'me']);
-$router->post('/api/v1/verify-token', [ApiController::class, 'me']);
-
-$router->get('/api/v1/qr/batches', [ApiController::class, 'getQrBatches']);
-$router->get('/api/v1/qr/stages', [ApiController::class, 'getQrStages']);
-$router->post('/api/v1/qr/scan', [ApiController::class, 'logQrScan']);
-$router->post('/api/v1/qr/scan/delete', [ApiController::class, 'deleteQrScan']);
-$router->post('/api/v1/qr/scan/delete/{id}', [ApiController::class, 'deleteQrScan']);
-$router->get('/api/v1/qr/verify', [ApiController::class, 'verifyQrCode']);
-$router->post('/api/v1/qr/verify', [ApiController::class, 'verifyQrCode']);
-$router->get('/api/v1/qr/unit-status', [ApiController::class, 'verifyQrCode']);
-$router->get('/api/v1/qr/details', [ApiController::class, 'verifyQrCode']);
-$router->get('/api/v1/qr/info', [ApiController::class, 'verifyQrCode']);
-$router->get('/api/v1/qr/unit-history', [ApiController::class, 'getUnitHistory']);
-$router->post('/api/v1/qr/unit-history', [ApiController::class, 'getUnitHistory']);
-
-
-// Style Master & Associated WIP Stages API Routes
-$router->get('/api/v1/styles', [ApiController::class, 'getStyles']);
-$router->get('/api/v1/styles/{id}', [ApiController::class, 'getStyleDetails']);
-$router->get('/api/v1/styles/{id}/stages', [ApiController::class, 'getQrStages']);
-
-// Company Logo & Branding API Routes
-$router->get('/api/v1/company/logo', [ApiController::class, 'getCompanyLogo']);
-$router->get('/api/v1/company/info', [ApiController::class, 'getCompanyLogo']);
 
 // Single Universal SaaS Portal Login Routes
 $router->get('/login', [AuthController::class, 'showLogin']);
