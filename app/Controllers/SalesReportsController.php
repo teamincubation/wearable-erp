@@ -437,7 +437,8 @@ class SalesReportsController extends Controller {
     /**
      * AJAX Endpoint: Fetch Payment Receipts & History for a Production Batch
      */
-    public function getBatchPayments(int $id): void {
+    public function getBatchPayments($request = null, $response = null, $id = null): void {
+        $batchId = (int)($id ?? ($_GET['id'] ?? 0));
         $companyId = Session::get('company_id');
         $db = Database::getInstance();
 
@@ -450,7 +451,7 @@ class SalesReportsController extends Controller {
             LEFT JOIN contacts b ON po.buyer_id = b.id
             WHERE pro.id = ? AND pro.company_id = ? AND pro.deleted_at IS NULL
         ");
-        $stmtB->execute([$id, $companyId]);
+        $stmtB->execute([$batchId, $companyId]);
         $batch = $stmtB->fetch();
 
         if (!$batch) {
@@ -466,7 +467,7 @@ class SalesReportsController extends Controller {
             WHERE bp.production_order_id = ? AND bp.company_id = ?
             ORDER BY bp.paid_date DESC, bp.id DESC
         ");
-        $stmtP->execute([$id, $companyId]);
+        $stmtP->execute([$batchId, $companyId]);
         $payments = $stmtP->fetchAll() ?: [];
 
         $stmtAcc = $db->prepare("SELECT id, name, type FROM payment_accounts WHERE company_id = ? AND deleted_at IS NULL ORDER BY name ASC");
@@ -502,7 +503,7 @@ class SalesReportsController extends Controller {
     /**
      * AJAX Endpoint: Record New Payment for a Production Batch
      */
-    public function recordPayment(): void {
+    public function recordPayment($request = null, $response = null): void {
         $companyId = Session::get('company_id');
         $userId = Session::get('user_id');
         $db = Database::getInstance();
@@ -607,7 +608,8 @@ class SalesReportsController extends Controller {
     /**
      * AJAX Endpoint: Fetch Itemized Carton Contents for Modal Drill-Down
      */
-    public function getCartonDetails(int $id): void {
+    public function getCartonDetails($request = null, $response = null, $id = null): void {
+        $cartonId = (int)($id ?? ($_GET['id'] ?? 0));
         $companyId = Session::get('company_id');
         $db = Database::getInstance();
 
@@ -620,7 +622,7 @@ class SalesReportsController extends Controller {
             LEFT JOIN warehouses w ON c.warehouse_id = w.id
             WHERE c.id = ? AND c.company_id = ?
         ");
-        $stmtCtn->execute([$id, $companyId]);
+        $stmtCtn->execute([$cartonId, $companyId]);
         $carton = $stmtCtn->fetch();
 
         if (!$carton) {
@@ -637,7 +639,7 @@ class SalesReportsController extends Controller {
             GROUP BY ci.id
             ORDER BY ci.id ASC
         ");
-        $stmtItems->execute([$id]);
+        $stmtItems->execute([$cartonId]);
         $items = $stmtItems->fetchAll();
 
         header('Content-Type: application/json');
@@ -650,7 +652,7 @@ class SalesReportsController extends Controller {
     /**
      * Export Section 1: Production Batch Financials to CSV / Excel
      */
-    public function exportBatchFinancials(): void {
+    public function exportBatchFinancials($request = null, $response = null): void {
         $companyId = Session::get('company_id');
         $db = Database::getInstance();
 
@@ -752,7 +754,7 @@ class SalesReportsController extends Controller {
     /**
      * Export Section 2: Carton & Warehouse Sales Analysis to CSV / Excel
      */
-    public function exportCartonAnalysis(): void {
+    public function exportCartonAnalysis($request = null, $response = null): void {
         $companyId = Session::get('company_id');
         $db = Database::getInstance();
 
