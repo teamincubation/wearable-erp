@@ -31,6 +31,8 @@ $router->post('/api/v1/verify-token', [ApiController::class, 'me']);
 $router->get('/api/v1/qr/batches', [ApiController::class, 'getQrBatches']);
 $router->get('/api/v1/qr/stages', [ApiController::class, 'getQrStages']);
 $router->post('/api/v1/qr/scan', [ApiController::class, 'logQrScan']);
+$router->post('/api/v1/qr/scan/delete', [ApiController::class, 'deleteQrScan']);
+$router->post('/api/v1/qr/scan/delete/{id}', [ApiController::class, 'deleteQrScan']);
 $router->get('/api/v1/qr/verify', [ApiController::class, 'verifyQrCode']);
 $router->post('/api/v1/qr/verify', [ApiController::class, 'verifyQrCode']);
 $router->get('/api/v1/qr/unit-status', [ApiController::class, 'verifyQrCode']);

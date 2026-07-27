@@ -555,9 +555,26 @@ class ProductionController extends Controller {
 
         try {
             // Delete all matching duplicate log entries for this QR code tag in this stage to prevent false 'already done' checks
-            if (!empty($log['qr_code'])) {
-                $stmtDelete = $db->prepare("DELETE FROM production_stage_logs WHERE company_id = ? AND LOWER(TRIM(qr_code)) = LOWER(TRIM(?)) AND LOWER(TRIM(stage)) = LOWER(TRIM(?))");
-                $stmtDelete->execute([$companyId, $log['qr_code'], $log['stage']]);
+            $qrVal = !empty($log['qr_code']) ? $log['qr_code'] : (!empty($log['scanned_qr_code']) ? $log['scanned_qr_code'] : '');
+            $cleanStage = StageHelper::toStageKey((string)$log['stage']);
+
+            if (!empty($qrVal)) {
+                $stmtDelete = $db->prepare("
+                    DELETE FROM production_stage_logs 
+                    WHERE company_id = ? AND (
+                        id = ? OR 
+                        ((LOWER(TRIM(qr_code)) = LOWER(TRIM(?)) OR LOWER(TRIM(scanned_qr_code)) = LOWER(TRIM(?))) AND 
+                         (LOWER(TRIM(stage)) = LOWER(TRIM(?)) OR LOWER(TRIM(stage)) = LOWER(TRIM(?))))
+                    )
+                ");
+                $stmtDelete->execute([
+                    $companyId,
+                    (int)$id,
+                    $qrVal,
+                    $qrVal,
+                    $log['stage'],
+                    $cleanStage
+                ]);
             } else {
                 $stmtDelete = $db->prepare("DELETE FROM production_stage_logs WHERE id = ? AND company_id = ?");
                 $stmtDelete->execute([(int)$id, $companyId]);
@@ -587,9 +604,23 @@ class ProductionController extends Controller {
             return;
         }
 
+        // Fetch production order details to match production_no as well
+        $stmtOrder = $db->prepare("SELECT production_no FROM production_orders WHERE id = ? AND company_id = ? LIMIT 1");
+        $stmtOrder->execute([(int)$id, $companyId]);
+        $orderNo = $stmtOrder->fetchColumn();
+
         try {
-            $stmtClear = $db->prepare("DELETE FROM production_stage_logs WHERE production_order_id = ? AND company_id = ?");
-            $stmtClear->execute([(int)$id, $companyId]);
+            if ($orderNo) {
+                $batchParam = "%{$orderNo}%";
+                $stmtClear = $db->prepare("
+                    DELETE FROM production_stage_logs 
+                    WHERE company_id = ? AND (production_order_id = ? OR qr_code LIKE ? OR scanned_qr_code LIKE ?)
+                ");
+                $stmtClear->execute([$companyId, (int)$id, $batchParam, $batchParam]);
+            } else {
+                $stmtClear = $db->prepare("DELETE FROM production_stage_logs WHERE production_order_id = ? AND company_id = ?");
+                $stmtClear->execute([(int)$id, $companyId]);
+            }
 
             AuditLog::log($companyId, $userId, 'clear_production_stage_logs', 'ProductionOrder', (int)$id, null, null, "Cleared all activity logs for batch id {$id}");
             Session::setFlash('success', 'All activity feed logs for this production order have been deleted.');

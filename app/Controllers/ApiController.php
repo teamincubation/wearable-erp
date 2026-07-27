@@ -675,6 +675,58 @@ class ApiController extends Controller {
     }
 
     /**
+     * Delete / Reset Scanned QR Code Entry via Mobile API
+     * POST /api/v1/qr/scan/delete or DELETE /api/v1/qr/scan/{id}
+     */
+    public function deleteQrScan(Request $request, Response $response): void {
+        $this->setCorsHeaders();
+
+        $token = $this->extractToken($request);
+        $userData = $token ? $this->verifyApiToken($token) : null;
+
+        if (!$userData || empty($userData['company_id'])) {
+            $response->json(['status' => 'error', 'message' => 'Unauthorized or missing company context.'], 401);
+            return;
+        }
+
+        $companyId = (int)$userData['company_id'];
+        $db = Database::getInstance();
+
+        $logId = (int)($request->get('id') ?: $request->get('log_id', 0));
+        $qrCode = trim((string)($request->get('qr_code') ?: $request->get('qr', '')));
+        $stageKey = !empty($request->get('stage')) ? StageHelper::toStageKey((string)$request->get('stage')) : '';
+
+        if ($logId <= 0 && empty($qrCode)) {
+            $response->json(['status' => 'error', 'message' => 'Log ID or QR Code is required for deletion.'], 400);
+            return;
+        }
+
+        try {
+            if ($logId > 0) {
+                $db->prepare("DELETE FROM production_stage_logs WHERE id = ? AND company_id = ?")->execute([$logId, $companyId]);
+            } else if (!empty($qrCode) && !empty($stageKey)) {
+                $db->prepare("
+                    DELETE FROM production_stage_logs 
+                    WHERE company_id = ? AND (LOWER(TRIM(qr_code)) = LOWER(TRIM(?)) OR LOWER(TRIM(scanned_qr_code)) = LOWER(TRIM(?)))
+                      AND (LOWER(TRIM(stage)) = LOWER(TRIM(?)) OR LOWER(TRIM(stage)) = LOWER(TRIM(?)))
+                ")->execute([$companyId, $qrCode, $qrCode, $stageKey, StageHelper::toStageName($stageKey)]);
+            } else if (!empty($qrCode)) {
+                $db->prepare("
+                    DELETE FROM production_stage_logs 
+                    WHERE company_id = ? AND (LOWER(TRIM(qr_code)) = LOWER(TRIM(?)) OR LOWER(TRIM(scanned_qr_code)) = LOWER(TRIM(?)))
+                ")->execute([$companyId, $qrCode, $qrCode]);
+            }
+
+            $response->json([
+                'status' => 'success',
+                'message' => 'Scan record deleted successfully.'
+            ], 200);
+        } catch (\Exception $e) {
+            $response->json(['status' => 'error', 'message' => 'Failed to delete scan record: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Inspect QR Code Status, Detect Already Scanned, and Identify Current Stage Level
      * GET /api/v1/qr/verify or POST /api/v1/qr/verify or GET /api/v1/qr/unit-status
      */
