@@ -540,7 +540,7 @@ class ApiController extends Controller {
         }
 
         if (!$batch && !empty($batchNo)) {
-            $stmtB = $db->prepare("SELECT id, status FROM production_orders WHERE company_id = ? AND (production_no = ? OR id = ?) AND deleted_at IS NULL LIMIT 1");
+            $stmtB = $db->prepare("SELECT id, status FROM production_orders WHERE company_id = ? AND (LOWER(production_no) = LOWER(?) OR id = ?) AND deleted_at IS NULL LIMIT 1");
             $stmtB->execute([$companyId, $batchNo, is_numeric($batchNo) ? (int)$batchNo : 0]);
             $batch = $stmtB->fetch();
         }
@@ -549,7 +549,7 @@ class ApiController extends Controller {
             $parts = explode('-', $qrCode);
             if (count($parts) >= 3) {
                 $extractedBatchNo = implode('-', array_slice($parts, 0, count($parts) - 2));
-                $stmtB = $db->prepare("SELECT id, status FROM production_orders WHERE company_id = ? AND production_no = ? AND deleted_at IS NULL LIMIT 1");
+                $stmtB = $db->prepare("SELECT id, status FROM production_orders WHERE company_id = ? AND LOWER(production_no) = LOWER(?) AND deleted_at IS NULL LIMIT 1");
                 $stmtB->execute([$companyId, $extractedBatchNo]);
                 $batch = $stmtB->fetch();
             }

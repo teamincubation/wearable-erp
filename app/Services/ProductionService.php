@@ -144,13 +144,28 @@ class ProductionService {
 
         $wip = [];
         foreach ($stages as $s) {
-            // WIP at a stage = Qty In - Qty Out - Waste Qty
-            $wip[$s['stage']] = [
-                'in' => (int) $s['total_in'],
-                'out' => (int) $s['total_out'],
-                'waste' => (int) $s['total_waste'],
-                'wip_balance' => (int) ($s['total_in'] - $s['total_out'] - $s['total_waste'])
-            ];
+            $rawStage = (string)$s['stage'];
+            $cleanKey = strtolower(trim((string)preg_replace('/^(#|\d+[\.\-\:\)]\s*|(Stage|Step)\s*\d+[\.\-\:\)]?\s*)/i', '', $rawStage)));
+            $cleanKey = trim((string)preg_replace('/[^a-z0-9]+/', '_', $cleanKey), '_');
+
+            if (empty($cleanKey)) {
+                $cleanKey = strtolower(trim($rawStage));
+            }
+
+            $in = (int)$s['total_in'];
+            $out = (int)$s['total_out'];
+            $waste = (int)$s['total_waste'];
+
+            if (!isset($wip[$cleanKey])) {
+                $wip[$cleanKey] = ['in' => 0, 'out' => 0, 'waste' => 0, 'wip_balance' => 0];
+            }
+            $wip[$cleanKey]['in'] += $in;
+            $wip[$cleanKey]['out'] += $out;
+            $wip[$cleanKey]['waste'] += $waste;
+            $wip[$cleanKey]['wip_balance'] += ($in - $out - $waste);
+
+            $wip[$rawStage] = $wip[$cleanKey];
+            $wip[strtolower($rawStage)] = $wip[$cleanKey];
         }
 
         return $wip;
