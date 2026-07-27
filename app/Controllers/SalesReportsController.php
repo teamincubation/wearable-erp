@@ -46,6 +46,14 @@ class SalesReportsController extends Controller {
                   INDEX `idx_bp_prod_order` (`production_order_id`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
             ");
+
+            // Auto-heal: soft delete production orders linked to deleted buyer POs
+            $db->exec("
+                UPDATE production_orders pro 
+                JOIN buyer_pos po ON pro.po_id = po.id 
+                SET pro.deleted_at = NOW() 
+                WHERE po.deleted_at IS NOT NULL AND pro.deleted_at IS NULL;
+            ");
         } catch (\Exception $e) {
             // Ignore if permission or table already exists
         }
@@ -77,7 +85,7 @@ class SalesReportsController extends Controller {
         $stmtWarehouses->execute([$companyId]);
         $warehouses = $stmtWarehouses->fetchAll();
 
-        $stmtBatches = $db->prepare("SELECT pro.id, pro.production_no, COALESCE(po.quantity, 0) as target_qty FROM production_orders pro LEFT JOIN buyer_pos po ON pro.po_id = po.id WHERE pro.company_id = ? AND pro.deleted_at IS NULL ORDER BY pro.id DESC");
+        $stmtBatches = $db->prepare("SELECT pro.id, pro.production_no, COALESCE(po.quantity, 0) as target_qty FROM production_orders pro LEFT JOIN buyer_pos po ON (pro.po_id = po.id AND po.deleted_at IS NULL) WHERE pro.company_id = ? AND pro.deleted_at IS NULL AND (pro.po_id IS NULL OR po.id IS NOT NULL) ORDER BY pro.id DESC");
         $stmtBatches->execute([$companyId]);
         $batches = $stmtBatches->fetchAll();
 
@@ -101,7 +109,7 @@ class SalesReportsController extends Controller {
         // -------------------------------------------------------------
         // SECTION 1: PRODUCTION BATCH FINANCIALS & PROFITABILITY QUERY
         // -------------------------------------------------------------
-        $batchWhere = ["pro.company_id = ? AND pro.deleted_at IS NULL"];
+        $batchWhere = ["pro.company_id = ? AND pro.deleted_at IS NULL AND (pro.po_id IS NULL OR po.id IS NOT NULL)"];
         $batchParams = [$companyId];
 
         if (!empty($startDate)) {
@@ -137,9 +145,9 @@ class SalesReportsController extends Controller {
                    COALESCE(deliv_count.delivered_pcs, 0) as delivered_pcs,
                    COALESCE(packed_count.packed_pcs, 0) as packed_pcs
             FROM production_orders pro
-            LEFT JOIN buyer_pos po ON pro.po_id = po.id
-            LEFT JOIN styles s ON po.style_id = s.id
-            LEFT JOIN contacts b ON po.buyer_id = b.id
+            LEFT JOIN buyer_pos po ON (pro.po_id = po.id AND po.deleted_at IS NULL)
+            LEFT JOIN styles s ON (po.style_id = s.id AND s.deleted_at IS NULL)
+            LEFT JOIN contacts b ON (po.buyer_id = b.id AND b.deleted_at IS NULL)
             LEFT JOIN cost_sheets cs ON (s.id = cs.style_id AND cs.deleted_at IS NULL)
             LEFT JOIN (
                 SELECT production_order_id, COUNT(DISTINCT scanned_qr_code) as completed_pcs
@@ -323,12 +331,12 @@ class SalesReportsController extends Controller {
                    shp.shipment_no, shp.status as shipment_status,
                    COALESCE(ci_count.item_qty, 0) as total_qty
             FROM cartons c
-            LEFT JOIN production_orders pro ON c.production_order_id = pro.id
-            LEFT JOIN buyer_pos po ON pro.po_id = po.id
-            LEFT JOIN styles s ON po.style_id = s.id
+            LEFT JOIN production_orders pro ON (c.production_order_id = pro.id AND pro.deleted_at IS NULL)
+            LEFT JOIN buyer_pos po ON (pro.po_id = po.id AND po.deleted_at IS NULL)
+            LEFT JOIN styles s ON (po.style_id = s.id AND s.deleted_at IS NULL)
             LEFT JOIN cost_sheets cs ON (s.id = cs.style_id AND cs.deleted_at IS NULL)
-            LEFT JOIN warehouses w ON c.warehouse_id = w.id
-            LEFT JOIN contacts cl ON c.client_id = cl.id
+            LEFT JOIN warehouses w ON (c.warehouse_id = w.id AND w.deleted_at IS NULL)
+            LEFT JOIN contacts cl ON (c.client_id = cl.id AND cl.deleted_at IS NULL)
             LEFT JOIN shipment_cartons sc ON c.id = sc.carton_id
             LEFT JOIN shipments shp ON sc.shipment_id = shp.id
             LEFT JOIN (
@@ -336,7 +344,7 @@ class SalesReportsController extends Controller {
                 FROM carton_items
                 GROUP BY carton_id
             ) ci_count ON c.id = ci_count.carton_id
-            WHERE {$cartonWhereStr}
+            WHERE {$cartonWhereStr} AND (c.production_order_id IS NULL OR pro.id IS NOT NULL)
             ORDER BY c.id DESC
         ";
 
@@ -446,10 +454,10 @@ class SalesReportsController extends Controller {
             SELECT pro.id as batch_id, pro.production_no, COALESCE(po.quantity, 0) as target_qty,
                    po.po_no, po.unit_price, s.style_no, s.name as style_name, b.name as buyer_name
             FROM production_orders pro
-            LEFT JOIN buyer_pos po ON pro.po_id = po.id
-            LEFT JOIN styles s ON po.style_id = s.id
-            LEFT JOIN contacts b ON po.buyer_id = b.id
-            WHERE pro.id = ? AND pro.company_id = ? AND pro.deleted_at IS NULL
+            LEFT JOIN buyer_pos po ON (pro.po_id = po.id AND po.deleted_at IS NULL)
+            LEFT JOIN styles s ON (po.style_id = s.id AND s.deleted_at IS NULL)
+            LEFT JOIN contacts b ON (po.buyer_id = b.id AND b.deleted_at IS NULL)
+            WHERE pro.id = ? AND pro.company_id = ? AND pro.deleted_at IS NULL AND (pro.po_id IS NULL OR po.id IS NOT NULL)
         ");
         $stmtB->execute([$batchId, $companyId]);
         $batch = $stmtB->fetch();
@@ -527,8 +535,8 @@ class SalesReportsController extends Controller {
         $stmtB = $db->prepare("
             SELECT pro.id, pro.production_no, COALESCE(po.quantity, 0) as target_qty, po.unit_price
             FROM production_orders pro
-            LEFT JOIN buyer_pos po ON pro.po_id = po.id
-            WHERE pro.id = ? AND pro.company_id = ? AND pro.deleted_at IS NULL
+            LEFT JOIN buyer_pos po ON (pro.po_id = po.id AND po.deleted_at IS NULL)
+            WHERE pro.id = ? AND pro.company_id = ? AND pro.deleted_at IS NULL AND (pro.po_id IS NULL OR po.id IS NOT NULL)
         ");
         $stmtB->execute([$batchId, $companyId]);
         $batch = $stmtB->fetch();
@@ -616,10 +624,10 @@ class SalesReportsController extends Controller {
         $stmtCtn = $db->prepare("
             SELECT c.*, pro.production_no, s.style_no, s.name as style_name, po.po_no, w.name as warehouse_name
             FROM cartons c
-            LEFT JOIN production_orders pro ON c.production_order_id = pro.id
-            LEFT JOIN buyer_pos po ON pro.po_id = po.id
-            LEFT JOIN styles s ON po.style_id = s.id
-            LEFT JOIN warehouses w ON c.warehouse_id = w.id
+            LEFT JOIN production_orders pro ON (c.production_order_id = pro.id AND pro.deleted_at IS NULL)
+            LEFT JOIN buyer_pos po ON (pro.po_id = po.id AND po.deleted_at IS NULL)
+            LEFT JOIN styles s ON (po.style_id = s.id AND s.deleted_at IS NULL)
+            LEFT JOIN warehouses w ON (c.warehouse_id = w.id AND w.deleted_at IS NULL)
             WHERE c.id = ? AND c.company_id = ?
         ");
         $stmtCtn->execute([$cartonId, $companyId]);
@@ -675,11 +683,11 @@ class SalesReportsController extends Controller {
             SELECT pro.id as batch_id, pro.production_no, b.name as buyer_name, po.po_no, s.style_no, s.name as style_name, s.category,
                    COALESCE(po.quantity, 0) as target_qty, pro.status, po.unit_price, cs.total_cost as cs_total_cost, po.delivery_date
             FROM production_orders pro
-            LEFT JOIN buyer_pos po ON pro.po_id = po.id
-            LEFT JOIN styles s ON po.style_id = s.id
-            LEFT JOIN contacts b ON po.buyer_id = b.id
+            LEFT JOIN buyer_pos po ON (pro.po_id = po.id AND po.deleted_at IS NULL)
+            LEFT JOIN styles s ON (po.style_id = s.id AND s.deleted_at IS NULL)
+            LEFT JOIN contacts b ON (po.buyer_id = b.id AND b.deleted_at IS NULL)
             LEFT JOIN cost_sheets cs ON (s.id = cs.style_id AND cs.deleted_at IS NULL)
-            WHERE pro.company_id = ? AND pro.deleted_at IS NULL
+            WHERE pro.company_id = ? AND pro.deleted_at IS NULL AND (pro.po_id IS NULL OR po.id IS NOT NULL)
             ORDER BY pro.id DESC
         ");
         $stmt->execute([$companyId]);
