@@ -530,10 +530,14 @@ class ProductionController extends Controller {
     /**
      * Delete individual production stage log
      */
-    public function deleteStageLog(Request $request, Response $response, string $id): void {
+    public function deleteStageLog($request = null, $response = null, $id = null): void {
         $db = Database::getInstance();
         $companyId = Session::get('company_id');
         $userId = Session::get('user_id');
+
+        if ($request === null) {
+            $request = new Request();
+        }
 
         // Fetch log detail to get production_order_id & check ownership
         $stmt = $db->prepare("SELECT * FROM production_stage_logs WHERE id = ? AND company_id = ?");
@@ -542,14 +546,14 @@ class ProductionController extends Controller {
 
         if (!$log) {
             Session::setFlash('error', 'Stage log entry not found.');
-            $this->redirect('company/production/orders');
+            $this->redirect($_SERVER['HTTP_REFERER'] ?? 'company/production/orders');
             return;
         }
 
-        $confirmCode = strtoupper(trim((string)$request->get('confirm_code', 'DELETE')));
+        $confirmCode = strtoupper(trim((string)($request->get('confirm_code') ?: $request->get('confirm', 'DELETE'))));
         if ($confirmCode !== 'DELETE') {
             Session::setFlash('error', 'Deletion cancelled. You must type "DELETE" in capital letters to confirm.');
-            $this->redirect($_SERVER['HTTP_REFERER'] ?? 'company/production/orders');
+            $this->redirect($_SERVER['HTTP_REFERER'] ?? "company/production/stage/{$log['production_order_id']}");
             return;
         }
 
@@ -590,17 +594,28 @@ class ProductionController extends Controller {
     }
 
     /**
+     * Route Alias for clearing all stage logs
+     */
+    public function clearLogs($request = null, $response = null, $id = null): void {
+        $this->clearStageLogs($request, $response, $id);
+    }
+
+    /**
      * Clear All Stage Logs for a Production Order Batch
      */
-    public function clearStageLogs(Request $request, Response $response, string $id): void {
+    public function clearStageLogs($request = null, $response = null, $id = null): void {
         $db = Database::getInstance();
         $companyId = Session::get('company_id');
         $userId = Session::get('user_id');
 
+        if ($request === null) {
+            $request = new Request();
+        }
+
         $confirmCode = strtoupper(trim((string)($request->get('confirm_code') ?: $request->get('confirm', 'DELETE'))));
         if ($confirmCode !== 'DELETE') {
             Session::setFlash('error', 'Operation cancelled. You must type "DELETE" to confirm clearing all activity logs.');
-            $this->redirect($_SERVER['HTTP_REFERER'] ?? "company/production/stage/{$id}/live-report");
+            $this->redirect($_SERVER['HTTP_REFERER'] ?? "company/production/stage/{$id}");
             return;
         }
 
@@ -628,7 +643,7 @@ class ProductionController extends Controller {
             Session::setFlash('error', 'Failed to clear activity logs: ' . $e->getMessage());
         }
 
-        $this->redirect($_SERVER['HTTP_REFERER'] ?? "company/production/stage/{$id}/live-report");
+        $this->redirect($_SERVER['HTTP_REFERER'] ?? "company/production/stage/{$id}");
     }
 
     /**
