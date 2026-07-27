@@ -561,13 +561,16 @@ class ApiController extends Controller {
 
         // WIP Stage Sequential Order & Quality PASS Enforcement
         $batchStagesObj = ProductionController::getBatchStagesList((int)$batch['id'], $companyId);
-        $stageKeys = array_column($batchStagesObj, 'key');
+        $stageKeys = array_map(function($stg) {
+            return StageHelper::toStageKey(is_array($stg) ? ($stg['key'] ?? $stg['name'] ?? '') : (string)$stg);
+        }, $batchStagesObj);
         $targetIndex = array_search($stageKey, $stageKeys);
 
         if ($targetIndex !== false && $targetIndex > 0) {
             for ($i = 0; $i < $targetIndex; $i++) {
-                $precedingKey = $batchStagesObj[$i]['key'];
-                $precedingName = $batchStagesObj[$i]['name'];
+                $precedingKey = is_array($batchStagesObj[$i]) ? ($batchStagesObj[$i]['key'] ?? $batchStagesObj[$i]['name'] ?? '') : (string)$batchStagesObj[$i];
+                $precedingKeyClean = StageHelper::toStageKey($precedingKey);
+                $precedingName = is_array($batchStagesObj[$i]) ? ($batchStagesObj[$i]['name'] ?? StageHelper::toStageName($precedingKey)) : StageHelper::toStageName($precedingKey);
 
                 $stmtCheckPrec = $db->prepare("
                     SELECT id, qty_out, waste_qty, stage 
@@ -580,7 +583,7 @@ class ApiController extends Controller {
 
                 $precLog = null;
                 foreach ($allPrecLogs as $pl) {
-                    if ($this->toStageKey($pl['stage']) === strtolower($precedingKey)) {
+                    if (StageHelper::toStageKey($pl['stage']) === $precedingKeyClean) {
                         $precLog = $pl;
                         break;
                     }

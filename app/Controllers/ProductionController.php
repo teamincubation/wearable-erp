@@ -364,19 +364,32 @@ class ProductionController extends Controller {
 
         // Verify preceding stage order sequence compliance
         $batchStages = self::getBatchStagesList((int)$id);
-        $stageKeys = array_column($batchStages, 'key');
+        $stageKeys = array_map(function($stg) {
+            return StageHelper::toStageKey(is_array($stg) ? ($stg['key'] ?? $stg['name'] ?? '') : (string)$stg);
+        }, $batchStages);
         $targetIndex = array_search($stage, $stageKeys);
 
         if ($targetIndex !== false && $targetIndex > 0) {
             $db = Database::getInstance();
             for ($i = 0; $i < $targetIndex; $i++) {
-                $precedingKey = $batchStages[$i]['key'];
-                $precedingName = $batchStages[$i]['name'];
+                $precedingKey = is_array($batchStages[$i]) ? ($batchStages[$i]['key'] ?? $batchStages[$i]['name'] ?? '') : (string)$batchStages[$i];
+                $precedingKeyClean = StageHelper::toStageKey($precedingKey);
+                $precedingName = is_array($batchStages[$i]) ? ($batchStages[$i]['name'] ?? StageHelper::toStageName($precedingKey)) : StageHelper::toStageName($precedingKey);
 
-                $stmtCheckPrec = $db->prepare("SELECT id FROM production_stage_logs WHERE production_order_id = ? AND company_id = ? AND stage = ? LIMIT 1");
-                $stmtCheckPrec->execute([(int)$id, $companyId, $precedingKey]);
-                if (!$stmtCheckPrec->fetchColumn()) {
-                    $targetName = $batchStages[$targetIndex]['name'];
+                $stmtCheckPrec = $db->prepare("SELECT stage FROM production_stage_logs WHERE production_order_id = ? AND company_id = ?");
+                $stmtCheckPrec->execute([(int)$id, $companyId]);
+                $allLoggedStages = $stmtCheckPrec->fetchAll() ?: [];
+
+                $foundPrec = false;
+                foreach ($allLoggedStages as $als) {
+                    if (StageHelper::toStageKey($als['stage']) === $precedingKeyClean) {
+                        $foundPrec = true;
+                        break;
+                    }
+                }
+
+                if (!$foundPrec) {
+                    $targetName = is_array($batchStages[$targetIndex]) ? ($batchStages[$targetIndex]['name'] ?? StageHelper::toStageName($stage)) : StageHelper::toStageName($stage);
                     Session::setFlash('error', "Order Sequence Error: Cannot log stage '{$targetName}' yet. Batch must complete preceding stage '{$precedingName}' first!");
                     $this->redirect("company/production/stage/{$id}");
                     return;
@@ -951,26 +964,36 @@ class ProductionController extends Controller {
 
         // Verify preceding stage order sequence & quality PASS compliance for QR code scan
         $batchStages = self::getBatchStagesList((int)$batch['id']);
-        $stageKeys = array_column($batchStages, 'key');
+        $stageKeys = array_map(function($stg) {
+            return StageHelper::toStageKey(is_array($stg) ? ($stg['key'] ?? $stg['name'] ?? '') : (string)$stg);
+        }, $batchStages);
         $targetIndex = array_search($stage, $stageKeys);
 
         if ($targetIndex !== false && $targetIndex > 0) {
             for ($i = 0; $i < $targetIndex; $i++) {
-                $precedingKey = $batchStages[$i]['key'];
-                $precedingName = $batchStages[$i]['name'];
+                $precedingKey = is_array($batchStages[$i]) ? ($batchStages[$i]['key'] ?? $batchStages[$i]['name'] ?? '') : (string)$batchStages[$i];
+                $precedingKeyClean = StageHelper::toStageKey($precedingKey);
+                $precedingName = is_array($batchStages[$i]) ? ($batchStages[$i]['name'] ?? StageHelper::toStageName($precedingKey)) : StageHelper::toStageName($precedingKey);
 
                 $stmtCheckPrec = $db->prepare("
-                    SELECT id, qty_out, waste_qty 
+                    SELECT id, qty_out, waste_qty, stage 
                     FROM production_stage_logs 
                     WHERE company_id = ? AND LOWER(TRIM(qr_code)) = LOWER(TRIM(?)) 
-                      AND (LOWER(TRIM(stage)) = ? OR LOWER(TRIM(stage)) = ?)
-                    ORDER BY id DESC LIMIT 1
+                    ORDER BY id DESC
                 ");
-                $stmtCheckPrec->execute([$companyId, $qrCode, strtolower($precedingKey), strtolower($precedingName)]);
-                $precLog = $stmtCheckPrec->fetch();
+                $stmtCheckPrec->execute([$companyId, $qrCode]);
+                $allPrecLogs = $stmtCheckPrec->fetchAll() ?: [];
+
+                $precLog = null;
+                foreach ($allPrecLogs as $pl) {
+                    if (StageHelper::toStageKey($pl['stage']) === $precedingKeyClean) {
+                        $precLog = $pl;
+                        break;
+                    }
+                }
 
                 if (!$precLog) {
-                    $targetName = isset($batchStages[$targetIndex]['name']) ? $batchStages[$targetIndex]['name'] : strtoupper(str_replace('_', ' ', $stage));
+                    $targetName = is_array($batchStages[$targetIndex]) ? ($batchStages[$targetIndex]['name'] ?? StageHelper::toStageName($stage)) : StageHelper::toStageName($stage);
                     echo json_encode([
                         'success' => false,
                         'sequence_mismatch' => true,
@@ -982,7 +1005,7 @@ class ProductionController extends Controller {
                 // Block scanning if unit was marked as FAILED in any preceding stage
                 $isFail = ((int)($precLog['qty_out'] ?? 0) === 0 || (int)($precLog['waste_qty'] ?? 0) > 0);
                 if ($isFail) {
-                    $targetName = isset($batchStages[$targetIndex]['name']) ? $batchStages[$targetIndex]['name'] : strtoupper(str_replace('_', ' ', $stage));
+                    $targetName = is_array($batchStages[$targetIndex]) ? ($batchStages[$targetIndex]['name'] ?? StageHelper::toStageName($stage)) : StageHelper::toStageName($stage);
                     echo json_encode([
                         'success' => false,
                         'failed_unit' => true,
@@ -1153,28 +1176,38 @@ class ProductionController extends Controller {
         }
 
         // Verify preceding stage order sequence & quality PASS compliance for QR code scan
-        if (!empty($stage) && !empty($batch['id'])) {
+        if (!empty($stageKey) && !empty($batch['id'])) {
             $batchStages = self::getBatchStagesList((int)$batch['id']);
-            $stageKeys = array_column($batchStages, 'key');
-            $targetIndex = array_search($stage, $stageKeys);
+            $stageKeys = array_map(function($stg) {
+                return StageHelper::toStageKey(is_array($stg) ? ($stg['key'] ?? $stg['name'] ?? '') : (string)$stg);
+            }, $batchStages);
+            $targetIndex = array_search($stageKey, $stageKeys);
 
             if ($targetIndex !== false && $targetIndex > 0) {
                 for ($i = 0; $i < $targetIndex; $i++) {
-                    $precedingKey = $batchStages[$i]['key'];
-                    $precedingName = $batchStages[$i]['name'];
+                    $precedingKey = is_array($batchStages[$i]) ? ($batchStages[$i]['key'] ?? $batchStages[$i]['name'] ?? '') : (string)$batchStages[$i];
+                    $precedingKeyClean = StageHelper::toStageKey($precedingKey);
+                    $precedingName = is_array($batchStages[$i]) ? ($batchStages[$i]['name'] ?? StageHelper::toStageName($precedingKey)) : StageHelper::toStageName($precedingKey);
 
                     $stmtCheckPrec = $db->prepare("
-                        SELECT id, qty_out, waste_qty 
+                        SELECT id, qty_out, waste_qty, stage 
                         FROM production_stage_logs 
                         WHERE company_id = ? AND LOWER(TRIM(qr_code)) = LOWER(TRIM(?)) 
-                          AND (LOWER(TRIM(stage)) = ? OR LOWER(TRIM(stage)) = ?)
-                        ORDER BY id DESC LIMIT 1
+                        ORDER BY id DESC
                     ");
-                    $stmtCheckPrec->execute([$companyId, $qrCode, strtolower($precedingKey), strtolower($precedingName)]);
-                    $precLog = $stmtCheckPrec->fetch();
+                    $stmtCheckPrec->execute([$companyId, $qrCode]);
+                    $allPrecLogs = $stmtCheckPrec->fetchAll() ?: [];
+
+                    $precLog = null;
+                    foreach ($allPrecLogs as $pl) {
+                        if (StageHelper::toStageKey($pl['stage']) === $precedingKeyClean) {
+                            $precLog = $pl;
+                            break;
+                        }
+                    }
 
                     if (!$precLog) {
-                        $targetName = isset($batchStages[$targetIndex]['name']) ? $batchStages[$targetIndex]['name'] : strtoupper(str_replace('_', ' ', $stage));
+                        $targetName = is_array($batchStages[$targetIndex]) ? ($batchStages[$targetIndex]['name'] ?? StageHelper::toStageName($stageKey)) : StageHelper::toStageName($stageKey);
                         echo json_encode([
                             'success' => false,
                             'sequence_mismatch' => true,
@@ -1186,7 +1219,7 @@ class ProductionController extends Controller {
                     // Check if unit failed in preceding stage
                     $isFail = ((int)($precLog['qty_out'] ?? 0) === 0 || (int)($precLog['waste_qty'] ?? 0) > 0);
                     if ($isFail) {
-                        $targetName = isset($batchStages[$targetIndex]['name']) ? $batchStages[$targetIndex]['name'] : strtoupper(str_replace('_', ' ', $stage));
+                        $targetName = is_array($batchStages[$targetIndex]) ? ($batchStages[$targetIndex]['name'] ?? StageHelper::toStageName($stageKey)) : StageHelper::toStageName($stageKey);
                         echo json_encode([
                             'success' => false,
                             'failed_unit' => true,
