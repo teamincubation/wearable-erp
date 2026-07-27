@@ -77,13 +77,16 @@
                                     <span class="text-dark fw-semibold"><?= date('d M Y', strtotime($o['delivery_date'])) ?></span>
                                 </td>
                                 <td>
-                                    <span class="badge badge-pepp 
+                                    <span class="badge 
                                         <?php 
-                                            if ($o['status'] === 'approved') echo 'badge-success';
-                                            elseif ($o['status'] === 'draft') echo 'badge-warning';
-                                            else echo 'badge-danger';
-                                        ?>">
-                                        <?= htmlspecialchars(ucfirst($o['status'])) ?>
+                                            $st = strtolower($o['status'] ?? '');
+                                            if ($st === 'completed' || $st === 'closed') echo 'bg-primary text-white';
+                                            elseif ($st === 'approved') echo 'bg-success text-white';
+                                            elseif ($st === 'draft') echo 'bg-warning text-dark';
+                                            elseif ($st === 'rejected') echo 'bg-danger text-white';
+                                            else echo 'bg-secondary text-white';
+                                        ?> px-2.5 py-1.5 rounded-pill">
+                                        <?= htmlspecialchars(ucfirst($o['status'] ?: 'Draft')) ?>
                                     </span>
                                 </td>
                                 <td class="text-end">

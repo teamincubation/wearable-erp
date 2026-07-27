@@ -134,11 +134,42 @@ class MerchandisingController extends Controller {
     }
 
     /**
+     * Auto-sync Buyer POs status to 'completed' if linked production order is completed
+     */
+    public static function syncCompletedBuyerPos(\PDO $db, ?int $companyId = null): void {
+        try {
+            // Ensure status column in buyer_pos can store 'completed' string
+            $db->exec("ALTER TABLE `buyer_pos` MODIFY COLUMN `status` VARCHAR(50) NOT NULL DEFAULT 'draft'");
+        } catch (\Exception $ex) {}
+
+        try {
+            if ($companyId) {
+                $db->prepare("
+                    UPDATE buyer_pos po 
+                    JOIN production_orders pro ON pro.po_id = po.id 
+                    SET po.status = 'completed', po.updated_at = NOW() 
+                    WHERE pro.company_id = ? AND pro.status = 'completed' AND po.deleted_at IS NULL AND (po.status IS NULL OR po.status != 'completed')
+                ")->execute([(int)$companyId]);
+            } else {
+                $db->exec("
+                    UPDATE buyer_pos po 
+                    JOIN production_orders pro ON pro.po_id = po.id 
+                    SET po.status = 'completed', po.updated_at = NOW() 
+                    WHERE pro.status = 'completed' AND po.deleted_at IS NULL AND (po.status IS NULL OR po.status != 'completed')
+                ");
+            }
+        } catch (\Exception $ex) {}
+    }
+
+    /**
      * Buyer POs Manager View
      */
     public function buyerpos(Request $request, Response $response): void {
         $db = Database::getInstance();
         $companyId = Session::get('company_id');
+
+        // Auto-heal & sync any completed production orders with their buyer POs
+        self::syncCompletedBuyerPos($db, (int)$companyId);
 
         // Fetch POs with style and buyer names
         $stmt = $db->prepare("SELECT po.*, s.style_no, s.name as style_name, c.name as buyer_name, c.code as buyer_code 
@@ -154,7 +185,7 @@ class MerchandisingController extends Controller {
         $completedOrders = [];
 
         foreach ($allOrders as $po) {
-            if (in_array($po['status'], ['completed', 'closed'])) {
+            if (in_array(strtolower($po['status'] ?? ''), ['completed', 'closed'])) {
                 $completedOrders[] = $po;
             } else {
                 $activeOrders[] = $po;
@@ -204,11 +235,14 @@ class MerchandisingController extends Controller {
         $db = Database::getInstance();
         $companyId = Session::get('company_id');
 
+        // Auto-heal & sync any completed production orders with their buyer POs
+        self::syncCompletedBuyerPos($db, (int)$companyId);
+
         $stmt = $db->prepare("SELECT po.*, s.style_no, s.name as style_name, c.name as buyer_name, c.code as buyer_code 
                              FROM buyer_pos po
                              JOIN styles s ON po.style_id = s.id
                              JOIN contacts c ON po.buyer_id = c.id
-                             WHERE po.company_id = ? AND po.deleted_at IS NULL AND po.status IN ('completed', 'closed')
+                             WHERE po.company_id = ? AND po.deleted_at IS NULL AND LOWER(po.status) IN ('completed', 'closed')
                              ORDER BY po.id DESC");
         $stmt->execute([$companyId]);
         $completedOrders = $stmt->fetchAll() ?: [];

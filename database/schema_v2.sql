@@ -253,7 +253,7 @@ CREATE TABLE IF NOT EXISTS `buyer_pos` (
   `unit_price` DECIMAL(10, 2) NOT NULL,
   `total_amount` DECIMAL(12, 2) NOT NULL,
   `revision_count` INT NOT NULL DEFAULT 0,
-  `status` ENUM('draft', 'pending_approval', 'approved', 'rejected', 'closed') NOT NULL DEFAULT 'draft',
+  `status` VARCHAR(50) NOT NULL DEFAULT 'draft',
   `created_by` INT DEFAULT NULL,
   `updated_by` INT DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
