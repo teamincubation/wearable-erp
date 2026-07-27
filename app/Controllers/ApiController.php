@@ -496,9 +496,9 @@ class ApiController extends Controller {
         // 1. Duplicate check: Prevent logging the same QR code twice under the same WIP stage key
         $stmtLogs = $db->prepare("
             SELECT stage FROM production_stage_logs 
-            WHERE company_id = ? AND LOWER(TRIM(qr_code)) = LOWER(TRIM(?))
+            WHERE company_id = ? AND (LOWER(TRIM(qr_code)) = LOWER(TRIM(?)) OR LOWER(TRIM(scanned_qr_code)) = LOWER(TRIM(?)))
         ");
-        $stmtLogs->execute([$companyId, $qrCode]);
+        $stmtLogs->execute([$companyId, $qrCode, $qrCode]);
         $existingLogs = $stmtLogs->fetchAll() ?: [];
 
         foreach ($existingLogs as $l) {
@@ -772,10 +772,10 @@ class ApiController extends Controller {
             FROM production_stage_logs psl
             LEFT JOIN users u ON psl.employee_id = u.id
             LEFT JOIN roles r ON u.role_id = r.id
-            WHERE psl.company_id = ? AND LOWER(TRIM(psl.qr_code)) = LOWER(TRIM(?))
+            WHERE psl.company_id = ? AND (LOWER(TRIM(psl.qr_code)) = LOWER(TRIM(?)) OR LOWER(TRIM(psl.scanned_qr_code)) = LOWER(TRIM(?)))
             ORDER BY psl.id ASC
         ");
-        $stmtLogs->execute([$companyId, $qrCode]);
+        $stmtLogs->execute([$companyId, $qrCode, $qrCode]);
         $rawLogs = $stmtLogs->fetchAll() ?: [];
 
         $isAlreadyScannedInTargetStage = false;

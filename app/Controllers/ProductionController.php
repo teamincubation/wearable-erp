@@ -952,9 +952,9 @@ class ProductionController extends Controller {
         // Duplicate check: Prevent logging the same QR code twice under the same WIP stage
         $stmtCheckAlready = $db->prepare("
             SELECT stage FROM production_stage_logs 
-            WHERE company_id = ? AND LOWER(TRIM(qr_code)) = LOWER(TRIM(?))
+            WHERE company_id = ? AND (LOWER(TRIM(qr_code)) = LOWER(TRIM(?)) OR LOWER(TRIM(scanned_qr_code)) = LOWER(TRIM(?)))
         ");
-        $stmtCheckAlready->execute([$companyId, $qrCode]);
+        $stmtCheckAlready->execute([$companyId, $qrCode, $qrCode]);
         $existingLogs = $stmtCheckAlready->fetchAll() ?: [];
 
         foreach ($existingLogs as $l) {
@@ -1157,10 +1157,10 @@ class ProductionController extends Controller {
                 SELECT psl.*, u.name as operator_name 
                 FROM production_stage_logs psl
                 LEFT JOIN users u ON psl.employee_id = u.id
-                WHERE psl.company_id = ? AND LOWER(TRIM(psl.qr_code)) = LOWER(TRIM(?))
+                WHERE psl.company_id = ? AND (LOWER(TRIM(psl.qr_code)) = LOWER(TRIM(?)) OR LOWER(TRIM(psl.scanned_qr_code)) = LOWER(TRIM(?)))
                 ORDER BY psl.id DESC
             ");
-            $stmtCheckAlready->execute([$companyId, $qrCode]);
+            $stmtCheckAlready->execute([$companyId, $qrCode, $qrCode]);
             $allUserLogs = $stmtCheckAlready->fetchAll() ?: [];
 
             foreach ($allUserLogs as $alreadyLogged) {
