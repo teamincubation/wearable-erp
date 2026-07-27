@@ -9,6 +9,7 @@ use App\Core\Database;
 use App\Models\Company;
 use App\Models\AuditLog;
 use App\Models\User;
+use PDO;
 
 /**
  * Developer SaaS Portal Controller
@@ -19,10 +20,10 @@ class DeveloperController extends Controller {
     /**
      * Auto-purge any remnant TOCCO Exports sample data if present in DB
      */
-    private function purgeToccoIfPresent(PDO $db): void {
+    private function purgeToccoIfPresent(\PDO $db): void {
         try {
             $stmtT = $db->query("SELECT id FROM companies WHERE LOWER(subdomain) = 'tocco' OR LOWER(name) LIKE '%tocco%'");
-            $toccoIds = $stmtT->fetchAll(PDO::FETCH_COLUMN) ?: [];
+            $toccoIds = $stmtT->fetchAll(\PDO::FETCH_COLUMN) ?: [];
             if (!empty($toccoIds)) {
                 $db->exec("SET FOREIGN_KEY_CHECKS = 0;");
                 foreach ($toccoIds as $tId) {
