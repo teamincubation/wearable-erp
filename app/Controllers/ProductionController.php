@@ -311,7 +311,10 @@ class ProductionController extends Controller {
 
         // Fetch batch stage sequence based on style techpack specifications
         $batchStagesObj = self::getBatchStagesList((int)$id);
-        $stagesList = array_column($batchStagesObj, 'key');
+        $stagesList = array_map(function($stg) {
+            return StageHelper::toStageKey(is_array($stg) ? ($stg['key'] ?? $stg['name'] ?? '') : (string)$stg);
+        }, $batchStagesObj);
+        $stagesList = array_values(array_filter($stagesList));
         if (empty($stagesList)) {
             $stagesList = ['knitting', 'dyeing', 'compacting', 'relaxing', 'spreading', 'cutting', 'bundling', 'printing', 'embroidery', 'sewing', 'checking', 'thread_cutting', 'washing', 'ironing', 'packing', 'carton_packing', 'shipment'];
         }
@@ -1365,7 +1368,10 @@ class ProductionController extends Controller {
 
         // Fetch batch stage sequence based on style techpack specifications
         $batchStagesObj = self::getBatchStagesList((int)$id);
-        $stagesList = array_column($batchStagesObj, 'key');
+        $stagesList = array_map(function($stg) {
+            return StageHelper::toStageKey(is_array($stg) ? ($stg['key'] ?? $stg['name'] ?? '') : (string)$stg);
+        }, $batchStagesObj);
+        $stagesList = array_values(array_filter($stagesList));
         if (empty($stagesList)) {
             $stagesList = ['knitting', 'dyeing', 'compacting', 'relaxing', 'spreading', 'cutting', 'bundling', 'printing', 'embroidery', 'sewing', 'checking', 'thread_cutting', 'washing', 'ironing', 'packing', 'carton_packing', 'shipment'];
         }
@@ -1429,7 +1435,10 @@ class ProductionController extends Controller {
         $wipSummary = $productionService->getOrderWipSummary($companyId, (int)$id);
 
         $batchStagesObj = self::getBatchStagesList((int)$id);
-        $stagesList = array_column($batchStagesObj, 'key');
+        $stagesList = array_map(function($stg) {
+            return StageHelper::toStageKey(is_array($stg) ? ($stg['key'] ?? $stg['name'] ?? '') : (string)$stg);
+        }, $batchStagesObj);
+        $stagesList = array_values(array_filter($stagesList));
         if (empty($stagesList)) {
             $stagesList = ['knitting', 'dyeing', 'compacting', 'relaxing', 'spreading', 'cutting', 'bundling', 'printing', 'embroidery', 'sewing', 'checking', 'thread_cutting', 'washing', 'ironing', 'packing', 'carton_packing', 'shipment'];
         }

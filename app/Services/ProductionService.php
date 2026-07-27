@@ -134,6 +134,22 @@ class ProductionService {
      * Calculate Work in Progress (WIP) balances for a production order
      */
     public function getOrderWipSummary(int $companyId, int $productionOrderId): array {
+        // Self-healing backfill: Ensure all historical logs for this order have canonical stage keys
+        try {
+            $rawLogsStmt = $this->db->prepare("SELECT id, stage FROM production_stage_logs WHERE company_id = ? AND production_order_id = ?");
+            $rawLogsStmt->execute([$companyId, $productionOrderId]);
+            $logsToHeal = $rawLogsStmt->fetchAll() ?: [];
+            if (!empty($logsToHeal)) {
+                $stmtHeal = $this->db->prepare("UPDATE production_stage_logs SET stage = ? WHERE id = ?");
+                foreach ($logsToHeal as $lh) {
+                    $canonicalKey = StageHelper::toStageKey((string)$lh['stage']);
+                    if ($canonicalKey !== $lh['stage']) {
+                        $stmtHeal->execute([$canonicalKey, $lh['id']]);
+                    }
+                }
+            }
+        } catch (\Exception $ex) {}
+
         $sql = "SELECT stage, SUM(qty_in) as total_in, SUM(qty_out) as total_out, SUM(waste_qty) as total_waste
                 FROM production_stage_logs 
                 WHERE company_id = ? AND production_order_id = ?

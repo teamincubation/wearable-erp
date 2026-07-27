@@ -497,13 +497,16 @@
         
         const stagesLabels = [
             <?php foreach ($stagesList as $stg): ?>
-                "<?= str_replace('_', ' ', ucfirst($stg)) ?>",
+                "<?= \App\Helpers\StageHelper::toStageName((string)$stg) ?>",
             <?php endforeach; ?>
         ];
 
         const completedData = [
-            <?php foreach ($stagesList as $stg): ?>
-                <?= isset($wip_summary[$stg]) ? (int)$wip_summary[$stg]['out'] : 0 ?>,
+            <?php foreach ($stagesList as $stg): 
+                $stgKey = \App\Helpers\StageHelper::toStageKey((string)$stg);
+                $stgData = $wip_summary[$stgKey] ?? $wip_summary[$stg] ?? [];
+            ?>
+                <?= (int)($stgData['out'] ?? 0) ?>,
             <?php endforeach; ?>
         ];
 
