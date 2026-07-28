@@ -45,6 +45,16 @@ class ApiQrController extends Controller {
         return 1;
     }
 
+    private function resolveUserId(Request $request): ?int {
+        $userId = Session::get('user_id');
+        if (!empty($userId)) return (int)$userId;
+        
+        $headerUser = $_SERVER['HTTP_X_USER_ID'] ?? $request->get('user_id');
+        if (!empty($headerUser)) return (int)$headerUser;
+
+        return null;
+    }
+
     /**
      * GET /api/production/qr-tracking-setup
      * GET /api/production/batches
@@ -53,22 +63,23 @@ class ApiQrController extends Controller {
     public function getSetup(Request $request, Response $response): void {
         header('Content-Type: application/json');
         $db = Database::getInstance();
+        $companyId = $this->resolveCompanyId($request);
 
         $sql = "
             SELECT pro.id, pro.production_no, pro.po_number, pro.quantity, pro.status, pro.company_id,
-                   COALESCE(s.style_no, sm.style_no, 'N/A') as style_no,
-                   COALESCE(s.name, sm.style_name, 'Garment Style') as style_name,
+                   COALESCE(s.style_no, 'N/A') as style_no,
+                   COALESCE(s.name, 'Garment Style') as style_name,
                    c.name as buyer_name
             FROM production_orders pro
             LEFT JOIN buyer_pos po ON pro.po_id = po.id
             LEFT JOIN styles s ON po.style_id = s.id
             LEFT JOIN contacts c ON po.buyer_id = c.id
-            LEFT JOIN style_master sm ON pro.style_id = sm.id
-            WHERE pro.deleted_at IS NULL
+            WHERE pro.deleted_at IS NULL AND pro.company_id = ?
             ORDER BY pro.id DESC
         ";
 
-        $stmt = $db->query($sql);
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$companyId]);
         $batches = $stmt ? ($stmt->fetchAll() ?: []) : [];
 
         $formattedBatches = array_map(function($b) {
@@ -194,11 +205,10 @@ class ApiQrController extends Controller {
         $batchNo = implode('-', $parts);
 
         $stmtBatch = $db->prepare("
-            SELECT pro.*, COALESCE(s.style_no, sm.style_no, 'N/A') as style_no, COALESCE(s.name, sm.style_name, 'Garment Piece') as style_name, sm.category, sm.fabric
+            SELECT pro.*, COALESCE(s.style_no, 'N/A') as style_no, COALESCE(s.name, 'Garment Piece') as style_name
             FROM production_orders pro
             LEFT JOIN buyer_pos po ON pro.po_id = po.id
             LEFT JOIN styles s ON po.style_id = s.id
-            LEFT JOIN style_master sm ON pro.style_id = sm.id
             WHERE pro.production_no = ? AND pro.deleted_at IS NULL
         ");
         $stmtBatch->execute([$batchNo]);
@@ -217,8 +227,8 @@ class ApiQrController extends Controller {
             'serial' => $serial,
             'style_no' => $batch['style_no'] ?? 'N/A',
             'style_name' => $batch['style_name'] ?? 'Garment Piece',
-            'category' => $batch['category'] ?? 'Apparel',
-            'fabric' => $batch['fabric'] ?? 'Cotton Blend',
+            'category' => 'Apparel',
+            'fabric' => 'Cotton Blend',
             'batch_id' => (int)$batch['id'],
             'target_stage' => $stageKey
         ], 200);
@@ -233,7 +243,7 @@ class ApiQrController extends Controller {
         $jsonBody = json_decode($rawInput, true) ?? [];
 
         $companyId = $this->resolveCompanyId($request);
-        $userId = Session::get('user_id');
+        $userId = $this->resolveUserId($request);
         $db = Database::getInstance();
 
         $qrCode = trim($request->get('qr_code') ?: ($jsonBody['qr_code'] ?? ''));
