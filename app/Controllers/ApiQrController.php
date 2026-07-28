@@ -219,6 +219,13 @@ class ApiQrController extends Controller {
             return;
         }
 
+        // --- Sequential Stage Validation ---
+        $seqValidation = $this->validateSequentialStage($db, $qrCode, $stageKey, (int)$batch['id'], $companyId);
+        if (!$seqValidation['success']) {
+            $response->json(['success' => false, 'message' => $seqValidation['message']], 400);
+            return;
+        }
+
         $response->json([
             'success' => true,
             'qr_code' => $qrCode,
@@ -232,6 +239,50 @@ class ApiQrController extends Controller {
             'batch_id' => (int)$batch['id'],
             'target_stage' => $stageKey
         ], 200);
+    }
+
+    private function validateSequentialStage($db, string $qrCode, string $stageKey, int $batchId, int $companyId): array {
+        if (empty($stageKey)) return ['success' => true];
+
+        $batchStages = ProductionController::getBatchStagesList($batchId, $companyId);
+        
+        $targetIndex = -1;
+        $batchStagesKeys = [];
+        
+        foreach ($batchStages as $index => $stg) {
+            $key = is_array($stg) ? ($stg['key'] ?? $stg['name'] ?? '') : (string)$stg;
+            $k = StageHelper::toStageKey($key);
+            $batchStagesKeys[] = $k;
+            if ($k === $stageKey) {
+                $targetIndex = $index;
+            }
+        }
+
+        if ($targetIndex > 0) {
+            $prevStageKey = $batchStagesKeys[$targetIndex - 1];
+            
+            $stmtCheck = $db->prepare("
+                SELECT status 
+                FROM production_stage_logs 
+                WHERE (LOWER(TRIM(qr_code)) = LOWER(TRIM(?)) OR LOWER(TRIM(scanned_qr_code)) = LOWER(TRIM(?)))
+                  AND LOWER(TRIM(stage)) = LOWER(TRIM(?))
+                ORDER BY id DESC LIMIT 1
+            ");
+            $stmtCheck->execute([$qrCode, $qrCode, $prevStageKey]);
+            $prevLog = $stmtCheck->fetch();
+
+            $formattedPrevStage = StageHelper::toStageName($prevStageKey);
+
+            if (!$prevLog) {
+                return ['success' => false, 'message' => "Order matters. Please complete '{$formattedPrevStage}' first."];
+            }
+
+            if (strtolower(trim($prevLog['status'])) !== 'pass') {
+                return ['success' => false, 'message' => "This item failed in previous step ('{$formattedPrevStage}') and cannot proceed."];
+            }
+        }
+        
+        return ['success' => true];
     }
 
     /**
@@ -265,6 +316,15 @@ class ApiQrController extends Controller {
         $stmtBatch = $db->prepare("SELECT id, status, company_id FROM production_orders WHERE production_no = ? AND deleted_at IS NULL");
         $stmtBatch->execute([$batchNo]);
         $batch = $stmtBatch->fetch();
+
+        if ($batch) {
+            // --- Sequential Stage Validation ---
+            $seqValidation = $this->validateSequentialStage($db, $qrCode, $stage, (int)$batch['id'], $companyId);
+            if (!$seqValidation['success']) {
+                $response->json(['success' => false, 'message' => $seqValidation['message']], 400);
+                return;
+            }
+        }
 
         if (!$batch) {
             $response->json(['success' => false, 'message' => "Batch '{$batchNo}' not found."], 404);
