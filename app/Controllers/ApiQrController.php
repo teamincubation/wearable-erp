@@ -24,7 +24,7 @@ class ApiQrController extends Controller {
             return (int)$companyId;
         }
 
-        $headerTenant = $_SERVER['HTTP_X_TENANT_ID'] ?? $request->get('tenant');
+        $headerTenant = $_SERVER['HTTP_X_TENANT_ID'] ?? ($_SERVER['HTTP_TENANT'] ?? $request->get('tenant'));
         if (!empty($headerTenant)) {
             $db = Database::getInstance();
             $stmt = $db->prepare("SELECT id FROM companies WHERE (subdomain = ? OR id = ?) AND deleted_at IS NULL LIMIT 1");
@@ -35,7 +35,17 @@ class ApiQrController extends Controller {
             }
         }
 
-        return 1; // Default fallback tenant
+        // Fallback to latest active production order company ID
+        try {
+            $db = Database::getInstance();
+            $stmtLast = $db->query("SELECT company_id FROM production_orders WHERE deleted_at IS NULL ORDER BY id DESC LIMIT 1");
+            $lastComp = $stmtLast ? $stmtLast->fetchColumn() : null;
+            if ($lastComp) {
+                return (int)$lastComp;
+            }
+        } catch (\Exception $e) {}
+
+        return 1;
     }
 
     /**
@@ -55,7 +65,7 @@ class ApiQrController extends Controller {
             LEFT JOIN style_master sm ON pro.style_id = sm.id
             LEFT JOIN buyer_pos po ON pro.po_id = po.id
             LEFT JOIN styles s ON po.style_id = s.id
-            WHERE pro.company_id = ? AND pro.status IN ('running', 'in_progress') AND pro.deleted_at IS NULL
+            WHERE pro.company_id = ? AND pro.status != 'completed' AND pro.deleted_at IS NULL
             ORDER BY pro.id DESC
         ");
         $stmt->execute([$companyId]);
@@ -63,6 +73,7 @@ class ApiQrController extends Controller {
 
         $response->json([
             'success' => true,
+            'company_id' => $companyId,
             'batches' => $batches
         ]);
     }
