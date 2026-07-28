@@ -49,10 +49,13 @@ class ApiQrController extends Controller {
 
         $stmt = $db->prepare("
             SELECT pro.id, pro.production_no, pro.po_number, pro.quantity, pro.status,
-                   sm.style_no, sm.style_name
+                   COALESCE(sm.style_no, s.style_no, 'N/A') as style_no,
+                   COALESCE(sm.style_name, s.name, 'Garment Style') as style_name
             FROM production_orders pro
             LEFT JOIN style_master sm ON pro.style_id = sm.id
-            WHERE pro.company_id = ? AND pro.status IN ('running', 'in_progress', 'pending') AND pro.deleted_at IS NULL
+            LEFT JOIN buyer_pos po ON pro.po_id = po.id
+            LEFT JOIN styles s ON po.style_id = s.id
+            WHERE pro.company_id = ? AND pro.status IN ('running', 'in_progress') AND pro.deleted_at IS NULL
             ORDER BY pro.id DESC
         ");
         $stmt->execute([$companyId]);
@@ -75,7 +78,7 @@ class ApiQrController extends Controller {
 
         $stagesList = [];
         if ($batchId > 0) {
-            $rawStages = ProductionController::getBatchStagesList($batchId);
+            $rawStages = ProductionController::getBatchStagesList($batchId, $companyId);
             foreach ($rawStages as $stg) {
                 $key = is_array($stg) ? ($stg['key'] ?? $stg['name'] ?? '') : (string)$stg;
                 $name = is_array($stg) ? ($stg['name'] ?? StageHelper::toStageName($key)) : StageHelper::toStageName($key);
