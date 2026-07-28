@@ -205,7 +205,7 @@ class ApiQrController extends Controller {
         $batchNo = implode('-', $parts);
 
         $stmtBatch = $db->prepare("
-            SELECT pro.*, COALESCE(s.style_no, 'N/A') as style_no, COALESCE(s.name, 'Garment Piece') as style_name
+            SELECT pro.*, COALESCE(s.style_no, 'N/A') as style_no, COALESCE(s.name, 'Garment Piece') as style_name, po.quantity as target_qty
             FROM production_orders pro
             LEFT JOIN buyer_pos po ON pro.po_id = po.id
             LEFT JOIN styles s ON po.style_id = s.id
@@ -217,6 +217,26 @@ class ApiQrController extends Controller {
         if (!$batch) {
             $response->json(['success' => false, 'message' => "Production batch '{$batchNo}' not found."], 404);
             return;
+        }
+
+        $targetQty = (int)($batch['target_qty'] ?? 0);
+        if ($targetQty > 0) {
+            if ($serial > $targetQty) {
+                $response->json(['success' => false, 'message' => "Invalid QR Code. The serial number ({$serial}) exceeds the total batch target ({$targetQty})."], 400);
+                return;
+            }
+
+            if (!empty($stageKey)) {
+                $stmtCount = $db->prepare("SELECT SUM(qty_out) FROM production_stage_logs WHERE production_order_id = ? AND LOWER(TRIM(stage)) = LOWER(TRIM(?))");
+                $stmtCount->execute([$batch['id'], $stageKey]);
+                $completedCount = (int)$stmtCount->fetchColumn();
+
+                if ($completedCount >= $targetQty) {
+                    $formattedStage = StageHelper::toStageName($stageKey);
+                    $response->json(['success' => false, 'message' => "Target reached! Batch target is {$targetQty} pcs, and {$completedCount} pcs are already completed in '{$formattedStage}'."], 400);
+                    return;
+                }
+            }
         }
 
         // --- Sequential Stage Validation ---
@@ -313,11 +333,33 @@ class ApiQrController extends Controller {
         $size = array_pop($parts);
         $batchNo = implode('-', $parts);
 
-        $stmtBatch = $db->prepare("SELECT id, status, company_id FROM production_orders WHERE production_no = ? AND deleted_at IS NULL");
+        $stmtBatch = $db->prepare("
+            SELECT pro.id, pro.status, pro.company_id, po.quantity as target_qty
+            FROM production_orders pro
+            LEFT JOIN buyer_pos po ON pro.po_id = po.id
+            WHERE pro.production_no = ? AND pro.deleted_at IS NULL
+        ");
         $stmtBatch->execute([$batchNo]);
         $batch = $stmtBatch->fetch();
 
         if ($batch) {
+            $targetQty = (int)($batch['target_qty'] ?? 0);
+            if ($targetQty > 0) {
+                if ($serial > $targetQty) {
+                    $response->json(['success' => false, 'message' => "Invalid QR Code. The serial number exceeds the total batch target."], 400);
+                    return;
+                }
+
+                $stmtCount = $db->prepare("SELECT SUM(qty_out) FROM production_stage_logs WHERE production_order_id = ? AND LOWER(TRIM(stage)) = LOWER(TRIM(?))");
+                $stmtCount->execute([$batch['id'], $stage]);
+                $completedCount = (int)$stmtCount->fetchColumn();
+
+                if ($completedCount >= $targetQty) {
+                    $response->json(['success' => false, 'message' => "Target reached! Batch target is {$targetQty} pcs."], 400);
+                    return;
+                }
+            }
+
             // --- Sequential Stage Validation ---
             $seqValidation = $this->validateSequentialStage($db, $qrCode, $stage, (int)$batch['id'], $companyId);
             if (!$seqValidation['success']) {
