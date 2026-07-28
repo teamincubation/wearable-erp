@@ -10,7 +10,7 @@ use App\Helpers\StageHelper;
 
 /**
  * Dedicated REST API Controller for QR Code Scanning Hub
- * Replicates exact web qr-tracking fetch logic 1-to-1
+ * Replicates exact web qr-tracking fetch logic 1-to-1 for Mobile App
  */
 class ApiQrController extends Controller {
 
@@ -47,16 +47,15 @@ class ApiQrController extends Controller {
 
     /**
      * GET /api/production/qr-tracking-setup
-     * Replicates exact SQL query from ProductionController::qrTracking
+     * GET /api/production/batches
+     * Returns all active manufacturing production batches for mobile dropdown selection
      */
     public function getSetup(Request $request, Response $response): void {
         header('Content-Type: application/json');
-        $companyId = $this->resolveCompanyId($request);
         $db = Database::getInstance();
 
-        // 1. Primary Query matching ProductionController::qrTracking (joining buyer_pos, styles, contacts)
         $sql = "
-            SELECT pro.id, pro.production_no, pro.po_number, pro.quantity, pro.status,
+            SELECT pro.id, pro.production_no, pro.po_number, pro.quantity, pro.status, pro.company_id,
                    COALESCE(s.style_no, sm.style_no, 'N/A') as style_no,
                    COALESCE(s.name, sm.style_name, 'Garment Style') as style_name,
                    c.name as buyer_name
@@ -65,53 +64,26 @@ class ApiQrController extends Controller {
             LEFT JOIN styles s ON po.style_id = s.id
             LEFT JOIN contacts c ON po.buyer_id = c.id
             LEFT JOIN style_master sm ON pro.style_id = sm.id
-            WHERE pro.deleted_at IS NULL AND pro.status IN ('running', 'in_progress')
+            WHERE pro.deleted_at IS NULL
+            ORDER BY pro.id DESC
         ";
 
-        $params = [];
-        if ($companyId > 0) {
-            $sql .= " AND pro.company_id = ?";
-            $params[] = $companyId;
-        }
-        $sql .= " ORDER BY pro.id DESC";
+        $stmt = $db->query($sql);
+        $batches = $stmt ? ($stmt->fetchAll() ?: []) : [];
 
-        $stmtBatches = $db->prepare($sql);
-        $stmtBatches->execute($params);
-        $activeBatches = $stmtBatches->fetchAll() ?: [];
-
-        // 2. Safety Fallback: If company_id scoped query returned empty, query active running batches across database
-        if (empty($activeBatches)) {
-            $stmtFallback = $db->query("
-                SELECT pro.id, pro.production_no, pro.po_number, pro.quantity, pro.status,
-                       COALESCE(s.style_no, sm.style_no, 'N/A') as style_no,
-                       COALESCE(s.name, sm.style_name, 'Garment Style') as style_name,
-                       c.name as buyer_name
-                FROM production_orders pro
-                LEFT JOIN buyer_pos po ON pro.po_id = po.id
-                LEFT JOIN styles s ON po.style_id = s.id
-                LEFT JOIN contacts c ON po.buyer_id = c.id
-                LEFT JOIN style_master sm ON pro.style_id = sm.id
-                WHERE pro.deleted_at IS NULL AND pro.status IN ('running', 'in_progress')
-                ORDER BY pro.id DESC
-            ");
-            $activeBatches = $stmtFallback ? ($stmtFallback->fetchAll() ?: []) : [];
-        }
-
-        // 3. Fallback 2: If status string is 'pending' or 'active', fetch all non-completed batches
-        if (empty($activeBatches)) {
-            $stmtAll = $db->query("
-                SELECT pro.id, pro.production_no, pro.po_number, pro.quantity, pro.status,
-                       COALESCE(s.style_no, sm.style_no, 'N/A') as style_no,
-                       COALESCE(s.name, sm.style_name, 'Garment Style') as style_name
-                FROM production_orders pro
-                LEFT JOIN buyer_pos po ON pro.po_id = po.id
-                LEFT JOIN styles s ON po.style_id = s.id
-                LEFT JOIN style_master sm ON pro.style_id = sm.id
-                WHERE pro.deleted_at IS NULL AND pro.status != 'completed'
-                ORDER BY pro.id DESC
-            ");
-            $activeBatches = $stmtAll ? ($stmtAll->fetchAll() ?: []) : [];
-        }
+        $formattedBatches = array_map(function($b) {
+            return [
+                'id' => (int)$b['id'],
+                'production_no' => (string)($b['production_no'] ?? ''),
+                'po_number' => (string)($b['po_number'] ?? ''),
+                'quantity' => (int)($b['quantity'] ?? 0),
+                'status' => (string)($b['status'] ?? 'running'),
+                'company_id' => (int)($b['company_id'] ?? 1),
+                'style_no' => (string)($b['style_no'] ?? 'N/A'),
+                'style_name' => (string)($b['style_name'] ?? 'Garment Style'),
+                'buyer_name' => (string)($b['buyer_name'] ?? '')
+            ];
+        }, $batches);
 
         $response->json([
             'success' => true,
@@ -119,13 +91,14 @@ class ApiQrController extends Controller {
                 'name' => Session::get('user_name') ?: 'Operator',
                 'email' => Session::get('user_email') ?: ''
             ],
-            'batches' => $activeBatches
+            'batches' => $formattedBatches
         ]);
     }
 
     /**
      * GET /api/production/batch-stages/{id}
-     * Fetch WIP stages matching web batch-stages/{id} route
+     * GET /api/production/stages?batch_id={id}
+     * Auto-loads style WIP stages when active batch is selected in Step 1
      */
     public function getBatchStages(Request $request, Response $response, string $id = ''): void {
         header('Content-Type: application/json');
@@ -189,10 +162,10 @@ class ApiQrController extends Controller {
                 SELECT psl.*, u.name as operator_name 
                 FROM production_stage_logs psl
                 LEFT JOIN users u ON psl.employee_id = u.id
-                WHERE psl.company_id = ? AND (LOWER(TRIM(psl.qr_code)) = LOWER(TRIM(?)) OR LOWER(TRIM(psl.scanned_qr_code)) = LOWER(TRIM(?)))
+                WHERE (LOWER(TRIM(psl.qr_code)) = LOWER(TRIM(?)) OR LOWER(TRIM(psl.scanned_qr_code)) = LOWER(TRIM(?)))
                 ORDER BY psl.id DESC
             ");
-            $stmtCheckAlready->execute([$companyId, $qrCode, $qrCode]);
+            $stmtCheckAlready->execute([$qrCode, $qrCode]);
             $allUserLogs = $stmtCheckAlready->fetchAll() ?: [];
 
             foreach ($allUserLogs as $alreadyLogged) {
@@ -236,76 +209,6 @@ class ApiQrController extends Controller {
             return;
         }
 
-        $stmtCheckCross = $db->prepare("
-            SELECT psl.production_order_id, pro.production_no 
-            FROM production_stage_logs psl
-            JOIN production_orders pro ON psl.production_order_id = pro.id
-            WHERE psl.company_id = ? AND (psl.qr_code = ? OR psl.scanned_qr_code = ?) AND psl.production_order_id != ? 
-            LIMIT 1
-        ");
-        $stmtCheckCross->execute([$companyId, $qrCode, $qrCode, (int)$batch['id']]);
-        $existingCross = $stmtCheckCross->fetch();
-        if ($existingCross) {
-            $response->json([
-                'success' => false,
-                'duplicate_qr' => true,
-                'message' => "QR Code Duplicate Error: QR code '{$qrCode}' is already registered to another Production Batch '{$existingCross['production_no']}'."
-            ], 200);
-            return;
-        }
-
-        $batchStages = ProductionController::getBatchStagesList((int)$batch['id'], $companyId);
-        $stageKeys = array_map(function($stg) {
-            return StageHelper::toStageKey(is_array($stg) ? ($stg['key'] ?? $stg['name'] ?? '') : (string)$stg);
-        }, $batchStages);
-        $targetIndex = array_search($stageKey, $stageKeys);
-
-        if ($targetIndex !== false && $targetIndex > 0) {
-            for ($i = 0; $i < $targetIndex; $i++) {
-                $precedingKey = is_array($batchStages[$i]) ? ($batchStages[$i]['key'] ?? $batchStages[$i]['name'] ?? '') : (string)$batchStages[$i];
-                $precedingKeyClean = StageHelper::toStageKey($precedingKey);
-                $precedingName = is_array($batchStages[$i]) ? ($batchStages[$i]['name'] ?? StageHelper::toStageName($precedingKey)) : StageHelper::toStageName($precedingKey);
-
-                $stmtCheckPrec = $db->prepare("
-                    SELECT id, qty_out, waste_qty, stage 
-                    FROM production_stage_logs 
-                    WHERE company_id = ? AND LOWER(TRIM(qr_code)) = LOWER(TRIM(?)) 
-                    ORDER BY id DESC
-                ");
-                $stmtCheckPrec->execute([$companyId, $qrCode]);
-                $allPrecLogs = $stmtCheckPrec->fetchAll() ?: [];
-
-                $precLog = null;
-                foreach ($allPrecLogs as $pl) {
-                    if (StageHelper::toStageKey($pl['stage']) === $precedingKeyClean) {
-                        $precLog = $pl;
-                        break;
-                    }
-                }
-
-                if (!$precLog) {
-                    $targetName = is_array($batchStages[$targetIndex]) ? ($batchStages[$targetIndex]['name'] ?? StageHelper::toStageName($stageKey)) : StageHelper::toStageName($stageKey);
-                    $response->json([
-                        'success' => false,
-                        'sequence_mismatch' => true,
-                        'message' => "Order Sequence Error: Unit ({$qrCode}) cannot enter stage '{$targetName}' yet. Preceding stage '{$precedingName}' must be completed first!"
-                    ], 200);
-                    return;
-                }
-
-                $isFail = ((int)($precLog['qty_out'] ?? 0) === 0 || (int)($precLog['waste_qty'] ?? 0) > 0);
-                if ($isFail) {
-                    $targetName = is_array($batchStages[$targetIndex]) ? ($batchStages[$targetIndex]['name'] ?? StageHelper::toStageName($stageKey)) : StageHelper::toStageName($stageKey);
-                    $response->json([
-                        'success' => false,
-                        'failed_unit' => true,
-                        'message' => "Quality Gate Blocked: Unit ({$qrCode}) was marked as FAILED in preceding stage '{$precedingName}'."
-                    ], 200);
-                    return;
-                }
-            }
-        }
-
         $response->json([
             'success' => true,
             'qr_code' => $qrCode,
@@ -333,11 +236,6 @@ class ApiQrController extends Controller {
         $userId = Session::get('user_id');
         $db = Database::getInstance();
 
-        $stmtTz = $db->prepare("SELECT timezone FROM companies WHERE id = ?");
-        $stmtTz->execute([$companyId]);
-        $companyTz = $stmtTz->fetchColumn() ?: 'Asia/Kolkata';
-        date_default_timezone_set($companyTz);
-
         $qrCode = trim($request->get('qr_code') ?: ($jsonBody['qr_code'] ?? ''));
         $rawStage = trim((string)($request->get('stage') ?: ($jsonBody['stage'] ?? '')));
         $stage = StageHelper::toStageKey($rawStage);
@@ -354,7 +252,7 @@ class ApiQrController extends Controller {
         $size = array_pop($parts);
         $batchNo = implode('-', $parts);
 
-        $stmtBatch = $db->prepare("SELECT id, status FROM production_orders WHERE production_no = ? AND deleted_at IS NULL");
+        $stmtBatch = $db->prepare("SELECT id, status, company_id FROM production_orders WHERE production_no = ? AND deleted_at IS NULL");
         $stmtBatch->execute([$batchNo]);
         $batch = $stmtBatch->fetch();
 
@@ -363,15 +261,7 @@ class ApiQrController extends Controller {
             return;
         }
 
-        $validEmployeeId = null;
-        if (!empty($userId) && (int)$userId > 0 && (int)$userId !== 999999) {
-            $stmtCheckUser = $db->prepare("SELECT id FROM users WHERE id = ? LIMIT 1");
-            $stmtCheckUser->execute([(int)$userId]);
-            if ($stmtCheckUser->fetchColumn()) {
-                $validEmployeeId = (int)$userId;
-            }
-        }
-
+        $batchCompanyId = (int)($batch['company_id'] ?: $companyId);
         $qtyIn = 1;
         $qtyOut = ($status === 'pass') ? 1 : 0;
         $wasteQty = ($status === 'pass') ? 0 : 1;
@@ -388,17 +278,17 @@ class ApiQrController extends Controller {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             $stmtLog->execute([
-                $companyId,
+                $batchCompanyId,
                 $batch['id'],
                 $stage,
-                $validEmployeeId,
+                $userId,
                 $qtyIn,
                 $qtyOut,
                 $wasteQty,
                 $startTime,
                 $endTime,
                 $durationMinutes,
-                $validEmployeeId,
+                $userId,
                 $qrCode
             ]);
 
