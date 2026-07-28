@@ -55,6 +55,23 @@ class ApiAuthController extends Controller {
         // Generate authorization token for mobile API session
         $token = bin2hex(random_bytes(32));
 
+        $companyName = '';
+        $companyLogo = '';
+        if (!empty($user['company_id'])) {
+            try {
+                $db = \App\Core\Database::getInstance();
+                $stmt = $db->prepare("SELECT name, logo FROM companies WHERE id = ? LIMIT 1");
+                $stmt->execute([(int)$user['company_id']]);
+                $companyData = $stmt->fetch();
+                if ($companyData) {
+                    $companyName = $companyData['name'] ?? '';
+                    $companyLogo = $companyData['logo'] ?? '';
+                }
+            } catch (\Exception $e) {
+                // Ignore DB errors for missing table/columns
+            }
+        }
+
         $response->json([
             'success' => true,
             'message' => 'Login successful',
@@ -67,6 +84,8 @@ class ApiAuthController extends Controller {
                 'role' => $user['role_id'] ?? 'user',
                 'company_id' => $user['company_id'] ?? null,
                 'subdomain' => $user['tenant_subdomain'] ?? null,
+                'company_name' => $companyName,
+                'company_logo' => $companyLogo,
             ]
         ], 200);
     }
