@@ -65,7 +65,11 @@ class ApiAuthController extends Controller {
                 $companyData = $stmt->fetch();
                 if ($companyData) {
                     $companyName = $companyData['name'] ?? '';
-                    $companyLogo = $companyData['logo'] ?? '';
+                    if (!empty($companyData['logo'])) {
+                        $companyLogo = preg_match('/^https?:\/\//', $companyData['logo']) 
+                            ? $companyData['logo'] 
+                            : rtrim($_ENV['APP_URL'] ?? 'https://erp.mywellgro.online', '/') . '/' . ltrim($companyData['logo'], '/');
+                    }
                 }
             } catch (\Exception $e) {
                 // Ignore DB errors for missing table/columns
@@ -109,10 +113,18 @@ class ApiAuthController extends Controller {
             $companyData = $stmt->fetch();
             
             if ($companyData) {
+                $logoUrl = '';
+                if (!empty($companyData['logo'])) {
+                    // Prepend base url if it's a relative path
+                    $logoUrl = preg_match('/^https?:\/\//', $companyData['logo']) 
+                        ? $companyData['logo'] 
+                        : rtrim($_ENV['APP_URL'] ?? 'https://erp.mywellgro.online', '/') . '/' . ltrim($companyData['logo'], '/');
+                }
+
                 $response->json([
                     'success' => true,
                     'company_name' => $companyData['name'] ?? '',
-                    'company_logo' => $companyData['logo'] ?? ''
+                    'company_logo' => $logoUrl
                 ], 200);
             } else {
                 $response->json(['success' => false, 'error' => 'Company not found'], 404);
