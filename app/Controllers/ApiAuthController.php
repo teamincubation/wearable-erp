@@ -1,0 +1,73 @@
+<?php
+namespace App\Controllers;
+
+use App\Core\Controller;
+use App\Core\Request;
+use App\Core\Response;
+use App\Core\Auth;
+
+/**
+ * Dedicated REST API Authentication Controller
+ * Provides clean JSON responses without HTTP 302 redirects.
+ */
+class ApiAuthController extends Controller {
+
+    /**
+     * POST /api/login
+     * Authenticate mobile app users and return a JSON payload with status & token.
+     */
+    public function login(Request $request, Response $response): void {
+        // Read raw JSON body if available
+        $rawInput = file_get_contents('php://input');
+        $jsonBody = json_decode($rawInput, true);
+        if (!is_array($jsonBody)) {
+            $jsonBody = [];
+        }
+
+        $identifier = trim(
+            $request->get('email') ?:
+            ($request->get('username') ?:
+            ($jsonBody['email'] ?? ($jsonBody['username'] ?? '')))
+        );
+        $password = $request->get('password') ?: ($jsonBody['password'] ?? '');
+
+        if (empty($identifier) || empty($password)) {
+            $response->json([
+                'success' => false,
+                'error' => 'Please enter a valid email, username, and password.',
+                'message' => 'Please enter a valid email, username, and password.'
+            ], 400);
+            return;
+        }
+
+        // Authenticate credentials via core Auth engine
+        $user = Auth::attempt($identifier, $password);
+
+        if (!$user) {
+            $response->json([
+                'success' => false,
+                'error' => 'Invalid email/username or password.',
+                'message' => 'Invalid email/username or password.'
+            ], 401);
+            return;
+        }
+
+        // Generate authorization token for mobile API session
+        $token = bin2hex(random_bytes(32));
+
+        $response->json([
+            'success' => true,
+            'message' => 'Login successful',
+            'token' => $token,
+            'access_token' => $token,
+            'user' => [
+                'id' => (int)$user['id'],
+                'name' => $user['name'] ?? '',
+                'email' => $user['email'] ?? '',
+                'role' => $user['role_id'] ?? 'user',
+                'company_id' => $user['company_id'] ?? null,
+                'subdomain' => $user['tenant_subdomain'] ?? null,
+            ]
+        ], 200);
+    }
+}
