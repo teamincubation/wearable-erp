@@ -62,10 +62,10 @@ class ApiQrController extends Controller {
             LEFT JOIN style_master sm ON pro.style_id = sm.id
             LEFT JOIN buyer_pos po ON pro.po_id = po.id
             LEFT JOIN styles s ON po.style_id = s.id
-            WHERE (pro.company_id = ? OR ? = 0) AND pro.status IN ('running', 'in_progress', 'pending') AND pro.deleted_at IS NULL
+            WHERE pro.deleted_at IS NULL
             ORDER BY pro.id DESC
         ");
-        $stmt->execute([$companyId, $companyId]);
+        $stmt->execute();
         $batches = $stmt->fetchAll() ?: [];
 
         $response->json([
