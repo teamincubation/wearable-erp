@@ -32,6 +32,7 @@ $router->get('/logout', [AuthController::class, 'logout']);
 // Mobile & External REST API Routes (Returns pure JSON - No 302 Redirects)
 $router->post('/api/login', [ApiAuthController::class, 'login']);
 $router->post('/api/v1/login', [ApiAuthController::class, 'login']);
+$router->get('/api/company', [ApiAuthController::class, 'getCompany']);
 
 // QR Code Scanning Hub API Routes (Shared between Web & Mobile)
 $router->get('/api/production/qr-tracking-setup', [ApiQrController::class, 'getSetup']);

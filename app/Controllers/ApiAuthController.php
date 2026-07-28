@@ -89,4 +89,36 @@ class ApiAuthController extends Controller {
             ]
         ], 200);
     }
+
+    /**
+     * GET /api/company
+     * Fetch company details using X-Tenant-ID
+     */
+    public function getCompany(Request $request, Response $response): void {
+        $companyId = $request->server('HTTP_X_TENANT_ID') ?? $request->get('company_id');
+        
+        if (empty($companyId)) {
+            $response->json(['success' => false, 'error' => 'No company ID provided'], 400);
+            return;
+        }
+
+        try {
+            $db = \App\Core\Database::getInstance();
+            $stmt = $db->prepare("SELECT name, logo FROM companies WHERE id = ? LIMIT 1");
+            $stmt->execute([(int)$companyId]);
+            $companyData = $stmt->fetch();
+            
+            if ($companyData) {
+                $response->json([
+                    'success' => true,
+                    'company_name' => $companyData['name'] ?? '',
+                    'company_logo' => $companyData['logo'] ?? ''
+                ], 200);
+            } else {
+                $response->json(['success' => false, 'error' => 'Company not found'], 404);
+            }
+        } catch (\Exception $e) {
+            $response->json(['success' => false, 'error' => 'Database error'], 500);
+        }
+    }
 }
