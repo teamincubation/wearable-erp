@@ -222,7 +222,7 @@ class ApiQrController extends Controller {
         $targetQty = (int)($batch['target_qty'] ?? 0);
         if ($targetQty > 0) {
             if ($serial > $targetQty) {
-                $response->json(['success' => false, 'message' => "Invalid QR Code. The serial number ({$serial}) exceeds the total batch target ({$targetQty})."], 400);
+                $response->json(['success' => false, 'message' => "Invalid QR Code. The serial number ({$serial}) exceeds the total batch target ({$targetQty})."], 200);
                 return;
             }
 
@@ -233,7 +233,7 @@ class ApiQrController extends Controller {
 
                 if ($completedCount >= $targetQty) {
                     $formattedStage = StageHelper::toStageName($stageKey);
-                    $response->json(['success' => false, 'message' => "Target reached! Batch target is {$targetQty} pcs, and {$completedCount} pcs are already completed in '{$formattedStage}'."], 400);
+                    $response->json(['success' => false, 'message' => "Target reached! Batch target is {$targetQty} pcs, and {$completedCount} pcs are already completed in '{$formattedStage}'."], 200);
                     return;
                 }
             }
@@ -242,7 +242,12 @@ class ApiQrController extends Controller {
         // --- Sequential Stage Validation ---
         $seqValidation = $this->validateSequentialStage($db, $qrCode, $stageKey, (int)$batch['id'], $companyId);
         if (!$seqValidation['success']) {
-            $response->json(['success' => false, 'message' => $seqValidation['message']], 400);
+            $response->json([
+                'success' => false,
+                'message' => $seqValidation['message'],
+                'sequence_mismatch' => $seqValidation['sequence_mismatch'] ?? false,
+                'failed_unit' => $seqValidation['failed_unit'] ?? false
+            ], 200);
             return;
         }
 
@@ -294,11 +299,11 @@ class ApiQrController extends Controller {
             $formattedPrevStage = StageHelper::toStageName($prevStageKey);
 
             if (!$prevLog) {
-                return ['success' => false, 'message' => "Order matters. Please complete '{$formattedPrevStage}' first."];
+                return ['success' => false, 'sequence_mismatch' => true, 'message' => "Order matters. Please complete '{$formattedPrevStage}' first."];
             }
 
             if ((int)$prevLog['qty_out'] === 0 || (int)$prevLog['waste_qty'] > 0) {
-                return ['success' => false, 'message' => "This item failed in previous step ('{$formattedPrevStage}') and cannot proceed."];
+                return ['success' => false, 'failed_unit' => true, 'message' => "This item failed in previous step ('{$formattedPrevStage}') and cannot proceed."];
             }
         }
         
@@ -346,7 +351,7 @@ class ApiQrController extends Controller {
             $targetQty = (int)($batch['target_qty'] ?? 0);
             if ($targetQty > 0) {
                 if ($serial > $targetQty) {
-                    $response->json(['success' => false, 'message' => "Invalid QR Code. The serial number exceeds the total batch target."], 400);
+                    $response->json(['success' => false, 'message' => "Invalid QR Code. The serial number exceeds the total batch target."], 200);
                     return;
                 }
 
@@ -355,7 +360,7 @@ class ApiQrController extends Controller {
                 $completedCount = (int)$stmtCount->fetchColumn();
 
                 if ($completedCount >= $targetQty) {
-                    $response->json(['success' => false, 'message' => "Target reached! Batch target is {$targetQty} pcs."], 400);
+                    $response->json(['success' => false, 'message' => "Target reached! Batch target is {$targetQty} pcs."], 200);
                     return;
                 }
             }
@@ -363,7 +368,12 @@ class ApiQrController extends Controller {
             // --- Sequential Stage Validation ---
             $seqValidation = $this->validateSequentialStage($db, $qrCode, $stage, (int)$batch['id'], $companyId);
             if (!$seqValidation['success']) {
-                $response->json(['success' => false, 'message' => $seqValidation['message']], 400);
+                $response->json([
+                    'success' => false, 
+                    'message' => $seqValidation['message'],
+                    'sequence_mismatch' => $seqValidation['sequence_mismatch'] ?? false,
+                    'failed_unit' => $seqValidation['failed_unit'] ?? false
+                ], 200);
                 return;
             }
         }
