@@ -57,23 +57,23 @@ class ApiQrController extends Controller {
         $companyId = $this->resolveCompanyId($request);
         $db = Database::getInstance();
 
+        // Fetch active production orders directly via API query
         $stmt = $db->prepare("
-            SELECT pro.id, pro.production_no, pro.po_number, pro.quantity, pro.status,
+            SELECT pro.id, pro.production_no, pro.po_number, pro.quantity, pro.status, pro.company_id,
                    COALESCE(sm.style_no, s.style_no, 'N/A') as style_no,
                    COALESCE(sm.style_name, s.name, 'Garment Style') as style_name
             FROM production_orders pro
             LEFT JOIN style_master sm ON pro.style_id = sm.id
             LEFT JOIN buyer_pos po ON pro.po_id = po.id
             LEFT JOIN styles s ON po.style_id = s.id
-            WHERE pro.company_id = ? AND pro.status != 'completed' AND pro.deleted_at IS NULL
+            WHERE pro.deleted_at IS NULL AND pro.status != 'completed'
             ORDER BY pro.id DESC
         ");
-        $stmt->execute([$companyId]);
+        $stmt->execute();
         $batches = $stmt->fetchAll() ?: [];
 
         $response->json([
             'success' => true,
-            'company_id' => $companyId,
             'batches' => $batches
         ]);
     }
