@@ -34,8 +34,10 @@ $router->post('/api/login', [ApiAuthController::class, 'login']);
 $router->post('/api/v1/login', [ApiAuthController::class, 'login']);
 
 // QR Code Scanning Hub API Routes (Shared between Web & Mobile)
-$router->get('/api/production/batches', [ApiQrController::class, 'getBatches']);
-$router->get('/api/production/stages', [ApiQrController::class, 'getStages']);
+$router->get('/api/production/qr-tracking-setup', [ApiQrController::class, 'getSetup']);
+$router->get('/api/production/batches', [ApiQrController::class, 'getSetup']);
+$router->get('/api/production/batch-stages/{id}', [ApiQrController::class, 'getBatchStages']);
+$router->get('/api/production/stages', [ApiQrController::class, 'getBatchStages']);
 $router->post('/api/production/verify-qr', [ApiQrController::class, 'verifyQr']);
 $router->post('/api/production/log-qr', [ApiQrController::class, 'logQr']);
 

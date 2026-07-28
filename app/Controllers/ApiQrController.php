@@ -6,17 +6,16 @@ use App\Core\Request;
 use App\Core\Response;
 use App\Core\Database;
 use App\Core\Session;
-use App\Core\Model;
 use App\Helpers\StageHelper;
 
 /**
- * Dedicated Separate REST API Controller for QR Code Scanning Hub
- * Shared by both Web Interface & Mobile Flutter App.
+ * Separate Dedicated REST API Controller for QR Code Scanning Hub
+ * Replicates 1-to-1 exact functionality of company/production/qr-tracking for Mobile App
  */
 class ApiQrController extends Controller {
 
     /**
-     * Resolve Tenant Company ID from session, headers, or query params
+     * Resolve active tenant company ID
      */
     private function resolveCompanyId(Request $request): int {
         $companyId = Session::get('company_id');
@@ -35,11 +34,9 @@ class ApiQrController extends Controller {
             }
         }
 
-        // Fallback to latest active production order company ID
         try {
             $db = Database::getInstance();
-            $stmtLast = $db->query("SELECT company_id FROM production_orders WHERE deleted_at IS NULL ORDER BY id DESC LIMIT 1");
-            $lastComp = $stmtLast ? $stmtLast->fetchColumn() : null;
+            $lastComp = $db->query("SELECT company_id FROM production_orders WHERE deleted_at IS NULL ORDER BY id DESC LIMIT 1")->fetchColumn();
             if ($lastComp) {
                 return (int)$lastComp;
             }
@@ -49,78 +46,78 @@ class ApiQrController extends Controller {
     }
 
     /**
-     * GET /api/production/batches
-     * Returns list of active running production batches for dropdown selection
+     * GET /api/production/qr-tracking-setup
+     * Fetch active started production batches for Step 1 dropdown
      */
-    public function getBatches(Request $request, Response $response): void {
+    public function getSetup(Request $request, Response $response): void {
         header('Content-Type: application/json');
         $companyId = $this->resolveCompanyId($request);
         $db = Database::getInstance();
 
-        // Fetch active production orders directly via API query
         $stmt = $db->prepare("
-            SELECT pro.id, pro.production_no, pro.po_number, pro.quantity, pro.status, pro.company_id,
+            SELECT pro.id, pro.production_no, pro.po_number, pro.quantity, pro.status,
                    COALESCE(sm.style_no, s.style_no, 'N/A') as style_no,
                    COALESCE(sm.style_name, s.name, 'Garment Style') as style_name
             FROM production_orders pro
             LEFT JOIN style_master sm ON pro.style_id = sm.id
             LEFT JOIN buyer_pos po ON pro.po_id = po.id
             LEFT JOIN styles s ON po.style_id = s.id
-            WHERE pro.deleted_at IS NULL AND pro.status != 'completed'
+            WHERE (pro.company_id = ? OR ? = 0) AND pro.status IN ('running', 'in_progress', 'pending') AND pro.deleted_at IS NULL
             ORDER BY pro.id DESC
         ");
-        $stmt->execute();
+        $stmt->execute([$companyId, $companyId]);
         $batches = $stmt->fetchAll() ?: [];
 
         $response->json([
             'success' => true,
+            'user' => [
+                'name' => Session::get('user_name') ?: 'Operator',
+                'email' => Session::get('user_email') ?: ''
+            ],
             'batches' => $batches
         ]);
     }
 
     /**
-     * GET /api/production/stages
-     * Returns WIP stages list for selected batch or default company WIP workflow
+     * GET /api/production/batch-stages/{id}
+     * Auto-load style WIP stages when active batch is selected in Step 1
      */
-    public function getStages(Request $request, Response $response): void {
+    public function getBatchStages(Request $request, Response $response, string $id = ''): void {
         header('Content-Type: application/json');
         $companyId = $this->resolveCompanyId($request);
-        $batchId = (int)$request->get('batch_id');
+        $batchId = (int)($id ?: $request->get('batch_id'));
 
-        $stagesList = [];
-        if ($batchId > 0) {
-            $rawStages = ProductionController::getBatchStagesList($batchId, $companyId);
-            foreach ($rawStages as $stg) {
-                $key = is_array($stg) ? ($stg['key'] ?? $stg['name'] ?? '') : (string)$stg;
-                $name = is_array($stg) ? ($stg['name'] ?? StageHelper::toStageName($key)) : StageHelper::toStageName($key);
-                $stagesList[] = [
-                    'key' => StageHelper::toStageKey($key),
-                    'name' => $name
-                ];
-            }
+        if ($batchId <= 0) {
+            $response->json(['success' => false, 'stages' => [], 'message' => 'Please select a batch first.'], 400);
+            return;
         }
 
-        if (empty($stagesList)) {
-            $companyWipStages = CompanyController::getCompanyWipStages($companyId);
-            foreach ($companyWipStages as $key => $stg) {
-                $stgKey = is_array($stg) ? ($stg['key'] ?? $key) : (is_string($key) ? $key : (string)$stg);
-                $stgName = is_array($stg) ? ($stg['name'] ?? StageHelper::toStageName($stgKey)) : StageHelper::toStageName($stgKey);
-                $stagesList[] = [
-                    'key' => StageHelper::toStageKey($stgKey),
-                    'name' => $stgName
-                ];
-            }
+        $rawStages = ProductionController::getBatchStagesList($batchId, $companyId);
+        $stagesList = [];
+
+        foreach ($rawStages as $stg) {
+            $key = is_array($stg) ? ($stg['key'] ?? $stg['name'] ?? '') : (string)$stg;
+            $name = is_array($stg) ? ($stg['name'] ?? StageHelper::toStageName($key)) : StageHelper::toStageName($key);
+            $order = is_array($stg) ? ($stg['order'] ?? null) : null;
+
+            $stagesList[] = [
+                'key' => StageHelper::toStageKey($key),
+                'name' => ($order ? "#{$order} " : '') . strtoupper($name),
+                'order' => $order
+            ];
         }
 
         $response->json([
             'success' => true,
+            'batch_id' => $batchId,
             'stages' => $stagesList
         ]);
     }
 
     /**
      * POST /api/production/verify-qr
-     * Validates scanned QR Code for already-scanned checks, sequence order, and fetches product metadata
+     * AJAX Endpoint to verify scanned QR Code and retrieve product details
+     * Replicates exact pre-scan sequence, duplicate, and quality gate checks
      */
     public function verifyQr(Request $request, Response $response): void {
         header('Content-Type: application/json');
@@ -130,7 +127,7 @@ class ApiQrController extends Controller {
         $companyId = $this->resolveCompanyId($request);
         $db = Database::getInstance();
 
-        // Enforce tenant company timezone
+        // Enforce tenant timezone
         $stmtTz = $db->prepare("SELECT timezone FROM companies WHERE id = ?");
         $stmtTz->execute([$companyId]);
         $companyTz = $stmtTz->fetchColumn() ?: 'Asia/Kolkata';
@@ -145,7 +142,7 @@ class ApiQrController extends Controller {
             return;
         }
 
-        // 1. Already Scanned Check: Prevent validating if already processed in this exact WIP stage
+        // 1. Duplicate check: Prevent validating if already processed in this exact WIP stage
         if (!empty($stageKey)) {
             $stmtCheckAlready = $db->prepare("
                 SELECT psl.*, u.name as operator_name 
@@ -173,7 +170,7 @@ class ApiQrController extends Controller {
             }
         }
 
-        // Parse QR Code format e.g. BATCH-TOCCO-001-S-0005
+        // Parse QR Code e.g. BATCH-TOCCO-001-S-0005
         $parts = explode('-', $qrCode);
         if (count($parts) < 3) {
             $response->json(['success' => false, 'message' => 'Invalid tag format. QR code must match: [BATCH_CODE]-[SIZE]-[SERIAL].'], 400);
@@ -183,14 +180,14 @@ class ApiQrController extends Controller {
         $size = array_pop($parts);
         $batchNo = implode('-', $parts);
 
-        // Fetch production batch details
+        // Fetch production order details
         $stmtBatch = $db->prepare("
             SELECT pro.*, sm.style_no, sm.style_name, sm.category, sm.fabric
             FROM production_orders pro
             LEFT JOIN style_master sm ON pro.style_id = sm.id
-            WHERE pro.production_no = ? AND pro.company_id = ? AND pro.deleted_at IS NULL
+            WHERE pro.production_no = ? AND pro.deleted_at IS NULL
         ");
-        $stmtBatch->execute([$batchNo, $companyId]);
+        $stmtBatch->execute([$batchNo]);
         $batch = $stmtBatch->fetch();
 
         if (!$batch) {
@@ -218,7 +215,7 @@ class ApiQrController extends Controller {
         }
 
         // 3. Preceding Stage Order Sequence Check
-        $batchStages = ProductionController::getBatchStagesList((int)$batch['id']);
+        $batchStages = ProductionController::getBatchStagesList((int)$batch['id'], $companyId);
         $stageKeys = array_map(function($stg) {
             return StageHelper::toStageKey(is_array($stg) ? ($stg['key'] ?? $stg['name'] ?? '') : (string)$stg);
         }, $batchStages);
@@ -257,7 +254,6 @@ class ApiQrController extends Controller {
                     return;
                 }
 
-                // Check if unit was marked as FAILED in preceding stage
                 $isFail = ((int)($precLog['qty_out'] ?? 0) === 0 || (int)($precLog['waste_qty'] ?? 0) > 0);
                 if ($isFail) {
                     $targetName = is_array($batchStages[$targetIndex]) ? ($batchStages[$targetIndex]['name'] ?? StageHelper::toStageName($stageKey)) : StageHelper::toStageName($stageKey);
@@ -271,7 +267,7 @@ class ApiQrController extends Controller {
             }
         }
 
-        // Return validated product details
+        // Return verified item details matching Web Popup
         $response->json([
             'success' => true,
             'qr_code' => $qrCode,
@@ -289,7 +285,7 @@ class ApiQrController extends Controller {
 
     /**
      * POST /api/production/log-qr
-     * Submits Pass / Fail scan decision to production_stage_logs table
+     * Submit Pass / Fail scan decision
      */
     public function logQr(Request $request, Response $response): void {
         header('Content-Type: application/json');
@@ -300,7 +296,6 @@ class ApiQrController extends Controller {
         $userId = Session::get('user_id');
         $db = Database::getInstance();
 
-        // Enforce tenant company timezone
         $stmtTz = $db->prepare("SELECT timezone FROM companies WHERE id = ?");
         $stmtTz->execute([$companyId]);
         $companyTz = $stmtTz->fetchColumn() ?: 'Asia/Kolkata';
@@ -317,14 +312,13 @@ class ApiQrController extends Controller {
             return;
         }
 
-        // Parse QR Code to locate batch
         $parts = explode('-', $qrCode);
         $serial = (int)array_pop($parts);
         $size = array_pop($parts);
         $batchNo = implode('-', $parts);
 
-        $stmtBatch = $db->prepare("SELECT id, status FROM production_orders WHERE production_no = ? AND company_id = ? AND deleted_at IS NULL");
-        $stmtBatch->execute([$batchNo, $companyId]);
+        $stmtBatch = $db->prepare("SELECT id, status FROM production_orders WHERE production_no = ? AND deleted_at IS NULL");
+        $stmtBatch->execute([$batchNo]);
         $batch = $stmtBatch->fetch();
 
         if (!$batch) {
@@ -332,13 +326,12 @@ class ApiQrController extends Controller {
             return;
         }
 
-        $employeeId = $userId;
         $validEmployeeId = null;
-        if (!empty($employeeId) && (int)$employeeId > 0 && (int)$employeeId !== 999999) {
+        if (!empty($userId) && (int)$userId > 0 && (int)$userId !== 999999) {
             $stmtCheckUser = $db->prepare("SELECT id FROM users WHERE id = ? LIMIT 1");
-            $stmtCheckUser->execute([(int)$employeeId]);
+            $stmtCheckUser->execute([(int)$userId]);
             if ($stmtCheckUser->fetchColumn()) {
-                $validEmployeeId = (int)$employeeId;
+                $validEmployeeId = (int)$userId;
             }
         }
 
