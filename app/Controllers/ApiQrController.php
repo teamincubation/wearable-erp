@@ -66,7 +66,7 @@ class ApiQrController extends Controller {
         $companyId = $this->resolveCompanyId($request);
 
         $sql = "
-            SELECT pro.id, pro.production_no, pro.po_number, pro.quantity, pro.status, pro.company_id,
+            SELECT pro.id, pro.production_no, po.po_no as po_number, pro.quantity, pro.status, pro.company_id,
                    COALESCE(s.style_no, 'N/A') as style_no,
                    COALESCE(s.name, 'Garment Style') as style_name,
                    c.name as buyer_name
