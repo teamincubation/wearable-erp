@@ -262,7 +262,7 @@ class ApiQrController extends Controller {
             $prevStageKey = $batchStagesKeys[$targetIndex - 1];
             
             $stmtCheck = $db->prepare("
-                SELECT status 
+                SELECT qty_out, waste_qty 
                 FROM production_stage_logs 
                 WHERE (LOWER(TRIM(qr_code)) = LOWER(TRIM(?)) OR LOWER(TRIM(scanned_qr_code)) = LOWER(TRIM(?)))
                   AND LOWER(TRIM(stage)) = LOWER(TRIM(?))
@@ -277,7 +277,7 @@ class ApiQrController extends Controller {
                 return ['success' => false, 'message' => "Order matters. Please complete '{$formattedPrevStage}' first."];
             }
 
-            if (strtolower(trim($prevLog['status'])) !== 'pass') {
+            if ((int)$prevLog['qty_out'] === 0 || (int)$prevLog['waste_qty'] > 0) {
                 return ['success' => false, 'message' => "This item failed in previous step ('{$formattedPrevStage}') and cannot proceed."];
             }
         }
