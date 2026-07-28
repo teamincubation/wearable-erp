@@ -205,7 +205,8 @@ class ApiQrController extends Controller {
         $batchNo = implode('-', $parts);
 
         $stmtBatch = $db->prepare("
-            SELECT pro.*, COALESCE(s.style_no, 'N/A') as style_no, COALESCE(s.name, 'Garment Piece') as style_name, po.quantity as target_qty
+            SELECT pro.id, pro.status, pro.company_id, po.quantity as target_qty, po.sizes_json,
+                   COALESCE(s.style_no, 'N/A') as style_no, COALESCE(s.name, 'Garment Piece') as style_name
             FROM production_orders pro
             LEFT JOIN buyer_pos po ON pro.po_id = po.id
             LEFT JOIN styles s ON po.style_id = s.id
@@ -220,9 +221,29 @@ class ApiQrController extends Controller {
         }
 
         $targetQty = (int)($batch['target_qty'] ?? 0);
+        $sizesJson = json_decode($batch['sizes_json'] ?? '{}', true) ?: [];
+        
         if ($targetQty > 0) {
-            if ($serial > $targetQty) {
-                $response->json(['success' => false, 'message' => "Invalid QR Code. The serial number ({$serial}) exceeds the total batch target ({$targetQty})."], 200);
+            $sizeTarget = 0;
+            
+            // Try to find exact size match or case-insensitive match
+            foreach ($sizesJson as $szKey => $szQty) {
+                if (strtolower(trim($szKey)) === strtolower(trim($size))) {
+                    $sizeTarget = (int)$szQty;
+                    break;
+                }
+            }
+            
+            // If the size isn't found in breakdown, fallback to total target just in case
+            if ($sizeTarget === 0 && !empty($size) && strtoupper(trim($size)) !== 'FREE' && strtoupper(trim($size)) !== 'FREE SIZE') {
+                $response->json(['success' => false, 'message' => "Invalid QR Code. Size '{$size}' is not part of this batch's breakdown."], 200);
+                return;
+            }
+
+            $effectiveLimit = $sizeTarget > 0 ? $sizeTarget : $targetQty;
+
+            if ($serial > $effectiveLimit) {
+                $response->json(['success' => false, 'message' => "Invalid QR Code. The serial number ({$serial}) exceeds the target quantity ({$effectiveLimit}) for size {$size}."], 200);
                 return;
             }
 
@@ -339,19 +360,31 @@ class ApiQrController extends Controller {
         $batchNo = implode('-', $parts);
 
         $stmtBatch = $db->prepare("
-            SELECT pro.id, pro.status, pro.company_id, po.quantity as target_qty
+            SELECT pro.id, pro.status, pro.company_id, po.quantity as target_qty, po.sizes_json
             FROM production_orders pro
             LEFT JOIN buyer_pos po ON pro.po_id = po.id
-            WHERE pro.production_no = ? AND pro.deleted_at IS NULL
+            WHERE pro.production_no = ? AND pro.deleted_at IS NULL LIMIT 1
         ");
         $stmtBatch->execute([$batchNo]);
         $batch = $stmtBatch->fetch();
 
         if ($batch) {
             $targetQty = (int)($batch['target_qty'] ?? 0);
+            $sizesJson = json_decode($batch['sizes_json'] ?? '{}', true) ?: [];
+
             if ($targetQty > 0) {
-                if ($serial > $targetQty) {
-                    $response->json(['success' => false, 'message' => "Invalid QR Code. The serial number exceeds the total batch target."], 200);
+                $sizeTarget = 0;
+                foreach ($sizesJson as $szKey => $szQty) {
+                    if (strtolower(trim($szKey)) === strtolower(trim($size))) {
+                        $sizeTarget = (int)$szQty;
+                        break;
+                    }
+                }
+                
+                $effectiveLimit = $sizeTarget > 0 ? $sizeTarget : $targetQty;
+
+                if ($serial > $effectiveLimit) {
+                    $response->json(['success' => false, 'message' => "Invalid QR Code. The serial number exceeds the target quantity for this size."], 200);
                     return;
                 }
 
