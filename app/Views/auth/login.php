@@ -37,7 +37,6 @@
             <div class="mb-4 text-start">
                 <div class="d-flex justify-content-between align-items-center mb-1">
                     <label for="password" class="form-label small fw-bold text-secondary text-uppercase m-0" style="letter-spacing: 0.5px;">Password</label>
-                    <a href="<?= base_url('forgot-password') ?>" class="small text-decoration-none text-primary fw-semibold">Forgot Password?</a>
                 </div>
                 <div class="input-group">
                     <span class="input-group-text bg-light text-secondary"><i class="fa-solid fa-lock"></i></span>

@@ -247,6 +247,23 @@ class DeveloperController extends Controller {
             $stmtRole->execute([$companyId, 'Company Admin', 'Administrator for ERP tenant']);
             $adminRoleId = $db->lastInsertId();
 
+            // Grant all tenant permissions to the new Company Admin role
+            $stmtPerms = $db->prepare("SELECT id FROM permissions WHERE module = 'tenant'");
+            $stmtPerms->execute();
+            $tenantPermissions = $stmtPerms->fetchAll(\PDO::FETCH_COLUMN);
+
+            if (!empty($tenantPermissions)) {
+                $insertPerms = [];
+                $permParams = [];
+                foreach ($tenantPermissions as $permId) {
+                    $insertPerms[] = "(?, ?)";
+                    $permParams[] = $adminRoleId;
+                    $permParams[] = $permId;
+                }
+                $stmtInsertPerms = $db->prepare("INSERT INTO role_permissions (role_id, permission_id) VALUES " . implode(", ", $insertPerms));
+                $stmtInsertPerms->execute($permParams);
+            }
+
             // Manager role
             $stmtRole->execute([$companyId, 'Production Manager', 'Responsible for factory floor processes']);
             $managerRoleId = $db->lastInsertId();

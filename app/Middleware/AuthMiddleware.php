@@ -23,7 +23,7 @@ class AuthMiddleware extends Middleware {
         $companyId = Session::get('company_id');
 
         // Prevent tenant users from accessing Developer Portal routes
-        if (str_starts_with($path, '/developer/') && !$isDev && $companyId !== null) {
+        if (str_starts_with($path, 'developer/') && !$isDev && $companyId !== null) {
             Session::setFlash('error', 'Access Denied: You do not have Developer Portal permissions.');
             $response->redirect(base_url(Auth::getFirstAccessibleCompanyUrl()));
             return false;

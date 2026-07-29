@@ -77,7 +77,7 @@ class MerchandisingController extends Controller {
             'packing_cost' => $packingCost,
             'margin_percentage' => $marginPercentage,
             'total_cost' => $totalCost,
-            'status' => 'active',
+            'status' => 'draft',
             'created_by' => Session::get('user_id')
         ]);
 

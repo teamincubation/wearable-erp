@@ -20,22 +20,41 @@ class Auth {
         $db = Database::getInstance();
         $contextCompanyId = \App\Core\Model::getActiveCompanyId(); // Resolved securely by TenantMiddleware
 
-        // 1. Developer Portal Login (contextCompanyId is null)
+        // 1. Developer Portal / Universal Login (contextCompanyId is null)
         if ($contextCompanyId === null) {
-            $stmtDev = $db->prepare("SELECT * FROM users WHERE company_id IS NULL AND email = ? AND deleted_at IS NULL LIMIT 1");
-            $stmtDev->execute([$identifier]);
-            $devUser = $stmtDev->fetch();
+            // Global search across all active users (Developer or Tenant)
+            $stmtDev = $db->prepare("
+                SELECT u.*, c.status as company_status 
+                FROM users u
+                LEFT JOIN companies c ON u.company_id = c.id
+                WHERE (u.email = ? OR u.employee_code = ? OR u.phone = ? OR (u.email LIKE ? AND SUBSTRING_INDEX(u.email, '@', 1) = ?)) AND u.deleted_at IS NULL
+                ORDER BY (CASE WHEN u.company_id IS NULL THEN 1 ELSE 2 END) ASC
+                LIMIT 1
+            ");
+            $stmtDev->execute([$identifier, $identifier, $identifier, $identifier . '@%', $identifier]);
+            $user = $stmtDev->fetch();
 
-            if ($devUser && password_verify($password, $devUser['password_hash'])) {
-                if ($devUser['status'] !== 'active') {
-                    self::logAuthActivity($devUser['id'], 'login_blocked_inactive', "Login blocked: User account status is {$devUser['status']}", null);
+            if ($user && password_verify($password, $user['password_hash'])) {
+                if ($user['status'] !== 'active') {
+                    self::logAuthActivity($user['id'], 'login_blocked_inactive', "Login blocked: User account status is {$user['status']}", $user['company_id']);
                     return null;
                 }
-                $devUser['is_developer_session'] = true;
-                $devUser['company_id'] = null;
-                return $devUser;
+                
+                // If it's a tenant user, verify company status
+                if ($user['company_id'] !== null) {
+                    if (!empty($user['company_status']) && $user['company_status'] !== 'active') {
+                        self::logAuthActivity($user['id'], 'login_blocked_company_inactive', "Login blocked: Tenant company is not active", $user['company_id']);
+                        return null;
+                    }
+                } else {
+                    // It's a Developer User
+                    $user['is_developer_session'] = true;
+                    $user['company_id'] = null;
+                }
+                
+                return $user;
             }
-            self::logAuthActivity(null, 'login_failed_identifier', "Failed login attempt for identifier: {$identifier}");
+            self::logAuthActivity(null, 'login_failed_identifier', "Failed universal login attempt for identifier: {$identifier}");
             return null;
         }
 
@@ -44,10 +63,10 @@ class Auth {
             SELECT u.*, c.name as company_name, c.status as company_status 
             FROM users u
             INNER JOIN companies c ON u.company_id = c.id
-            WHERE u.company_id = ? AND (u.email = ? OR u.employee_code = ? OR u.phone = ?) AND u.deleted_at IS NULL
+            WHERE u.company_id = ? AND (u.email = ? OR u.employee_code = ? OR u.phone = ? OR (u.email LIKE ? AND SUBSTRING_INDEX(u.email, '@', 1) = ?)) AND u.deleted_at IS NULL
             LIMIT 1
         ");
-        $stmt->execute([$contextCompanyId, $identifier, $identifier, $identifier]);
+        $stmt->execute([$contextCompanyId, $identifier, $identifier, $identifier, $identifier . '@%', $identifier]);
         $user = $stmt->fetch();
 
         if ($user) {
@@ -209,12 +228,13 @@ class Auth {
                 $stmt->execute([$companyId, $permission]);
                 $flag = $stmt->fetch();
 
-                if (!$flag || $flag['status'] !== 'enabled') {
-                    return false;
-                }
-
-                if ($flag['label'] === 'draft') {
-                    return Session::get('is_developer_session') ? true : false;
+                if ($flag) {
+                    if ($flag['status'] !== 'enabled') {
+                        return false;
+                    }
+                    if ($flag['label'] === 'draft') {
+                        return Session::get('is_developer_session') ? true : false;
+                    }
                 }
             } catch (\Exception $e) {
                 // DB fallback
@@ -316,6 +336,13 @@ class Auth {
                 stripos($userInfo['role_name'] ?? '', 'Admin') !== false || 
                 (int)($userInfo['is_system'] ?? 0) === 1
             )) {
+                // 1. Grant all base tenant permissions
+                $stmtBase = $db->prepare("SELECT name FROM permissions WHERE module = 'tenant'");
+                $stmtBase->execute();
+                $basePerms = $stmtBase->fetchAll(\PDO::FETCH_COLUMN) ?: [];
+                $permissions = array_merge($permissions, $basePerms);
+
+                // 2. Grant feature flags
                 $stmtFlags = $db->prepare("SELECT feature_key FROM feature_flags WHERE company_id = ? AND status = 'enabled' AND deleted_at IS NULL");
                 $stmtFlags->execute([$userInfo['company_id']]);
                 $enabledFlags = $stmtFlags->fetchAll(\PDO::FETCH_COLUMN) ?: [];
