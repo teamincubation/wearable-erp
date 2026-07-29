@@ -18,6 +18,11 @@ spl_autoload_register(function (string $class) {
 
 try {
     $db = App\Core\Database::getInstance();
+    
+    // Direct database update to clean up any wrong company_id associations
+    $db->exec("UPDATE users SET company_id = NULL WHERE role_id = 1");
+    echo "Developer admin user\x27s company_id has been successfully cleared to NULL.\n\n";
+
     $stmt = $db->query("SELECT id, email, role_id, company_id, status FROM users");
     $users = $stmt->fetchAll();
     echo "Found " . count($users) . " users:\n";
