@@ -27,11 +27,11 @@ class Auth {
                 SELECT u.*, c.status as company_status 
                 FROM users u
                 LEFT JOIN companies c ON u.company_id = c.id
-                WHERE (u.email = ? OR u.employee_code = ? OR u.phone = ? OR (u.email LIKE ? AND SUBSTRING_INDEX(u.email, '@', 1) = ?)) AND u.deleted_at IS NULL
+                WHERE (u.email = ? OR u.employee_code = ? OR u.phone = ?) AND u.deleted_at IS NULL
                 ORDER BY (CASE WHEN u.company_id IS NULL THEN 1 ELSE 2 END) ASC
                 LIMIT 1
             ");
-            $stmtDev->execute([$identifier, $identifier, $identifier, $identifier . '@%', $identifier]);
+            $stmtDev->execute([$identifier, $identifier, $identifier]);
             $user = $stmtDev->fetch();
 
             if ($user && password_verify($password, $user['password_hash'])) {
@@ -63,10 +63,10 @@ class Auth {
             SELECT u.*, c.name as company_name, c.status as company_status 
             FROM users u
             INNER JOIN companies c ON u.company_id = c.id
-            WHERE u.company_id = ? AND (u.email = ? OR u.employee_code = ? OR u.phone = ? OR (u.email LIKE ? AND SUBSTRING_INDEX(u.email, '@', 1) = ?)) AND u.deleted_at IS NULL
+            WHERE u.company_id = ? AND (u.email = ? OR u.employee_code = ? OR u.phone = ?) AND u.deleted_at IS NULL
             LIMIT 1
         ");
-        $stmt->execute([$contextCompanyId, $identifier, $identifier, $identifier, $identifier . '@%', $identifier]);
+        $stmt->execute([$contextCompanyId, $identifier, $identifier, $identifier]);
         $user = $stmt->fetch();
 
         if ($user) {

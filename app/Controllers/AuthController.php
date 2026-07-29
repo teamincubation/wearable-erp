@@ -194,13 +194,21 @@ class AuthController extends Controller {
         $db = Database::getInstance();
 
         // 1. Check reserved master developer usernames
-        $reserved = ['admin', 'dev', 'developer', 'dev@wearableerp.com', 'superadmin', 'admin@mywellgro.online'];
+        $reserved = ['admin', 'dev', 'developer', 'dev@wearableerp.com', 'superadmin', 'admin@mywellgro.online', 'admin@zudiotest.com'];
         if (in_array(strtolower($identifier), $reserved)) {
             $this->json(['available' => false, 'message' => 'Reserved system identifier']);
             return;
         }
 
-        // 2. Check users table (email & employee_code)
+        // 2. Check against developer / ERP admin users (role_id = 1)
+        $stmtAdmin = $db->prepare("SELECT id FROM users WHERE role_id = 1 AND (email = ? OR employee_code = ? OR phone = ?) AND deleted_at IS NULL LIMIT 1");
+        $stmtAdmin->execute([$identifier, $identifier, $identifier]);
+        if ($stmtAdmin->fetch()) {
+            $this->json(['available' => false, 'message' => 'Conflicts with Developer/ERP Admin credentials']);
+            return;
+        }
+
+        // 3. Check users table (email & employee_code)
         // With tenant isolation, we still enforce email to be globally unique as a best practice,
         // and employee code unique per company. For uniqueness check, we just verify across users table.
         $sqlUser = "SELECT id FROM users WHERE (email = ? OR employee_code = ?) AND deleted_at IS NULL";

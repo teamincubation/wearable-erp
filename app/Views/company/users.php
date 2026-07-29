@@ -229,8 +229,11 @@
                                             </div>
                                             <div class="modal-body">
                                                 <div class="mb-3">
-                                                    <label class="form-label fw-semibold">Employee ID <span class="text-danger">*</span></label>
-                                                    <input type="text" name="employee_code" class="form-control text-dark" value="<?= htmlspecialchars($u['employee_code'] ?? '') ?>" required>
+                                                    <label class="form-label fw-semibold">
+                                                        Employee ID <span class="text-danger">*</span>
+                                                        <span class="employee-code-status-badge" id="edit-emp-code-status-<?= $u['id'] ?>"></span>
+                                                    </label>
+                                                    <input type="text" name="employee_code" class="form-control text-dark check-uniqueness" data-exclude-user="<?= $u['id'] ?>" data-status-target="#edit-emp-code-status-<?= $u['id'] ?>" value="<?= htmlspecialchars($u['employee_code'] ?? '') ?>" required>
                                                 </div>
                                                 <div class="mb-3">
                                                     <label class="form-label fw-semibold">Employee Name <span class="text-danger">*</span></label>
@@ -348,8 +351,11 @@
                 </div>
                 <div class="modal-body p-4">
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Employee ID <span class="text-danger">*</span></label>
-                        <input type="text" name="employee_code" class="form-control" placeholder="e.g. EMP001" required>
+                        <label class="form-label fw-semibold">
+                            Employee ID <span class="text-danger">*</span>
+                            <span class="employee-code-status-badge" id="add-emp-code-status"></span>
+                        </label>
+                        <input type="text" name="employee_code" class="form-control check-uniqueness" data-status-target="#add-emp-code-status" placeholder="e.g. EMP001" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Full Name <span class="text-danger">*</span></label>

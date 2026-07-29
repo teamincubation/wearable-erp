@@ -103,19 +103,46 @@ class CompanyController extends Controller {
 
         $userModel = new User();
 
-        // Ensure Employee ID is unique per company
-        $db = Database::getInstance();
-        $stmtCheck = $db->prepare("SELECT id FROM users WHERE company_id = ? AND employee_code = ? AND deleted_at IS NULL LIMIT 1");
-        $stmtCheck->execute([Session::get('company_id'), $employeeCode]);
-        if ($stmtCheck->fetch()) {
-            Session::setFlash('error', 'This Employee ID is already registered for this company.');
+        // 1. Ensure Employee ID / Email is not a reserved system identifier
+        $reserved = ['admin', 'dev', 'developer', 'dev@wearableerp.com', 'superadmin', 'admin@mywellgro.online', 'admin@zudiotest.com'];
+        if (in_array(strtolower($employeeCode), $reserved) || in_array(strtolower($email), $reserved)) {
+            Session::setFlash('error', 'Employee ID and Email/Username cannot be system reserved identifiers.');
             $this->redirect('company/users');
+            return;
         }
 
-        // Ensure email/username uniqueness globally across users
-        $existing = $userModel->findGlobalByIdentifier($email);
-        if ($existing) {
-            Session::setFlash('error', "The Email/Username '{$email}' is already registered in the platform.");
+        $db = Database::getInstance();
+
+        // 2. Ensure Employee ID / Email doesn't conflict with Developer / ERP Admin credentials (role_id = 1)
+        $stmtAdmin = $db->prepare("SELECT id FROM users WHERE role_id = 1 AND (email = ? OR employee_code = ? OR phone = ?) AND deleted_at IS NULL LIMIT 1");
+        
+        $stmtAdmin->execute([$employeeCode, $employeeCode, $employeeCode]);
+        if ($stmtAdmin->fetch()) {
+            Session::setFlash('error', 'This Employee ID conflicts with existing developer or ERP admin credentials.');
+            $this->redirect('company/users');
+            return;
+        }
+
+        $stmtAdmin->execute([$email, $email, $email]);
+        if ($stmtAdmin->fetch()) {
+            Session::setFlash('error', 'This Email/Username conflicts with existing developer or ERP admin credentials.');
+            $this->redirect('company/users');
+            return;
+        }
+
+        // 3. Ensure global uniqueness of both Employee ID and Email / Username across all active users
+        $stmtGlobal = $db->prepare("SELECT id FROM users WHERE (email = ? OR employee_code = ?) AND deleted_at IS NULL LIMIT 1");
+        
+        $stmtGlobal->execute([$employeeCode, $employeeCode]);
+        if ($stmtGlobal->fetch()) {
+            Session::setFlash('error', 'This Employee ID is already registered in the platform.');
+            $this->redirect('company/users');
+            return;
+        }
+
+        $stmtGlobal->execute([$email, $email]);
+        if ($stmtGlobal->fetch()) {
+            Session::setFlash('error', 'This Email/Username is already registered in the platform.');
             $this->redirect('company/users');
             return;
         }
@@ -195,19 +222,44 @@ class CompanyController extends Controller {
 
         $db = Database::getInstance();
 
-        // Ensure Employee ID uniqueness (excluding current user)
-        $stmtCheck = $db->prepare("SELECT id FROM users WHERE company_id = ? && employee_code = ? && id != ? && deleted_at IS NULL LIMIT 1");
-        $stmtCheck->execute([Session::get('company_id'), $employeeCode, $id]);
-        if ($stmtCheck->fetch()) {
-            Session::setFlash('error', 'This Employee ID is already registered for another user in this company.');
+        // 1. Ensure Employee ID / Email is not a reserved system identifier
+        $reserved = ['admin', 'dev', 'developer', 'dev@wearableerp.com', 'superadmin', 'admin@mywellgro.online', 'admin@zudiotest.com'];
+        if (in_array(strtolower($employeeCode), $reserved) || in_array(strtolower($email), $reserved)) {
+            Session::setFlash('error', 'Employee ID and Email/Username cannot be system reserved identifiers.');
             $this->redirect('company/users');
+            return;
         }
 
-        // Ensure Email/Username uniqueness globally (excluding current user)
-        $stmtCheckEmail = $db->prepare("SELECT id FROM users WHERE email = ? AND id != ? AND deleted_at IS NULL LIMIT 1");
-        $stmtCheckEmail->execute([$email, $id]);
-        if ($stmtCheckEmail->fetch()) {
-            Session::setFlash('error', "The Email/Username '{$email}' is already registered in the platform.");
+        // 2. Ensure Employee ID / Email doesn't conflict with Developer / ERP Admin credentials (role_id = 1, id != $id)
+        $stmtAdmin = $db->prepare("SELECT id FROM users WHERE role_id = 1 AND (email = ? OR employee_code = ? OR phone = ?) AND id != ? AND deleted_at IS NULL LIMIT 1");
+        
+        $stmtAdmin->execute([$employeeCode, $employeeCode, $employeeCode, $id]);
+        if ($stmtAdmin->fetch()) {
+            Session::setFlash('error', 'This Employee ID conflicts with existing developer or ERP admin credentials.');
+            $this->redirect('company/users');
+            return;
+        }
+
+        $stmtAdmin->execute([$email, $email, $email, $id]);
+        if ($stmtAdmin->fetch()) {
+            Session::setFlash('error', 'This Email/Username conflicts with existing developer or ERP admin credentials.');
+            $this->redirect('company/users');
+            return;
+        }
+
+        // 3. Ensure global uniqueness of both Employee ID and Email / Username across all active users (excluding current user)
+        $stmtGlobal = $db->prepare("SELECT id FROM users WHERE (email = ? OR employee_code = ?) AND id != ? AND deleted_at IS NULL LIMIT 1");
+        
+        $stmtGlobal->execute([$employeeCode, $employeeCode, $id]);
+        if ($stmtGlobal->fetch()) {
+            Session::setFlash('error', 'This Employee ID is already registered in the platform.');
+            $this->redirect('company/users');
+            return;
+        }
+
+        $stmtGlobal->execute([$email, $email, $id]);
+        if ($stmtGlobal->fetch()) {
+            Session::setFlash('error', 'This Email/Username is already registered in the platform.');
             $this->redirect('company/users');
             return;
         }
