@@ -98,6 +98,14 @@ class Migrator {
                 }
             }
 
+            // Auto-heal companies table columns (Add logo column if missing)
+            try {
+                $checkLogo = $db->query("SHOW COLUMNS FROM `companies` LIKE 'logo'");
+                if (!$checkLogo || $checkLogo->rowCount() === 0) {
+                    $db->exec("ALTER TABLE `companies` ADD COLUMN `logo` VARCHAR(255) DEFAULT NULL AFTER `payment_slip`");
+                }
+            } catch (\PDOException $e) {}
+
             // Auto-heal contacts table columns for Buyers/Clients
             $contactColumns = [
                 'brand_name' => "VARCHAR(150) DEFAULT NULL",
