@@ -75,9 +75,9 @@ class DashboardController extends Controller {
                    s.style_no, s.name as style_name, po.po_no as buyer_po_no, po.quantity as target_qty,
                    c.name as buyer_name
             FROM production_orders pro
-            JOIN buyer_pos po ON pro.po_id = po.id
-            JOIN styles s ON po.style_id = s.id
-            JOIN contacts c ON po.buyer_id = c.id
+            LEFT JOIN buyer_pos po ON pro.po_id = po.id
+            LEFT JOIN styles s ON po.style_id = s.id
+            LEFT JOIN contacts c ON po.buyer_id = c.id
             WHERE pro.company_id = ? AND pro.status IN ('running', 'in_progress') AND pro.deleted_at IS NULL
             ORDER BY pro.id DESC
         ");

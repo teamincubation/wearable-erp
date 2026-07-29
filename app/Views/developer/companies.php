@@ -161,24 +161,7 @@
                                                                     <button class="btn btn-outline-secondary toggle-pwd-btn" type="button"><i class="fa-solid fa-eye"></i></button>
                                                                 </div>
                                                             </div>
-                                                            <div class="col-md-6">
-                                                                <label class="form-label fw-semibold small">
-                                                                    Developer Backdoor Username
-                                                                    <span class="email-status-badge" id="edit-dev-user-status-<?= $c['id'] ?>"></span>
-                                                                </label>
-                                                                <div class="input-group">
-                                                                    <span class="input-group-text bg-white"><i class="fa-solid fa-code text-indigo-500"></i></span>
-                                                                    <input type="text" name="dev_username" class="form-control check-uniqueness" data-exclude-company="<?= $c['id'] ?>" data-status-target="#edit-dev-user-status-<?= $c['id'] ?>" value="<?= htmlspecialchars($c['dev_username'] ?? '') ?>">
-                                                                </div>
-                                                            </div>
-                                                            <div class="col-md-6">
-                                                                <label class="form-label fw-semibold small">Developer Backdoor Password</label>
-                                                                <div class="input-group">
-                                                                    <span class="input-group-text bg-white"><i class="fa-solid fa-lock text-indigo-500"></i></span>
-                                                                    <input type="password" name="dev_password" class="form-control password-field" value="<?= htmlspecialchars($c['dev_password'] ?? '') ?>" placeholder="Developer Password">
-                                                                    <button class="btn btn-outline-secondary toggle-pwd-btn" type="button"><i class="fa-solid fa-eye"></i></button>
-                                                                </div>
-                                                            </div>
+
                                                         </div>
                                                     </div>
                                                 </div>
@@ -238,7 +221,7 @@
                                                     </div>
                                                     <div class="col-12">
                                                         <label class="form-label fw-semibold">Payment Slip Info / Link / Code (Optional)</label>
-                                                        <input type="text" name="payment_slip" class="form-control" value="<?= htmlspecialchars($c['payment_slip'] ?? '') ?>" placeholder="e.g. SLIP-TOCCO-901 / Payment Link ID">
+                                                        <input type="text" name="payment_slip" class="form-control" value="<?= htmlspecialchars($c['payment_slip'] ?? '') ?>" placeholder="e.g. SLIP-WELLGRO-901 / Payment Link ID">
                                                     </div>
                                                 </div>
 
@@ -435,16 +418,7 @@
                                         <label class="form-label fw-semibold small">Super Admin Contact Phone</label>
                                         <input type="text" name="admin_phone" class="form-control" placeholder="e.g. +91 98765 43210">
                                     </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-semibold small">
-                                            Developer Backdoor Username (Optional)
-                                            <span class="email-status-badge" id="onboard-dev-user-status"></span>
-                                        </label>
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-white"><i class="fa-solid fa-code text-indigo-500"></i></span>
-                                            <input type="text" name="dev_username" class="form-control check-uniqueness" data-status-target="#onboard-dev-user-status" placeholder="Auto-generated if left blank">
-                                        </div>
-                                    </div>
+
                                 </div>
                             </div>
                         </div>

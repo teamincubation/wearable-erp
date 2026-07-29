@@ -201,6 +201,8 @@ class AuthController extends Controller {
         }
 
         // 2. Check users table (email & employee_code)
+        // With tenant isolation, we still enforce email to be globally unique as a best practice,
+        // and employee code unique per company. For uniqueness check, we just verify across users table.
         $sqlUser = "SELECT id FROM users WHERE (email = ? OR employee_code = ?) AND deleted_at IS NULL";
         $paramsUser = [$identifier, $identifier];
         if ($excludeUserId > 0) {
@@ -211,20 +213,6 @@ class AuthController extends Controller {
         $stmtUser->execute($paramsUser);
         if ($stmtUser->fetch()) {
             $this->json(['available' => false, 'message' => 'Already in use']);
-            return;
-        }
-
-        // 3. Check companies table (dev_username)
-        $sqlDev = "SELECT id FROM companies WHERE dev_username = ? AND deleted_at IS NULL";
-        $paramsDev = [$identifier];
-        if ($excludeCompanyId > 0) {
-            $sqlDev .= " AND id != ?";
-            $paramsDev[] = $excludeCompanyId;
-        }
-        $stmtDev = $db->prepare($sqlDev);
-        $stmtDev->execute($paramsDev);
-        if ($stmtDev->fetch()) {
-            $this->json(['available' => false, 'message' => 'Already in use as developer backdoor username']);
             return;
         }
 

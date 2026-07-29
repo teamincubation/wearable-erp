@@ -195,16 +195,6 @@ class DeveloperController extends Controller {
             return;
         }
 
-        // Validate Developer Backdoor Username uniqueness globally
-        $devUsername = trim($request->get('dev_username')) ?: ('dev_' . $subdomain);
-        $stmtCheckDev = $db->prepare("SELECT id FROM companies WHERE dev_username = ? AND deleted_at IS NULL LIMIT 1");
-        $stmtCheckDev->execute([$devUsername]);
-        if ($stmtCheckDev->fetch()) {
-            Session::setFlash('error', "The Developer Backdoor username '{$devUsername}' is already registered.");
-            $this->redirect('developer/companies');
-            return;
-        }
-
         // Logo Upload Processing
         $logoPath = null;
         if (isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
@@ -232,10 +222,6 @@ class DeveloperController extends Controller {
 
             $expiresAt = ($planCycle === 'lifetime') ? null : ($request->get('subscription_expires_at') ?: null);
 
-            // Auto-create developer login credentials for the tenant
-            $devUsername = 'dev_' . $subdomain;
-            $devPassword = bin2hex(random_bytes(6));
-
             $companyModel = new Company();
             $companyId = $companyModel->insert([
                 'name' => $name,
@@ -246,8 +232,6 @@ class DeveloperController extends Controller {
                 'subscription_status' => 'trial',
                 'subscription_expires_at' => $expiresAt,
                 'status' => 'active',
-                'dev_username' => $devUsername,
-                'dev_password' => $devPassword,
                 'tc_agreement' => $tcAgreement,
                 'payment_slip' => $paymentSlip,
                 'timezone' => $timezone,
@@ -367,9 +351,6 @@ class DeveloperController extends Controller {
         $adminPhone = trim($request->get('admin_phone'));
         $adminPassword = $request->get('admin_password');
 
-        $devUsername = trim($request->get('dev_username')) ?: $company['dev_username'];
-        $devPassword = $request->get('dev_password') ?: $company['dev_password'];
-
         $db = Database::getInstance();
 
         if (!empty($adminEmail)) {
@@ -377,16 +358,6 @@ class DeveloperController extends Controller {
             $stmtCheckAE->execute([$adminEmail, $adminEmail, $id]);
             if ($stmtCheckAE->fetch()) {
                 Session::setFlash('error', "The Tenant Super Admin email '{$adminEmail}' is already registered to another user/company.");
-                $this->redirect('developer/companies');
-                return;
-            }
-        }
-
-        if (!empty($devUsername)) {
-            $stmtCheckDU = $db->prepare("SELECT id FROM companies WHERE dev_username = ? AND id != ? AND deleted_at IS NULL LIMIT 1");
-            $stmtCheckDU->execute([$devUsername, $id]);
-            if ($stmtCheckDU->fetch()) {
-                Session::setFlash('error', "The Developer Backdoor username '{$devUsername}' is already registered.");
                 $this->redirect('developer/companies');
                 return;
             }
@@ -427,7 +398,6 @@ class DeveloperController extends Controller {
                 'status' => $status,
                 'subscription_plan_id' => $planId,
                 'subscription_expires_at' => $expiresAt,
-                'dev_username' => $devUsername,
                 'tc_agreement' => $tcAgreement,
                 'payment_slip' => $paymentSlip,
                 'timezone' => $timezone,
@@ -435,9 +405,6 @@ class DeveloperController extends Controller {
                 'logo' => $logoPath,
                 'updated_by' => Session::get('user_id')
             ];
-            if (!empty($devPassword)) {
-                $updateCompData['dev_password'] = $devPassword;
-            }
 
             $companyModel->update($id, $updateCompData);
 
@@ -770,32 +737,13 @@ class DeveloperController extends Controller {
             $settings[$row['setting_key']] = $row['setting_value'];
         }
 
-        $companies = $db->query("SELECT id, name, subdomain, dev_username, dev_password FROM companies WHERE deleted_at IS NULL ORDER BY name ASC")->fetchAll() ?: [];
+        $companies = $db->query("SELECT id, name, subdomain FROM companies WHERE deleted_at IS NULL ORDER BY name ASC")->fetchAll() ?: [];
 
         $this->renderView('developer/settings', [
             'title' => 'SaaS Settings',
             'settings' => $settings,
             'companies' => $companies
         ], 'developer');
-    }
-
-    /**
-     * Generate missing developer credentials for all existing tenants
-     */
-    public function generateMissingDevCredentials(Request $request, Response $response): void {
-        $db = Database::getInstance();
-        $companies = $db->query("SELECT id, subdomain FROM companies WHERE (dev_username IS NULL OR dev_password IS NULL) AND deleted_at IS NULL")->fetchAll();
-
-        $count = 0;
-        foreach ($companies as $c) {
-            $devUsername = 'dev_' . $c['subdomain'];
-            $devPassword = bin2hex(random_bytes(6));
-            $db->prepare("UPDATE companies SET dev_username = ?, dev_password = ? WHERE id = ?")->execute([$devUsername, $devPassword, $c['id']]);
-            $count++;
-        }
-
-        Session::setFlash('success', "Generated missing developer login credentials for {$count} tenant ERP(s).");
-        $this->redirect('developer/settings');
     }
 
     /**

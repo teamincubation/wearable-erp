@@ -1,0 +1,1 @@
+<?php require_once "config/config.php"; require_once "app/Core/Database.php"; $db = \App\Core\Database::getInstance(); $stmt = $db->query("SELECT po.id, po.po_no, po.status as po_status, pro.production_no, pro.status as pro_status FROM buyer_pos po LEFT JOIN production_orders pro ON po.id = pro.po_id WHERE po.po_no = 'BPO001'"); print_r($stmt->fetchAll(PDO::FETCH_ASSOC));

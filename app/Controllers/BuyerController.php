@@ -218,11 +218,11 @@ class BuyerController extends Controller {
         ]);
 
         fputcsv($output, [
-            'TOCCO Global Inc',
+            'Global Fashion Inc',
             'BUY-9001',
-            'TOCCO Apparel',
+            'Global Apparel',
             'John Miller',
-            'john@tocco.com',
+            'john@global.com',
             '+1-555-0199',
             'GSTIN987654321',
             'United States',

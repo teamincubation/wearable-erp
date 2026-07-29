@@ -113,11 +113,6 @@ $router->post('/developer/settings', [DeveloperController::class, 'saveSettings'
        ->middleware(PermissionMiddleware::class)
        ->permission('developer.settings');
 
-$router->post('/developer/settings/generate-credentials', [DeveloperController::class, 'generateMissingDevCredentials'])
-       ->middleware(AuthMiddleware::class)
-       ->middleware(CsrfMiddleware::class)
-       ->middleware(PermissionMiddleware::class)
-       ->permission('developer.settings');
 
 $router->get('/developer/marketplace', [DeveloperController::class, 'marketplace'])
        ->middleware(AuthMiddleware::class)

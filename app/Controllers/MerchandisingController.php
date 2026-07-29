@@ -145,20 +145,26 @@ class MerchandisingController extends Controller {
         try {
             if ($companyId) {
                 $db->prepare("
-                    UPDATE buyer_pos po 
-                    JOIN production_orders pro ON pro.po_id = po.id 
-                    SET po.status = 'completed', po.updated_at = NOW() 
-                    WHERE pro.company_id = ? AND pro.status = 'completed' AND po.deleted_at IS NULL AND (po.status IS NULL OR po.status != 'completed')
+                    UPDATE buyer_pos 
+                    SET status = 'Completed', updated_at = NOW() 
+                    WHERE id IN (
+                        SELECT po_id FROM production_orders 
+                        WHERE company_id = ? AND status = 'completed' AND po_id IS NOT NULL
+                    ) AND deleted_at IS NULL AND (status IS NULL OR LOWER(status) != 'completed')
                 ")->execute([(int)$companyId]);
             } else {
                 $db->exec("
-                    UPDATE buyer_pos po 
-                    JOIN production_orders pro ON pro.po_id = po.id 
-                    SET po.status = 'completed', po.updated_at = NOW() 
-                    WHERE pro.status = 'completed' AND po.deleted_at IS NULL AND (po.status IS NULL OR po.status != 'completed')
+                    UPDATE buyer_pos 
+                    SET status = 'Completed', updated_at = NOW() 
+                    WHERE id IN (
+                        SELECT po_id FROM production_orders 
+                        WHERE status = 'completed' AND po_id IS NOT NULL
+                    ) AND deleted_at IS NULL AND (status IS NULL OR LOWER(status) != 'completed')
                 ");
             }
-        } catch (\Exception $ex) {}
+        } catch (\Exception $ex) {
+            error_log("Failed to sync completed buyer POs: " . $ex->getMessage());
+        }
     }
 
     /**

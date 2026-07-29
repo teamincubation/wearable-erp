@@ -28,18 +28,12 @@ class TenantMiddleware extends Middleware {
                 $company = $stmt->fetch();
 
                 if (!$company) {
-                    // Self-healing: If company_id does not exist, resolve company by subdomain or fall back to active company
-                    $subdomain = \App\Core\Session::get('active_tenant_subdomain', '');
-                    $stmt2 = $db->prepare("SELECT * FROM companies WHERE (subdomain = ? OR status = 'active') AND deleted_at IS NULL ORDER BY id ASC LIMIT 1");
-                    $stmt2->execute([$subdomain]);
-                    $company = $stmt2->fetch();
-
-                    if ($company) {
-                        $companyId = (int)$company['id'];
-                        \App\Core\Session::set('company_id', $companyId);
-                    } else {
-                        $companyId = null;
-                    }
+                    // Strict Tenant Isolation: If the session's company no longer exists or was deleted, 
+                    // instantly terminate the session to prevent fallback leakage.
+                    \App\Core\Session::destroy();
+                    $response->setStatusCode(403);
+                    echo "<h3>Access Denied: Your tenant account is no longer valid or has been deleted.</h3>";
+                    exit;
                 }
 
                 if ($companyId !== null) {
@@ -65,7 +59,7 @@ class TenantMiddleware extends Middleware {
         } elseif (\App\Core\Session::has('active_tenant_subdomain')) {
             $subdomain = \App\Core\Session::get('active_tenant_subdomain');
         } else {
-            // 3. Resolve via Host Subdomain (e.g. tocco.mywellgro.online)
+            // 3. Resolve via Host Subdomain (e.g. client.mywellgro.online)
             $parts = explode('.', $host);
             if (count($parts) >= 3) {
                 // If it looks like subdomain.domain.com, take the first part

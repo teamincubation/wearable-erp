@@ -57,8 +57,7 @@ CREATE TABLE `companies` (
   `subscription_plan_id` INT DEFAULT NULL,
   `subscription_status` ENUM('trial', 'active', 'expired', 'cancelled') NOT NULL DEFAULT 'trial',
   `subscription_expires_at` DATETIME DEFAULT NULL,
-  `dev_username` VARCHAR(100) DEFAULT NULL,
-  `dev_password` VARCHAR(255) DEFAULT NULL,
+
   `created_by` INT DEFAULT NULL,
   `updated_by` INT DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

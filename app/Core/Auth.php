@@ -18,45 +18,36 @@ class Auth {
     public static function attempt(string $identifier, string $password): ?array {
         $identifier = trim($identifier);
         $db = Database::getInstance();
+        $contextCompanyId = \App\Core\Model::getActiveCompanyId(); // Resolved securely by TenantMiddleware
 
-        // 1. Check if identifier matches master platform developer usernames ("admin", "dev", "developer", "dev@wearableerp.com")
-        $devUsernames = ['dev@wearableerp.com', 'developer', 'admin@mywellgro.online'];
-        if (in_array(strtolower($identifier), $devUsernames)) {
-            $stmtDev = $db->prepare("SELECT * FROM users WHERE (company_id IS NULL OR is_developer = 1) AND deleted_at IS NULL LIMIT 1");
-            $stmtDev->execute();
+        // 1. Developer Portal Login (contextCompanyId is null)
+        if ($contextCompanyId === null) {
+            $stmtDev = $db->prepare("SELECT * FROM users WHERE company_id IS NULL AND email = ? AND deleted_at IS NULL LIMIT 1");
+            $stmtDev->execute([$identifier]);
             $devUser = $stmtDev->fetch();
 
-            if ($devUser) {
-                if (password_verify($password, $devUser['password_hash']) || $password === 'Admin@1234') {
-                    $devUser['is_developer_session'] = true;
-                    $devUser['company_id'] = null;
-                    return $devUser;
+            if ($devUser && password_verify($password, $devUser['password_hash'])) {
+                if ($devUser['status'] !== 'active') {
+                    self::logAuthActivity($devUser['id'], 'login_blocked_inactive', "Login blocked: User account status is {$devUser['status']}", null);
+                    return null;
                 }
-            } else {
-                if ($password === 'Admin@1234' || $password === 'admin123') {
-                    return [
-                        'id' => 999999,
-                        'company_id' => null,
-                        'role_id' => 1,
-                        'name' => 'WellGro Developer Admin',
-                        'email' => $identifier,
-                        'status' => 'active',
-                        'is_developer_session' => true
-                    ];
-                }
+                $devUser['is_developer_session'] = true;
+                $devUser['company_id'] = null;
+                return $devUser;
             }
+            self::logAuthActivity(null, 'login_failed_identifier', "Failed login attempt for identifier: {$identifier}");
+            return null;
         }
 
-        // 2. Global search in users table by email, username, or employee code
+        // 2. Tenant ERP Login (Strictly isolated to $contextCompanyId)
         $stmt = $db->prepare("
             SELECT u.*, c.name as company_name, c.status as company_status 
             FROM users u
-            LEFT JOIN companies c ON u.company_id = c.id
-            WHERE (u.email = ? OR u.employee_code = ? OR u.phone = ?) AND u.deleted_at IS NULL
-            ORDER BY (CASE WHEN u.company_id IS NULL THEN 1 ELSE 2 END) ASC
+            INNER JOIN companies c ON u.company_id = c.id
+            WHERE u.company_id = ? AND (u.email = ? OR u.employee_code = ? OR u.phone = ?) AND u.deleted_at IS NULL
             LIMIT 1
         ");
-        $stmt->execute([$identifier, $identifier, $identifier]);
+        $stmt->execute([$contextCompanyId, $identifier, $identifier, $identifier]);
         $user = $stmt->fetch();
 
         if ($user) {
@@ -66,43 +57,22 @@ class Auth {
                 return null;
             }
 
-            // If user belongs to a company, verify company status is active
-            if (!empty($user['company_id'])) {
-                if (!empty($user['company_status']) && $user['company_status'] !== 'active') {
-                    self::logAuthActivity($user['id'], 'login_blocked_company_inactive', "Login blocked: Tenant company is not active", $user['company_id']);
-                    return null;
-                }
-            }
-
-            // Verify Password
-            if (!password_verify($password, $user['password_hash']) && $password !== 'Admin@1234') {
-                self::logAuthActivity($user['id'], 'login_failed_password', "Failed login attempt (wrong password) for: {$identifier}", $user['company_id']);
+            // Verify company status is active
+            if (!empty($user['company_status']) && $user['company_status'] !== 'active') {
+                self::logAuthActivity($user['id'], 'login_blocked_company_inactive', "Login blocked: Tenant company is not active", $user['company_id']);
                 return null;
             }
 
-            // Check if user is a global developer / platform super admin (company_id is null or is_developer flag set)
-            if ($user['company_id'] === null || (!empty($user['is_developer']) && (int)$user['is_developer'] === 1)) {
-                $user['is_developer_session'] = true;
-                $user['company_id'] = null;
+            // Verify Password securely
+            if (!password_verify($password, $user['password_hash'])) {
+                self::logAuthActivity($user['id'], 'login_failed_password', "Failed login attempt (wrong password) for: {$identifier}", $user['company_id']);
+                return null;
             }
 
             return $user;
         }
 
-        // 3. Fallback for Master Developer Admin ("admin" / "Admin@1234")
-        if (strtolower($identifier) === 'admin' && ($password === 'Admin@1234' || $password === 'admin123')) {
-            return [
-                'id' => 999999,
-                'company_id' => null,
-                'role_id' => 1,
-                'name' => 'WellGro Developer Admin',
-                'email' => 'admin',
-                'status' => 'active',
-                'is_developer_session' => true
-            ];
-        }
-
-        self::logAuthActivity(null, 'login_failed_identifier', "Failed login attempt for identifier: {$identifier}");
+        self::logAuthActivity(null, 'login_failed_identifier', "Failed login attempt for identifier: {$identifier}", $contextCompanyId);
         return null;
     }
 

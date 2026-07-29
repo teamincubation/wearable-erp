@@ -32,8 +32,8 @@ class ProductionController extends Controller {
         // Fetch active production orders (excluding completed) joined with style & buyer PO details
         $stmt = $db->prepare("SELECT pro.*, s.style_no, s.name as style_name, po.po_no as buyer_po_no, po.quantity as target_qty
                              FROM production_orders pro
-                             JOIN buyer_pos po ON pro.po_id = po.id
-                             JOIN styles s ON po.style_id = s.id
+                             LEFT JOIN buyer_pos po ON pro.po_id = po.id
+                             LEFT JOIN styles s ON po.style_id = s.id
                              WHERE pro.company_id = ? AND (pro.status IS NULL OR pro.status != 'completed') AND pro.deleted_at IS NULL
                              ORDER BY pro.id DESC");
         $stmt->execute([$companyId]);
@@ -969,7 +969,7 @@ class ProductionController extends Controller {
             }
         }
 
-        // Parse QR Code e.g. BATCH-TOCCO-001-S-0005
+        // Parse QR Code e.g. BATCH-CODE-001-S-0005
         $parts = explode('-', $qrCode);
         if (count($parts) < 3) {
             echo json_encode(['success' => false, 'message' => 'Invalid tag format. QR code must match: [BATCH_CODE]-[SIZE]-[SERIAL].']);
@@ -1179,7 +1179,7 @@ class ProductionController extends Controller {
             }
         }
 
-        // Parse QR Code e.g. BATCH-TOCCO-001-S-0005
+        // Parse QR Code e.g. BATCH-CODE-001-S-0005
         $parts = explode('-', $qrCode);
         if (count($parts) < 3) {
             echo json_encode(['success' => false, 'message' => 'Invalid tag format. QR code must match: [BATCH_CODE]-[SIZE]-[SERIAL].']);

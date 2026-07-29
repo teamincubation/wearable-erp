@@ -35,8 +35,8 @@ class AuthMiddleware extends Middleware {
 
         if ($userId && $roleId && !$isDev) {
             $db = \App\Core\Database::getInstance();
-            $stmt = $db->prepare("SELECT id FROM roles WHERE id = ? AND deleted_at IS NULL LIMIT 1");
-            $stmt->execute([$roleId]);
+            $stmt = $db->prepare("SELECT id FROM roles WHERE id = ? AND (company_id = ? OR company_id IS NULL) AND deleted_at IS NULL LIMIT 1");
+            $stmt->execute([$roleId, $companyId]);
             if (!$stmt->fetch()) {
                 Auth::logout();
                 Session::setFlash('error', 'Your assigned role has been deleted. Please contact your Company Admin.');

@@ -309,15 +309,15 @@ class Migrator {
                 }
             } catch (\PDOException $e) {}
 
-            // Auto-heal companies table columns for developer backdoors
+            // Drop developer backdoor columns (Authentication Redesign)
             try {
                 $checkDevUser = $db->query("SHOW COLUMNS FROM `companies` LIKE 'dev_username'");
-                if (!$checkDevUser || $checkDevUser->rowCount() === 0) {
-                    $db->exec("ALTER TABLE `companies` ADD COLUMN `dev_username` VARCHAR(100) DEFAULT NULL");
+                if ($checkDevUser && $checkDevUser->rowCount() > 0) {
+                    $db->exec("ALTER TABLE `companies` DROP COLUMN `dev_username`");
                 }
                 $checkDevPass = $db->query("SHOW COLUMNS FROM `companies` LIKE 'dev_password'");
-                if (!$checkDevPass || $checkDevPass->rowCount() === 0) {
-                    $db->exec("ALTER TABLE `companies` ADD COLUMN `dev_password` VARCHAR(255) DEFAULT NULL");
+                if ($checkDevPass && $checkDevPass->rowCount() > 0) {
+                    $db->exec("ALTER TABLE `companies` DROP COLUMN `dev_password`");
                 }
             } catch (\PDOException $e) {}
 

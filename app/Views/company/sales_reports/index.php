@@ -462,7 +462,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // OPEN PAYMENT DIALOG / RECEIPT MODAL
 function openPaymentModal(batchId) {
     const paymentModalEl = document.getElementById('paymentModal');
-    const paymentModal = new bootstrap.Modal(paymentModalEl);
+    const paymentModal = bootstrap.Modal.getOrCreateInstance(paymentModalEl);
     const modalTitle = document.getElementById('payment-modal-title');
     const modalBody = document.getElementById('payment-modal-body');
 
