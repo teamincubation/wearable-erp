@@ -428,6 +428,7 @@ CREATE TABLE IF NOT EXISTS `production_orders` (
   `started_at` TIMESTAMP NULL DEFAULT NULL,
   `completed_at` TIMESTAMP NULL DEFAULT NULL,
   `status` ENUM('pending', 'running', 'completed', 'suspended') NOT NULL DEFAULT 'pending',
+  `sizes_json` JSON DEFAULT NULL,
   `created_by` INT DEFAULT NULL,
   `updated_by` INT DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

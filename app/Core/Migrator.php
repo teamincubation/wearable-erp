@@ -144,6 +144,14 @@ class Migrator {
                 $db->exec("CREATE OR REPLACE VIEW `buyers` AS SELECT * FROM `contacts` WHERE `type` = 'buyer'");
             } catch (\PDOException $e) {}
 
+            // Auto-heal production_orders table (Add sizes_json column if missing)
+            try {
+                $checkSizes = $db->query("SHOW COLUMNS FROM `production_orders` LIKE 'sizes_json'");
+                if (!$checkSizes || $checkSizes->rowCount() === 0) {
+                    $db->exec("ALTER TABLE `production_orders` ADD COLUMN `sizes_json` JSON DEFAULT NULL AFTER `status`");
+                }
+            } catch (\PDOException $e) {}
+
             // Auto-heal permissions table for QR Code Scanner & Dispatch permissions
             $requiredPermissions = [
                 ['name' => 'company.production.rfid_tracking', 'description' => 'Access QR Code / RFID Production Scanner page', 'module' => 'tenant'],

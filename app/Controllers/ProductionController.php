@@ -127,24 +127,23 @@ class ProductionController extends Controller {
             return;
         }
 
-        $orderModel = new ProductionOrder();
-        $orderId = $orderModel->insert([
-            'po_id' => $poId,
-            'production_no' => $productionNo,
-            'start_date' => $startDate,
-            'status' => 'pending',
-            'created_by' => Session::get('user_id')
-        ]);
+        // Fetch Buyer PO details
+        $stmtPo = $db->prepare("SELECT sizes_json, quantity FROM buyer_pos WHERE id = ? AND company_id = ? AND deleted_at IS NULL");
+        $stmtPo->execute([$poId, $companyId]);
+        $poRow = $stmtPo->fetch();
+        if (!$poRow) {
+            Session::setFlash('error', 'Linked Buyer PO not found.');
+            $this->redirect('company/production/orders');
+            return;
+        }
+        $targetQty = (int)($poRow['quantity'] ?? 0);
 
         // Auto Load Size Breakdown & Generate Unique Product QR Codes
         $sizeQtys = $request->get('size_qty') ?: [];
         if (empty($sizeQtys)) {
-            $stmtPo = $db->prepare("SELECT sizes_json, quantity FROM buyer_pos WHERE id = ? AND company_id = ?");
-            $stmtPo->execute([$poId, $companyId]);
-            $poRow = $stmtPo->fetch();
             $sizeQtys = json_decode($poRow['sizes_json'] ?? '[]', true) ?: [];
             if (empty($sizeQtys)) {
-                $sizeQtys = ['FREE' => (int)($poRow['quantity'] ?? 1)];
+                $sizeQtys = ['FREE' => $targetQty];
             }
         }
 
@@ -155,6 +154,23 @@ class ProductionController extends Controller {
                 $totalGeneratedQrs += $qtyCount;
             }
         }
+
+        // Restrict sum matching
+        if ($totalGeneratedQrs !== $targetQty) {
+            Session::setFlash('error', "The sum of size quantities ({$totalGeneratedQrs} pcs) must exactly match the linked Buyer PO order quantity ({$targetQty} pcs).");
+            $this->redirect('company/production/orders');
+            return;
+        }
+
+        $orderModel = new ProductionOrder();
+        $orderId = $orderModel->insert([
+            'po_id' => $poId,
+            'production_no' => $productionNo,
+            'start_date' => $startDate,
+            'status' => 'pending',
+            'sizes_json' => json_encode($sizeQtys),
+            'created_by' => Session::get('user_id')
+        ]);
 
         AuditLog::log(Session::get('company_id'), Session::get('user_id'), 'create_production_order', 'ProductionOrder', $orderId, null, null, "Created production order: {$productionNo} with {$totalGeneratedQrs} pieces planned");
         Session::setFlash('success', "Production order '{$productionNo}' planned successfully! Breakdown of {$totalGeneratedQrs} pieces saved. QR Codes are ready to be printed and scanned by operators.");
@@ -772,7 +788,7 @@ class ProductionController extends Controller {
         $stmt = $db->prepare("
             SELECT pro.*, 
                    s.style_no, s.name as style_name, s.category as style_category, s.composition as fabric_composition, s.brand as style_brand,
-                   po.po_no as buyer_po_no, po.quantity as target_qty, po.sizes_json
+                   po.po_no as buyer_po_no, po.quantity as target_qty, COALESCE(pro.sizes_json, po.sizes_json) as sizes_json
             FROM production_orders pro
             JOIN buyer_pos po ON pro.po_id = po.id
             JOIN styles s ON po.style_id = s.id

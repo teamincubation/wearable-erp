@@ -207,6 +207,11 @@
                             </div>
                             <p class="text-secondary small mb-2" style="font-size: 11px;">Quantities across size breakdowns auto-loaded from linked Buyer PO. Individual piece Product QR Codes will be automatically generated upon batch creation.</p>
                             
+                            <div class="mb-2 p-2 bg-white border rounded d-flex justify-content-between align-items-center shadow-sm" style="font-size: 11.5px;">
+                                <span class="text-secondary"><i class="fa-solid fa-cart-shopping text-success me-1"></i> Buyer PO Order Quantity:</span>
+                                <strong id="plan-po-order-qty-label" class="text-success font-monospace fs-6">0 pcs</strong>
+                            </div>
+
                             <div id="plan-po-size-fields-wrapper" class="row row-cols-3 g-2 mb-2"></div>
 
                             <div class="p-2 bg-white border rounded shadow-sm" style="font-size: 11.5px;">
@@ -218,6 +223,7 @@
                                     Preview: <code>BATCH-S-0001</code> to <code>BATCH-XXL-0010</code>
                                 </div>
                             </div>
+                            <div id="plan-po-qty-validation-msg" class="mt-2 small" style="font-size: 11px;"></div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -584,13 +590,12 @@ let batchCheckTimeout = null;
 function validateBatchNoRealtime(inputEl) {
     const val = inputEl.value.trim();
     const feedbackEl = document.getElementById('batch_no_status_feedback');
-    const submitBtn = document.getElementById('btn_plan_batch_submit');
 
     if (batchCheckTimeout) clearTimeout(batchCheckTimeout);
 
     if (!val) {
         if (feedbackEl) feedbackEl.innerHTML = '';
-        if (submitBtn) submitBtn.disabled = false;
+        checkFormValidity();
         return;
     }
 
@@ -606,19 +611,45 @@ function validateBatchNoRealtime(inputEl) {
                     if (feedbackEl) {
                         feedbackEl.innerHTML = `<span class="text-danger font-monospace fw-bold"><i class="fa-solid fa-circle-xmark me-1"></i> ${data.message}</span>`;
                     }
-                    if (submitBtn) submitBtn.disabled = true;
                 } else {
                     if (feedbackEl) {
                         feedbackEl.innerHTML = `<span class="text-success font-monospace fw-bold"><i class="fa-solid fa-circle-check me-1"></i> ${data.message}</span>`;
                     }
-                    if (submitBtn) submitBtn.disabled = false;
                 }
+                checkFormValidity();
             })
             .catch(err => {
                 if (feedbackEl) feedbackEl.innerHTML = '';
-                if (submitBtn) submitBtn.disabled = false;
+                checkFormValidity();
             });
     }, 300);
+}
+
+function checkFormValidity() {
+    const submitBtn = document.getElementById('btn_plan_batch_submit');
+    if (!submitBtn) return;
+
+    let total = 0;
+    document.querySelectorAll('.plan-size-input').forEach(inp => {
+        total += parseInt(inp.value) || 0;
+    });
+
+    const poSelect = document.querySelector('#addProductionOrderModal select[name="po_id"]');
+    const poId = poSelect ? poSelect.value : '';
+    const po = buyerPoDetails[poId];
+    const targetQty = po ? po.quantity : 0;
+
+    const batchInput = document.getElementById('create_production_no');
+    const batchNo = (batchInput ? batchInput.value.trim() : '') || '';
+
+    const feedbackEl = document.getElementById('batch_no_status_feedback');
+    const isBatchDuplicate = feedbackEl && feedbackEl.querySelector('.text-danger') !== null;
+
+    if (total === targetQty && !isBatchDuplicate && targetQty > 0 && batchNo !== '') {
+        submitBtn.disabled = false;
+    } else {
+        submitBtn.disabled = true;
+    }
 }
 
 const buyerPoDetails = {
@@ -649,11 +680,17 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!po) {
                 sizesContainer.style.display = 'none';
                 fieldsWrapper.innerHTML = '';
+                checkFormValidity();
                 return;
             }
 
             sizesContainer.style.display = 'block';
             fieldsWrapper.innerHTML = '';
+
+            const orderQtyLabel = document.getElementById('plan-po-order-qty-label');
+            if (orderQtyLabel) {
+                orderQtyLabel.innerText = po.quantity.toLocaleString() + ' pcs';
+            }
 
             let sizesObj = po.sizes_json || {};
             let sizeKeys = Object.keys(sizesObj);
@@ -693,17 +730,37 @@ document.addEventListener('DOMContentLoaded', function() {
             total += parseInt(inp.value) || 0;
         });
 
+        const poId = poSelect ? poSelect.value : '';
+        const po = buyerPoDetails[poId];
+        const targetQty = po ? po.quantity : 0;
+
         const batchNo = (batchInput ? batchInput.value.trim() : '') || 'BATCH-001';
 
         if (qrCountBadge) qrCountBadge.innerText = total.toLocaleString() + ' pcs';
         if (qrSamplePreview) {
             qrSamplePreview.innerHTML = `Piece QR Format: <code>${batchNo}-SIZE-0001</code> (Total: <strong>${total}</strong> unique QR codes ready for generation)`;
         }
+
+        const validationMsg = document.getElementById('plan-po-qty-validation-msg');
+        if (validationMsg) {
+            if (total === targetQty) {
+                validationMsg.className = "mt-2 text-success small fw-semibold";
+                validationMsg.innerHTML = `<i class="fa-solid fa-circle-check me-1"></i> Quantities match target order quantity of ${targetQty.toLocaleString()} pcs!`;
+            } else {
+                validationMsg.className = "mt-2 text-danger small";
+                validationMsg.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-1"></i> Sum of size quantities (${total.toLocaleString()} pcs) must match target PO order quantity of ${targetQty.toLocaleString()} pcs (${total < targetQty ? 'needs ' + (targetQty - total).toLocaleString() + ' more' : 'exceeds by ' + (total - targetQty).toLocaleString()}).`;
+            }
+        }
+
+        checkFormValidity();
     }
 
     if (batchInput) {
         batchInput.addEventListener('input', updateQrPreviewCount);
     }
+
+    // Set initial button status to disabled
+    checkFormValidity();
 });
 </script>
 
