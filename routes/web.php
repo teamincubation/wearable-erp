@@ -6,6 +6,8 @@
 
 use App\Core\Router;
 use App\Controllers\AuthController;
+use App\Controllers\ApiAuthController;
+use App\Controllers\ApiQrController;
 use App\Controllers\DashboardController;
 use App\Controllers\DeveloperController;
 use App\Controllers\CompanyController;
@@ -21,11 +23,24 @@ use App\Middleware\CsrfMiddleware;
 // ==========================================================
 $router->get('/', [DashboardController::class, 'landing']);
 
-// Single Universal SaaS Portal Login Routes
+// Single Universal SaaS Portal Login Routes (Web HTML)
 $router->get('/login', [AuthController::class, 'showLogin']);
 $router->post('/login', [AuthController::class, 'login'])->middleware(CsrfMiddleware::class);
 $router->get('/developer/login', [AuthController::class, 'showLogin']);
 $router->get('/logout', [AuthController::class, 'logout']);
+
+// Mobile & External REST API Routes (Returns pure JSON - No 302 Redirects)
+$router->post('/api/login', [ApiAuthController::class, 'login']);
+$router->post('/api/v1/login', [ApiAuthController::class, 'login']);
+$router->get('/api/company', [ApiAuthController::class, 'getCompany']);
+
+// QR Code Scanning Hub API Routes (Shared between Web & Mobile)
+$router->get('/api/production/qr-tracking-setup', [ApiQrController::class, 'getSetup']);
+$router->get('/api/production/batches', [ApiQrController::class, 'getSetup']);
+$router->get('/api/production/batch-stages/{id}', [ApiQrController::class, 'getBatchStages']);
+$router->get('/api/production/stages', [ApiQrController::class, 'getBatchStages']);
+$router->post('/api/production/verify-qr', [ApiQrController::class, 'verifyQr']);
+$router->post('/api/production/log-qr', [ApiQrController::class, 'logQr']);
 
 $router->get('/forgot-password', [AuthController::class, 'showForgotPassword']);
 $router->post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware(CsrfMiddleware::class);
