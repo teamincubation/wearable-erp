@@ -1,4 +1,6 @@
 <?php
+error_reporting(E_ALL);
+ini_set("display_errors", "1");
 require_once __DIR__ . "/config/config.php";
 spl_autoload_register(function (string $class) {
     $prefix = "App\\";
@@ -22,7 +24,8 @@ try {
     foreach ($users as $u) {
         echo "ID: {$u[\x27id\x27]} | Email: {$u[\x27email\x27]} | Role: {$u[\x27role_id\x27]} | Company: " . ($u[\x27company_id\x27] ?? \x27NULL\x27) . " | Status: {$u[\x27status\x27]}\n";
     }
-} catch (Exception $e) {
+} catch (Throwable $e) {
     echo "Error: " . $e->getMessage() . "\n";
+    echo "Trace: " . $e->getTraceAsString() . "\n";
 }
 
