@@ -555,7 +555,11 @@ class ProductionController extends Controller {
             Session::setFlash('error', 'Failed to delete stage log: ' . $e->getMessage());
         }
 
-        $this->redirect($_SERVER['HTTP_REFERER'] ?? "company/production/stage/{$log['production_order_id']}");
+        $redirectUrl = $_SERVER['HTTP_REFERER'] ?? null;
+        if (empty($redirectUrl)) {
+            $redirectUrl = !empty($log['production_order_id']) ? "company/production/stage/{$log['production_order_id']}" : 'company/production/orders';
+        }
+        $this->redirect($redirectUrl);
     }
 
     /**
@@ -608,7 +612,11 @@ class ProductionController extends Controller {
             Session::setFlash('error', 'Failed to clear activity logs: ' . $e->getMessage());
         }
 
-        $this->redirect($_SERVER['HTTP_REFERER'] ?? "company/production/stage/{$id}");
+        $redirectUrl = $_SERVER['HTTP_REFERER'] ?? null;
+        if (empty($redirectUrl)) {
+            $redirectUrl = !empty($id) ? "company/production/stage/{$id}" : 'company/production/orders';
+        }
+        $this->redirect($redirectUrl);
     }
 
     /**

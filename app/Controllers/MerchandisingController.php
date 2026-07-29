@@ -143,24 +143,31 @@ class MerchandisingController extends Controller {
         } catch (\Exception $ex) {}
 
         try {
+            // Fetch PO IDs that have completed production orders
             if ($companyId) {
-                $db->prepare("
-                    UPDATE buyer_pos 
-                    SET status = 'Completed', updated_at = NOW() 
-                    WHERE id IN (
-                        SELECT po_id FROM production_orders 
-                        WHERE company_id = ? AND status = 'completed' AND po_id IS NOT NULL
-                    ) AND deleted_at IS NULL AND (status IS NULL OR LOWER(status) != 'completed')
-                ")->execute([(int)$companyId]);
+                $stmt = $db->prepare("SELECT DISTINCT po_id FROM production_orders WHERE company_id = ? AND LOWER(status) = 'completed' AND po_id IS NOT NULL");
+                $stmt->execute([(int)$companyId]);
             } else {
-                $db->exec("
+                $stmt = $db->prepare("SELECT DISTINCT po_id FROM production_orders WHERE LOWER(status) = 'completed' AND po_id IS NOT NULL");
+                $stmt->execute();
+            }
+            
+            $poIds = $stmt->fetchAll(\PDO::FETCH_COLUMN);
+            
+            if (!empty($poIds)) {
+                // Sanitize IDs
+                $poIds = array_map('intval', $poIds);
+                $placeholders = implode(',', array_fill(0, count($poIds), '?'));
+                
+                // Update the buyer_pos status
+                $updateStmt = $db->prepare("
                     UPDATE buyer_pos 
                     SET status = 'Completed', updated_at = NOW() 
-                    WHERE id IN (
-                        SELECT po_id FROM production_orders 
-                        WHERE status = 'completed' AND po_id IS NOT NULL
-                    ) AND deleted_at IS NULL AND (status IS NULL OR LOWER(status) != 'completed')
+                    WHERE id IN ($placeholders) 
+                    AND deleted_at IS NULL 
+                    AND (status IS NULL OR LOWER(status) != 'completed')
                 ");
+                $updateStmt->execute($poIds);
             }
         } catch (\Exception $ex) {
             error_log("Failed to sync completed buyer POs: " . $ex->getMessage());
