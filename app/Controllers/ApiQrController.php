@@ -74,7 +74,7 @@ class ApiQrController extends Controller {
             LEFT JOIN buyer_pos po ON pro.po_id = po.id
             LEFT JOIN styles s ON po.style_id = s.id
             LEFT JOIN contacts c ON po.buyer_id = c.id
-            WHERE pro.deleted_at IS NULL AND pro.company_id = ?
+            WHERE pro.deleted_at IS NULL AND pro.company_id = ? AND pro.status != 'completed'
             ORDER BY pro.id DESC
         ";
 
