@@ -51,19 +51,25 @@ class TenantMiddleware extends Middleware {
         $host = $_SERVER['HTTP_HOST'] ?? '';
         $subdomain = null;
 
-        // 2. Developer query override or session override (For local dev ease)
-        $overrideTenant = $request->get('tenant');
-        if ($overrideTenant) {
-            $subdomain = $overrideTenant;
-            \App\Core\Session::set('active_tenant_subdomain', $subdomain);
-        } elseif (\App\Core\Session::has('active_tenant_subdomain')) {
-            $subdomain = \App\Core\Session::get('active_tenant_subdomain');
+        // DEV_PORTAL_HOST always takes precedence to prevent session hijacking of Developer Portal routes
+        if ($host === DEV_PORTAL_HOST) {
+            $subdomain = 'erp';
+            \App\Core\Session::remove('active_tenant_subdomain');
         } else {
-            // 3. Resolve via Host Subdomain (e.g. client.mywellgro.online)
-            $parts = explode('.', $host);
-            if (count($parts) >= 3) {
-                // If it looks like subdomain.domain.com, take the first part
-                $subdomain = $parts[0];
+            // 2. Developer query override or session override (For local dev ease)
+            $overrideTenant = $request->get('tenant');
+            if ($overrideTenant) {
+                $subdomain = $overrideTenant;
+                \App\Core\Session::set('active_tenant_subdomain', $subdomain);
+            } elseif (\App\Core\Session::has('active_tenant_subdomain')) {
+                $subdomain = \App\Core\Session::get('active_tenant_subdomain');
+            } else {
+                // 3. Resolve via Host Subdomain (e.g. client.mywellgro.online)
+                $parts = explode('.', $host);
+                if (count($parts) >= 3) {
+                    // If it looks like subdomain.domain.com, take the first part
+                    $subdomain = $parts[0];
+                }
             }
         }
 
