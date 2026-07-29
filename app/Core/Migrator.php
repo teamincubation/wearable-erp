@@ -106,6 +106,21 @@ class Migrator {
                 }
             } catch (\PDOException $e) {}
 
+            // Auto-heal cron_logs table
+            try {
+                $db->exec("
+                    CREATE TABLE IF NOT EXISTS `cron_logs` (
+                      `id` INT AUTO_INCREMENT PRIMARY KEY,
+                      `job_name` VARCHAR(150) NOT NULL,
+                      `executed_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                      `runtime_seconds` DECIMAL(8, 4) DEFAULT 0.0000,
+                      `status` ENUM('success', 'failed') NOT NULL DEFAULT 'success',
+                      `message` TEXT DEFAULT NULL,
+                      INDEX `idx_cron_job` (`job_name`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                ");
+            } catch (\PDOException $e) {}
+
             // Auto-heal contacts table columns for Buyers/Clients
             $contactColumns = [
                 'brand_name' => "VARCHAR(150) DEFAULT NULL",

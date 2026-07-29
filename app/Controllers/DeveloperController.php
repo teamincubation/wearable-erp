@@ -268,16 +268,6 @@ class DeveloperController extends Controller {
             $stmtRole->execute([$companyId, 'Production Manager', 'Responsible for factory floor processes']);
             $managerRoleId = $db->lastInsertId();
 
-            // 3. Map default admin role to tenant permissions
-            $stmtPermissions = $db->prepare("SELECT id FROM permissions WHERE module = 'tenant'");
-            $stmtPermissions->execute();
-            $tenantPermissions = $stmtPermissions->fetchAll(\PDO::FETCH_COLUMN);
-
-            $stmtMap = $db->prepare("INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?)");
-            foreach ($tenantPermissions as $permId) {
-                $stmtMap->execute([$adminRoleId, $permId]);
-            }
-
             // 4. Create Default Company Admin User using input Super Admin credentials
             $userModel = new User();
             // Set company scope dynamically for insert

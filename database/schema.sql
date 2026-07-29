@@ -231,6 +231,17 @@ CREATE TABLE `user_sessions` (
   INDEX `idx_session_last_activity` (`last_activity`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 13. SYSTEM CRON LOGS TABLE
+CREATE TABLE IF NOT EXISTS `cron_logs` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `job_name` VARCHAR(150) NOT NULL,
+  `executed_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `runtime_seconds` DECIMAL(8, 4) DEFAULT 0.0000,
+  `status` ENUM('success', 'failed') NOT NULL DEFAULT 'success',
+  `message` TEXT DEFAULT NULL,
+  INDEX `idx_cron_job` (`job_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 
 -- ==========================================================
 -- SEED DATA
