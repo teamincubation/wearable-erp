@@ -152,6 +152,11 @@ class Migrator {
                 }
             } catch (\PDOException $e) {}
 
+            // Auto-heal developer admin user's company_id so they are not hijacked by tenant context
+            try {
+                $db->exec("UPDATE `users` SET `company_id` = NULL WHERE `role_id` = 1 AND `company_id` IS NOT NULL");
+            } catch (\PDOException $e) {}
+
             // Auto-heal permissions table for QR Code Scanner & Dispatch permissions
             $requiredPermissions = [
                 ['name' => 'company.production.rfid_tracking', 'description' => 'Access QR Code / RFID Production Scanner page', 'module' => 'tenant'],

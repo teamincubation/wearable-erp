@@ -40,16 +40,16 @@ class Auth {
                     return null;
                 }
                 
-                // If it's a tenant user, verify company status
-                if ($user['company_id'] !== null) {
+                // If it's a Developer Admin (role_id = 1) or has company_id === null
+                if ((int)$user['role_id'] === 1 || $user['company_id'] === null) {
+                    $user['is_developer_session'] = true;
+                    $user['company_id'] = null;
+                } else {
+                    // If it's a tenant user, verify company status
                     if (!empty($user['company_status']) && $user['company_status'] !== 'active') {
                         self::logAuthActivity($user['id'], 'login_blocked_company_inactive', "Login blocked: Tenant company is not active", $user['company_id']);
                         return null;
                     }
-                } else {
-                    // It's a Developer User
-                    $user['is_developer_session'] = true;
-                    $user['company_id'] = null;
                 }
                 
                 return $user;
