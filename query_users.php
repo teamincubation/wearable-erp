@@ -22,7 +22,7 @@ try {
     $users = $stmt->fetchAll();
     echo "Found " . count($users) . " users:\n";
     foreach ($users as $u) {
-        echo "ID: {$u[\x27id\x27]} | Email: {$u[\x27email\x27]} | Role: {$u[\x27role_id\x27]} | Company: " . ($u[\x27company_id\x27] ?? \x27NULL\x27) . " | Status: {$u[\x27status\x27]}\n";
+        echo "ID: " . $u["id"] . " | Email: " . $u["email"] . " | Role: " . $u["role_id"] . " | Company: " . ($u["company_id"] ?? "NULL") . " | Status: " . $u["status"] . "\n";
     }
 } catch (Throwable $e) {
     echo "Error: " . $e->getMessage() . "\n";
