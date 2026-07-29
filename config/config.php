@@ -32,6 +32,25 @@ function base_url($path = '') {
     }
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost:8000';
+
+    // Tenant-aware URL generation to prevent subdomain escape
+    if (class_exists('\App\Core\Session')) {
+        $isDev = \App\Core\Session::get('is_developer_session');
+        if (\App\Core\Session::has('current_tenant') && !$isDev) {
+            $tenant = \App\Core\Session::get('current_tenant');
+            if (!empty($tenant['subdomain']) && defined('ROOT_DOMAIN')) {
+                $expectedHost = $tenant['subdomain'] . '.' . ROOT_DOMAIN;
+                if ($host !== $expectedHost) {
+                    $host = $expectedHost;
+                }
+            }
+        } elseif ($isDev && !\App\Core\Session::has('company_id')) {
+            if (defined('DEV_PORTAL_HOST') && $host !== DEV_PORTAL_HOST) {
+                $host = DEV_PORTAL_HOST;
+            }
+        }
+    }
+
     return $protocol . $host . '/' . ltrim($path, '/');
 }
 

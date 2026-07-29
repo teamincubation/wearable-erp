@@ -60,15 +60,19 @@ class ApiAuthController extends Controller {
         if (!empty($user['company_id'])) {
             try {
                 $db = \App\Core\Database::getInstance();
-                $stmt = $db->prepare("SELECT name, logo FROM companies WHERE id = ? LIMIT 1");
+                $stmt = $db->prepare("SELECT name, logo, subdomain FROM companies WHERE id = ? LIMIT 1");
                 $stmt->execute([(int)$user['company_id']]);
                 $companyData = $stmt->fetch();
                 if ($companyData) {
                     $companyName = $companyData['name'] ?? '';
                     if (!empty($companyData['logo'])) {
+                        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+                        $host = !empty($companyData['subdomain']) && defined('ROOT_DOMAIN') 
+                            ? $companyData['subdomain'] . '.' . ROOT_DOMAIN 
+                            : ($_SERVER['HTTP_HOST'] ?? 'localhost:8000');
                         $companyLogo = preg_match('/^https?:\/\//', $companyData['logo']) 
                             ? $companyData['logo'] 
-                            : rtrim($_ENV['APP_URL'] ?? 'https://erp.mywellgro.online', '/') . '/' . ltrim($companyData['logo'], '/');
+                            : $protocol . $host . '/' . ltrim($companyData['logo'], '/');
                     }
                 }
             } catch (\Exception $e) {
@@ -108,17 +112,21 @@ class ApiAuthController extends Controller {
 
         try {
             $db = \App\Core\Database::getInstance();
-            $stmt = $db->prepare("SELECT name, logo FROM companies WHERE id = ? LIMIT 1");
+            $stmt = $db->prepare("SELECT name, logo, subdomain FROM companies WHERE id = ? LIMIT 1");
             $stmt->execute([(int)$companyId]);
             $companyData = $stmt->fetch();
             
             if ($companyData) {
                 $logoUrl = '';
                 if (!empty($companyData['logo'])) {
+                    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+                    $host = !empty($companyData['subdomain']) && defined('ROOT_DOMAIN') 
+                        ? $companyData['subdomain'] . '.' . ROOT_DOMAIN 
+                        : ($_SERVER['HTTP_HOST'] ?? 'localhost:8000');
                     // Prepend base url if it's a relative path
                     $logoUrl = preg_match('/^https?:\/\//', $companyData['logo']) 
                         ? $companyData['logo'] 
-                        : rtrim($_ENV['APP_URL'] ?? 'https://erp.mywellgro.online', '/') . '/' . ltrim($companyData['logo'], '/');
+                        : $protocol . $host . '/' . ltrim($companyData['logo'], '/');
                 }
 
                 $response->json([

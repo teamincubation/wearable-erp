@@ -12,7 +12,7 @@
 
             <h3 class="fw-bold text-dark mb-1"><?= htmlspecialchars($company['name']) ?></h3>
             <span class="badge bg-primary-subtle text-primary font-monospace fw-bold px-3 py-1.5 rounded-pill" style="font-size: 11.5px;">
-                <i class="fa-solid fa-link me-1"></i> https://erp.mywellgro.online/<?= htmlspecialchars($company['subdomain']) ?>/login
+                <i class="fa-solid fa-link me-1"></i> https://<?= htmlspecialchars($company['subdomain']) ?>.mywellgro.online/login
             </span>
             <p class="text-secondary small mt-2 mb-0">Enter your employee/admin credentials to access <?= htmlspecialchars($company['name']) ?> Wearable ERP.</p>
         </div>
@@ -30,7 +30,7 @@
         <?php endif; ?>
 
         <!-- Form Post to Tenant Login Endpoint -->
-        <form action="<?= base_url(htmlspecialchars($company['subdomain']) . '/login') ?>" method="POST">
+        <form action="<?= base_url('login') ?>" method="POST">
             <?= \App\Core\Session::csrfField() ?>
             
             <div class="mb-3 text-start">

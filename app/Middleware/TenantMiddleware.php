@@ -53,6 +53,16 @@ class TenantMiddleware extends Middleware {
 
         // DEV_PORTAL_HOST always takes precedence to prevent session hijacking of Developer Portal routes
         if ($host === DEV_PORTAL_HOST) {
+            // Strict Tenant Isolation: Prevent authenticated tenant users from entering DEV_PORTAL_HOST
+            if (\App\Core\Session::has('company_id') && !\App\Core\Session::get('is_developer_session')) {
+                $tenant = \App\Core\Session::get('current_tenant');
+                if ($tenant && !empty($tenant['subdomain']) && defined('ROOT_DOMAIN')) {
+                    $tenantHost = $tenant['subdomain'] . '.' . ROOT_DOMAIN;
+                    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+                    header("Location: " . $protocol . $tenantHost . $request->getPath());
+                    exit;
+                }
+            }
             $subdomain = 'erp';
             \App\Core\Session::remove('active_tenant_subdomain');
         } else {
