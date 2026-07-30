@@ -11,6 +11,20 @@ class QrPayloadParser {
      * @return array|null Returns associative array with batchNo, size, serial, or null if invalid format.
      */
     public static function parse(string $qrCode): ?array {
+        // Support new safer delimiter '|' to prevent hyphen collision in sizes (e.g., 'ONE-SIZE')
+        if (strpos($qrCode, '|') !== false) {
+            $parts = explode('|', $qrCode);
+            if (count($parts) === 3 && is_numeric($parts[2])) {
+                return [
+                    'batchNo' => $parts[0],
+                    'size'    => $parts[1],
+                    'serial'  => (int)$parts[2],
+                    'rawSerial' => $parts[2]
+                ];
+            }
+        }
+
+        // Fallback for legacy QR codes using '-'
         $parts = explode('-', $qrCode);
         if (count($parts) < 3) {
             return null; // Invalid tag format
