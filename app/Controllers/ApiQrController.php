@@ -7,6 +7,7 @@ use App\Core\Response;
 use App\Core\Database;
 use App\Core\Session;
 use App\Helpers\StageHelper;
+use App\Helpers\QrPayloadParser;
 
 /**
  * Dedicated REST API Controller for QR Code Scanning Hub
@@ -195,14 +196,14 @@ class ApiQrController extends Controller {
             }
         }
 
-        $parts = explode('-', $qrCode);
-        if (count($parts) < 3) {
+        $parsed = QrPayloadParser::parse($qrCode);
+        if (!$parsed) {
             $response->json(['success' => false, 'message' => 'Invalid tag format. QR code must match: [BATCH_CODE]-[SIZE]-[SERIAL].'], 400);
             return;
         }
-        $serial = (int)array_pop($parts);
-        $size = array_pop($parts);
-        $batchNo = implode('-', $parts);
+        $batchNo = $parsed['batchNo'];
+        $size = $parsed['size'];
+        $serial = $parsed['serial'];
 
         $stmtBatch = $db->prepare("
             SELECT pro.id, pro.status, pro.company_id, po.quantity as target_qty, po.sizes_json,
@@ -354,10 +355,14 @@ class ApiQrController extends Controller {
             return;
         }
 
-        $parts = explode('-', $qrCode);
-        $serial = (int)array_pop($parts);
-        $size = array_pop($parts);
-        $batchNo = implode('-', $parts);
+        $parsed = QrPayloadParser::parse($qrCode);
+        if (!$parsed) {
+            $response->json(['success' => false, 'message' => 'Invalid tag format.'], 400);
+            return;
+        }
+        $batchNo = $parsed['batchNo'];
+        $size = $parsed['size'];
+        $serial = $parsed['serial'];
 
         $stmtBatch = $db->prepare("
             SELECT pro.id, pro.status, pro.company_id, po.quantity as target_qty, po.sizes_json

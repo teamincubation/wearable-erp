@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Services\ProductionService;
 use App\Models\AuditLog;
 use App\Helpers\StageHelper;
+use App\Helpers\QrPayloadParser;
 
 /**
  * Production and Quality Control Controller
@@ -959,14 +960,14 @@ class ProductionController extends Controller {
         }
 
         // Parse QR Code e.g. BATCH-CODE-001-S-0005
-        $parts = explode('-', $qrCode);
-        if (count($parts) < 3) {
+        $parsed = QrPayloadParser::parse($qrCode);
+        if (!$parsed) {
             echo json_encode(['success' => false, 'message' => 'Invalid tag format. QR code must match: [BATCH_CODE]-[SIZE]-[SERIAL].']);
             exit;
         }
-        $serial = (int)array_pop($parts);
-        $size = array_pop($parts);
-        $batchNo = implode('-', $parts);
+        $batchNo = $parsed['batchNo'];
+        $size = $parsed['size'];
+        $serial = $parsed['serial'];
 
         // Fetch production order details
         $stmtBatch = $db->prepare("SELECT * FROM production_orders WHERE production_no = ? AND company_id = ? AND deleted_at IS NULL");
@@ -1169,14 +1170,14 @@ class ProductionController extends Controller {
         }
 
         // Parse QR Code e.g. BATCH-CODE-001-S-0005
-        $parts = explode('-', $qrCode);
-        if (count($parts) < 3) {
+        $parsed = QrPayloadParser::parse($qrCode);
+        if (!$parsed) {
             echo json_encode(['success' => false, 'message' => 'Invalid tag format. QR code must match: [BATCH_CODE]-[SIZE]-[SERIAL].']);
             exit;
         }
-        $serial = (int)array_pop($parts);
-        $size = array_pop($parts);
-        $batchNo = implode('-', $parts);
+        $batchNo = $parsed['batchNo'];
+        $size = $parsed['size'];
+        $serial = $parsed['serial'];
 
         // Fetch production order with style details
         $stmt = $db->prepare("
