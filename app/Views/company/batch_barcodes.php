@@ -99,7 +99,7 @@ function resolveSizeForSerialNum($serial, $sizes) {
 <div class="qr-cards-grid">
     <?php for ($s = $start; $s <= $end; $s++): 
         $size = resolveSizeForSerialNum($s, $sizes);
-        $uniqueCode = "{$batch['production_no']}|{$size}|" . sprintf("%04d", $s);
+        $uniqueCode = "{$batch['production_no']}-{$size}-" . sprintf("%04d", $s);
     ?>
         <div class="qr-card-wrapper">
             <div class="qr-card-content">
