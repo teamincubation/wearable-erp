@@ -1,37 +1,3 @@
-<?php if ($tenantInfo = \App\Core\Session::get('onboarded_tenant_info')): \App\Core\Session::remove('onboarded_tenant_info'); ?>
-    <div class="alert alert-success border-success bg-white shadow-sm p-4 mb-4" style="border-radius: var(--border-radius-lg); border-left: 5px solid #198754 !important;">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="fw-bold text-success m-0"><i class="fa-solid fa-circle-check me-2"></i> Tenant Onboarded & Subdomain Provisioned Successfully</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-        <div class="row g-3">
-            <div class="col-md-6">
-                <div class="p-3 bg-light rounded border">
-                    <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-building me-1 text-primary"></i> Company & Subdomain Info</h6>
-                    <p class="m-0 small"><strong>Company Name:</strong> <?= htmlspecialchars($tenantInfo['name']) ?></p>
-                    <p class="m-0 small"><strong>Provisioned Subdomain:</strong> <code class="fw-bold text-primary"><?= htmlspecialchars($tenantInfo['subdomain']) ?></code></p>
-                    <p class="m-0 small"><strong>License Key:</strong> <code><?= htmlspecialchars($tenantInfo['license_key']) ?></code></p>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="p-3 bg-light rounded border">
-                    <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-key me-1 text-warning"></i> Super Admin Credentials</h6>
-                    <p class="m-0 small"><strong>Super Admin Email:</strong> <code><?= htmlspecialchars($tenantInfo['admin_email']) ?></code></p>
-                    <p class="m-0 small"><strong>Password:</strong> <code><?= htmlspecialchars($tenantInfo['admin_password']) ?></code></p>
-                </div>
-            </div>
-            <div class="col-12 mt-3 d-flex gap-2 flex-wrap">
-                <a href="<?= htmlspecialchars($tenantInfo['subdomain_url']) ?>" target="_blank" class="btn btn-sm btn-primary rounded-pill px-3 fw-semibold">
-                    <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Visit Subdomain Login (<?= htmlspecialchars($tenantInfo['subdomain']) ?>.mywellgro.online)
-                </a>
-                <a href="<?= htmlspecialchars($tenantInfo['local_login_url']) ?>" target="_blank" class="btn btn-sm btn-outline-dark rounded-pill px-3 fw-semibold">
-                    <i class="fa-solid fa-laptop-code me-1"></i> Test Local Login Shortcut
-                </a>
-            </div>
-        </div>
-    </div>
-<?php endif; ?>
-
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h3 class="fw-bold">Company Manager</h3>
@@ -104,47 +70,11 @@
                                     <button class="btn btn-sm btn-light border me-1" data-bs-toggle="modal" data-bs-target="#editModal-<?= $c['id'] ?>">
                                         <i class="fa-regular fa-pen-to-square"></i> Edit
                                     </button>
-                                     <button type="button" class="btn btn-sm btn-danger rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#deleteModal-<?= $c['id'] ?>">
-                                         <i class="fa-solid fa-trash-can"></i> Hard Delete
-                                     </button>
-                                 </td>
-                             </tr>
-
-                             <!-- Hard Delete Confirmation Modal -->
-                             <div class="modal fade" id="deleteModal-<?= $c['id'] ?>" tabindex="-1" aria-hidden="true">
-                                 <div class="modal-dialog">
-                                     <form action="<?= base_url('developer/companies/delete/' . $c['id']) ?>" method="POST">
-                                         <?= \App\Core\Session::csrfField() ?>
-                                         <div class="modal-content text-start border-danger shadow-lg" style="border-radius: var(--border-radius-lg);">
-                                             <div class="modal-header bg-danger text-white">
-                                                 <h5 class="modal-title fw-bold">
-                                                     <i class="fa-solid fa-triangle-exclamation me-2"></i> Confirm Tenant Hard Delete
-                                                 </h5>
-                                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                                             </div>
-                                             <div class="modal-body p-4">
-                                                 <div class="alert alert-warning border-warning mb-3">
-                                                     <i class="fa-solid fa-triangle-exclamation me-1"></i>
-                                                     <strong>WARNING:</strong> You are about to permanently hard delete tenant <strong><?= htmlspecialchars($c['name']) ?></strong> (Subdomain: <code><?= htmlspecialchars($c['subdomain']) ?></code>).
-                                                     This will purge all associated database tables, users, inventory, tech packs, and settings. This action is <strong>IRREVERSIBLE</strong>.
-                                                 </div>
-                                                 <div class="mb-3">
-                                                     <label class="form-label fw-bold text-dark small">
-                                                         To confirm permanent deletion, type <code class="text-danger fw-bold fs-6">DELETE TENANT</code> below:
-                                                     </label>
-                                                     <input type="text" name="confirm_text" class="form-control form-control-lg text-uppercase font-monospace fw-bold" placeholder="DELETE TENANT" required autocomplete="off">
-                                                 </div>
-                                             </div>
-                                             <div class="modal-footer bg-light">
-                                                 <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
-                                                 <button type="submit" class="btn btn-danger rounded-pill px-4 fw-bold">
-                                                     <i class="fa-solid fa-trash-can me-1"></i> Permanently Delete Tenant
-                                                 </button>
-                                             </div>
-                                         </div>
-                                     </form>
-                                 </div>
-                             </div>
+                                    <button type="button" class="btn btn-sm btn-danger rounded-pill px-3" onclick="confirmHardDelete(<?= $c['id'] ?>, '<?= htmlspecialchars($c['name'], ENT_QUOTES) ?>')">
+                                        <i class="fa-solid fa-trash-can"></i> Hard Delete
+                                    </button>
+                                </td>
+                            </tr>
 
                             <!-- Edit Modal -->
                             <div class="modal fade" id="editModal-<?= $c['id'] ?>" tabindex="-1" aria-hidden="true">
@@ -435,6 +365,12 @@
                                     <span class="input-group-text">.mywellgro.online</span>
                                 </div>
                                 <div class="form-text">Alphabets, digits and hyphens only.</div>
+                                <div class="form-check form-switch mt-2">
+                                    <input class="form-check-input" type="checkbox" name="auto_create_dns" id="autoCreateDns" value="1" checked>
+                                    <label class="form-check-label fw-semibold text-success small" for="autoCreateDns">
+                                        <i class="fa-solid fa-globe me-1"></i> Auto-configure Hostinger DNS & SSL
+                                    </label>
+                                </div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold">Contact Email <span class="text-danger">*</span></label>
@@ -801,4 +737,146 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+// Custom Javascript function for handling Hard Deletions with text typing confirmation
+function confirmHardDelete(companyId, companyName) {
+    const modalElement = document.getElementById('deleteConfirmModal');
+    const titleEl = document.getElementById('deleteConfirmModalLabel');
+    const inputEl = document.getElementById('deleteConfirmInput');
+    const btnEl = document.getElementById('confirmDeleteBtn');
+    const formEl = document.getElementById('deleteCompanyForm');
+    
+    // Set title and reset input/button
+    titleEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-2"></i> Hard Delete Tenant: ' + companyName;
+    inputEl.value = '';
+    btnEl.disabled = true;
+    
+    // Set form action dynamically
+    formEl.action = '<?= base_url("developer/companies/delete/") ?>' + companyId;
+    
+    // Wire up input listener
+    inputEl.oninput = function() {
+        if (inputEl.value.trim() === 'DELETE TENANT') {
+            btnEl.disabled = false;
+        } else {
+            btnEl.disabled = true;
+        }
+    };
+    
+    // Show Modal
+    const bsModal = new bootstrap.Modal(modalElement);
+    bsModal.show();
+}
 </script>
+
+<!-- Reusable Hard Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content shadow-lg border-0" style="border-radius: 16px;">
+            <div class="modal-header bg-danger text-white border-0 py-3" style="border-top-left-radius: 16px; border-top-right-radius: 16px;">
+                <h5 class="modal-title fw-bold" id="deleteConfirmModalLabel">Hard Delete Tenant</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="text-danger fw-semibold mb-3">
+                    <i class="fa-solid fa-circle-exclamation me-1"></i> WARNING: This action is irreversible!
+                </p>
+                <p class="text-muted small mb-4">
+                    Deleting this tenant will permanently erase all associated records across all tables (including users, roles, styles, tech packs, buyer purchase orders, production batches, inventory transactions, and logs).
+                </p>
+                
+                <form id="deleteCompanyForm" method="POST">
+                    <?= \App\Core\Session::csrfField() ?>
+                    <div class="mb-4">
+                        <label for="deleteConfirmInput" class="form-label fw-semibold text-secondary small">
+                            To confirm, please type <strong class="text-danger">DELETE TENANT</strong> in the box below:
+                        </label>
+                        <input type="text" class="form-control font-monospace" id="deleteConfirmInput" autocomplete="off" placeholder="Type 'DELETE TENANT'">
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-danger fw-semibold py-2" id="confirmDeleteBtn" disabled>
+                            <i class="fa-solid fa-trash-can me-1"></i> Permanently Delete Tenant
+                        </button>
+                        <button type="button" class="btn btn-light border py-2" data-bs-dismiss="modal">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Onboarding Success Modal with Credentials & Details -->
+<?php if ($details = \App\Core\Session::getFlash('new_tenant_details')): ?>
+<div class="modal fade" id="tenantSuccessModal" tabindex="-1" aria-labelledby="tenantSuccessModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0" style="border-radius: 16px;">
+            <div class="modal-header bg-success text-white border-0 py-3" style="border-top-left-radius: 16px; border-top-right-radius: 16px;">
+                <h5 class="modal-title fw-bold" id="tenantSuccessModalLabel">
+                    <i class="fa-solid fa-circle-check me-2"></i> Tenant Onboarded Successfully
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 text-start">
+                <div class="text-center mb-4">
+                    <div class="d-inline-flex align-items-center justify-content-center bg-success bg-opacity-10 text-success rounded-circle mb-3" style="width: 60px; height: 60px;">
+                        <i class="fa-solid fa-cloud-arrow-up fa-2x"></i>
+                    </div>
+                    <h5 class="fw-bold font-outfit text-dark m-0"><?= htmlspecialchars($details['name']) ?></h5>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace px-3 py-1.5 mt-2" style="font-size: 13px;">
+                        <?= htmlspecialchars($details['subdomain']) ?>.mywellgro.online
+                    </span>
+                </div>
+
+                <div class="card bg-light border-0 mb-3" style="border-radius: 12px;">
+                    <div class="card-body p-3 small">
+                        <div class="mb-2">
+                            <span class="text-secondary d-block">Hostinger Subdomain Status</span>
+                            <span class="text-success fw-bold"><i class="fa-solid fa-circle-nodes me-1"></i> <?= htmlspecialchars($details['dns_status']) ?></span>
+                        </div>
+                        <div class="mb-2">
+                            <span class="text-secondary d-block">Admin Login Email</span>
+                            <strong class="text-dark font-monospace"><?= htmlspecialchars($details['admin_email']) ?></strong>
+                        </div>
+                        <div>
+                            <span class="text-secondary d-block">Temporary Password</span>
+                            <strong class="text-danger font-monospace"><?= htmlspecialchars($details['admin_password']) ?></strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small text-secondary">Tenant Login Link (Production / Live)</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control font-monospace bg-white text-dark small" value="<?= htmlspecialchars($details['login_url']) ?>" readonly id="liveLoginUrl">
+                        <button class="btn btn-outline-secondary btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('liveLoginUrl').value); alert('Copied to clipboard!');">
+                            <i class="fa-regular fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold small text-secondary">Local Testing Shortcut</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control font-monospace bg-white text-dark small" value="<?= htmlspecialchars($details['local_login_url']) ?>" readonly id="localLoginUrl">
+                        <button class="btn btn-outline-secondary btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('localLoginUrl').value); alert('Copied to clipboard!');">
+                            <i class="fa-regular fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="d-grid">
+                    <a href="<?= htmlspecialchars($details['local_login_url']) ?>" target="_blank" class="btn btn-success fw-semibold py-2" style="border-radius: 10px;">
+                        <i class="fa-solid fa-arrow-right-to-bracket me-1"></i> Access Tenant Portal
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    var successModal = new bootstrap.Modal(document.getElementById('tenantSuccessModal'));
+    successModal.show();
+});
+</script>
+<?php endif; ?>

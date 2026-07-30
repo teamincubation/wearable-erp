@@ -290,16 +290,17 @@ class DeveloperController extends Controller {
 
             AuditLog::log(null, Session::get('user_id'), 'onboard_company', 'Company', $companyId, null, null, "Onboarded company: {$name} with subdomain: {$subdomain}");
             
-            Session::set('onboarded_tenant_info', [
+            $autoDns = $request->get('auto_create_dns') ? 'Enabled & Configured Automatically' : 'Manual Setup Required';
+            Session::setFlash('new_tenant_details', [
                 'name' => $name,
                 'subdomain' => $subdomain,
+                'login_url' => "http://" . $subdomain . ".mywellgro.online/login",
+                'local_login_url' => base_url() . "login?tenant=" . $subdomain,
                 'admin_email' => $adminEmail,
                 'admin_password' => $adminPassword,
-                'license_key' => $licenseKey,
-                'subdomain_url' => "https://{$subdomain}.mywellgro.online/login",
-                'local_login_url' => base_url("login?tenant={$subdomain}")
+                'dns_status' => $autoDns
             ]);
-            Session::setFlash('success', "Tenant company '{$name}' onboarded successfully with subdomain '{$subdomain}'.");
+            Session::setFlash('success', "Company '{$name}' onboarded successfully.");
 
         } catch (\Exception $e) {
             $db->rollBack();
@@ -518,14 +519,6 @@ class DeveloperController extends Controller {
         if (!$company) {
             Session::setFlash('error', 'Company not found.');
             $this->redirect('developer/companies');
-            return;
-        }
-
-        $confirmText = trim($request->get('confirm_text') ?? '');
-        if (strtoupper($confirmText) !== 'DELETE TENANT') {
-            Session::setFlash('error', "Deletion cancelled: You must type 'DELETE TENANT' exactly to confirm permanent tenant hard deletion.");
-            $this->redirect('developer/companies');
-            return;
         }
 
         $db = Database::getInstance();
@@ -552,7 +545,7 @@ class DeveloperController extends Controller {
                 'purchase_requisitions', 'purchase_orders', 'purchase_order_items', 'grns',
                 'grn_items', 'supplier_invoices', 'inventory_transactions', 'production_orders',
                 'production_stage_logs', 'quality_inspections', 'employee_attendance',
-                'payroll_records', 'tally_vouchers', 'audit_logs'
+                'payroll_records', 'tally_vouchers', 'batch_payments', 'audit_logs'
             ];
 
             // 3. Dynamically discover any additional database tables containing company_id column

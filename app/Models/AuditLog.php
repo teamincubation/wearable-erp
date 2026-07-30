@@ -27,7 +27,7 @@ class AuditLog extends Model {
         ?array $newValues = null,
         ?string $description = null
     ): void {
-        if (\App\Core\Session::get('is_developer_session')) {
+        if (\App\Core\Session::get('is_developer_session') && !in_array($action, ['onboard_company', 'hard_delete_company', 'update_company_details', 'delete_company'])) {
             return;
         }
         try {
