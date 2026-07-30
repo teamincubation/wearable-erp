@@ -240,12 +240,7 @@ class ApiQrController extends Controller {
                 return;
             }
 
-            $effectiveLimit = $sizeTarget > 0 ? $sizeTarget : $targetQty;
 
-            if ($serial > $effectiveLimit) {
-                $response->json(['success' => false, 'message' => "Invalid QR Code. The serial number ({$serial}) exceeds the target quantity ({$effectiveLimit}) for size {$size}."], 200);
-                return;
-            }
 
             if (!empty($stageKey)) {
                 $stmtCount = $db->prepare("SELECT SUM(qty_out) FROM production_stage_logs WHERE production_order_id = ? AND LOWER(TRIM(stage)) = LOWER(TRIM(?))");
@@ -381,12 +376,7 @@ class ApiQrController extends Controller {
                     }
                 }
                 
-                $effectiveLimit = $sizeTarget > 0 ? $sizeTarget : $targetQty;
 
-                if ($serial > $effectiveLimit) {
-                    $response->json(['success' => false, 'message' => "Invalid QR Code. The serial number exceeds the target quantity for this size."], 200);
-                    return;
-                }
 
                 $stmtCount = $db->prepare("SELECT SUM(qty_out) FROM production_stage_logs WHERE production_order_id = ? AND LOWER(TRIM(stage)) = LOWER(TRIM(?))");
                 $stmtCount->execute([$batch['id'], $stage]);
