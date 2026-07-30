@@ -18,39 +18,10 @@ use PDO;
 class DeveloperController extends Controller {
 
     /**
-     * Auto-purge any remnant TOCCO Exports sample data if present in DB
-     */
-    private function purgeToccoIfPresent(\PDO $db): void {
-        try {
-            $stmtT = $db->query("SELECT id FROM companies WHERE LOWER(subdomain) = 'tocco' OR LOWER(name) LIKE '%tocco%'");
-            $toccoIds = $stmtT->fetchAll(\PDO::FETCH_COLUMN) ?: [];
-            if (!empty($toccoIds)) {
-                $db->exec("SET FOREIGN_KEY_CHECKS = 0;");
-                foreach ($toccoIds as $tId) {
-                    $stmtTables = $db->query("SELECT DISTINCT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND COLUMN_NAME = 'company_id'");
-                    $tables = $stmtTables->fetchAll(PDO::FETCH_COLUMN) ?: [];
-                    foreach ($tables as $tbl) {
-                        if ($tbl === 'companies') continue;
-                        try {
-                            $db->prepare("DELETE FROM `{$tbl}` WHERE company_id = ?")->execute([(int)$tId]);
-                        } catch (\Exception $ex) {}
-                    }
-                    try {
-                        $db->prepare("DELETE FROM role_permissions WHERE role_id IN (SELECT id FROM roles WHERE company_id = ?)")->execute([(int)$tId]);
-                    } catch (\Exception $ex) {}
-                    $db->prepare("DELETE FROM companies WHERE id = ?")->execute([(int)$tId]);
-                }
-                $db->exec("SET FOREIGN_KEY_CHECKS = 1;");
-            }
-        } catch (\Exception $ex) {}
-    }
-
-    /**
      * Dev Portal Dashboard
      */
     public function dashboard(Request $request, Response $response): void {
         $db = Database::getInstance();
-        $this->purgeToccoIfPresent($db);
 
         // 1. Get statistics
         $companiesCount = $db->query("SELECT COUNT(*) FROM companies WHERE deleted_at IS NULL")->fetchColumn();
@@ -79,7 +50,6 @@ class DeveloperController extends Controller {
      */
     public function companies(Request $request, Response $response): void {
         $db = Database::getInstance();
-        $this->purgeToccoIfPresent($db);
         $stmt = $db->query("
             SELECT c.*, 
                    u.id as admin_id,

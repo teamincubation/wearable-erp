@@ -194,7 +194,7 @@ class AuthController extends Controller {
         $db = Database::getInstance();
 
         // 1. Check reserved master developer usernames
-        $reserved = ['admin', 'dev', 'developer', 'dev@wearableerp.com', 'superadmin', 'admin@mywellgro.online', 'admin@zudiotest.com'];
+        $reserved = ['admin', 'dev', 'developer', 'dev@wearableerp.com', 'superadmin', 'admin@mywellgro.online'];
         if (in_array(strtolower($identifier), $reserved)) {
             $this->json(['available' => false, 'message' => 'Reserved system identifier']);
             return;

@@ -104,7 +104,7 @@ class CompanyController extends Controller {
         $userModel = new User();
 
         // 1. Ensure Employee ID / Email is not a reserved system identifier
-        $reserved = ['admin', 'dev', 'developer', 'dev@wearableerp.com', 'superadmin', 'admin@mywellgro.online', 'admin@zudiotest.com'];
+        $reserved = ['admin', 'dev', 'developer', 'dev@wearableerp.com', 'superadmin', 'admin@mywellgro.online'];
         if (in_array(strtolower($employeeCode), $reserved) || in_array(strtolower($email), $reserved)) {
             Session::setFlash('error', 'Employee ID and Email/Username cannot be system reserved identifiers.');
             $this->redirect('company/users');
@@ -223,7 +223,7 @@ class CompanyController extends Controller {
         $db = Database::getInstance();
 
         // 1. Ensure Employee ID / Email is not a reserved system identifier
-        $reserved = ['admin', 'dev', 'developer', 'dev@wearableerp.com', 'superadmin', 'admin@mywellgro.online', 'admin@zudiotest.com'];
+        $reserved = ['admin', 'dev', 'developer', 'dev@wearableerp.com', 'superadmin', 'admin@mywellgro.online'];
         if (in_array(strtolower($employeeCode), $reserved) || in_array(strtolower($email), $reserved)) {
             Session::setFlash('error', 'Employee ID and Email/Username cannot be system reserved identifiers.');
             $this->redirect('company/users');

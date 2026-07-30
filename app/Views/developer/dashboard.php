@@ -63,7 +63,7 @@
     <div class="col-md-4">
         <div class="pepp-card h-100">
             <div class="pepp-card-header">
-                <h5 class="pepp-card-title"><i class="fa-solid fa-list text-primary me-2"></i> Pilot Customer Shortcut</h5>
+                <h5 class="pepp-card-title"><i class="fa-solid fa-list text-primary me-2"></i> Onboarded Tenants Shortcut</h5>
             </div>
             <div class="pepp-card-body p-0">
                 <div class="list-group list-group-flush">
