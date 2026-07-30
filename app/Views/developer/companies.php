@@ -806,7 +806,9 @@ function confirmHardDelete(companyId, companyName) {
 </div>
 
 <!-- Onboarding Success Modal with Credentials & Details -->
-<?php if ($details = \App\Core\Session::getFlash('new_tenant_details')): ?>
+<?php if ($detailsJson = \App\Core\Session::getFlash('new_tenant_details')): 
+    $details = json_decode($detailsJson, true);
+?>
 <div class="modal fade" id="tenantSuccessModal" tabindex="-1" aria-labelledby="tenantSuccessModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content shadow-lg border-0" style="border-radius: 16px;">

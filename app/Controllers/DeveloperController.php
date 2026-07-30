@@ -291,7 +291,7 @@ class DeveloperController extends Controller {
             AuditLog::log(null, Session::get('user_id'), 'onboard_company', 'Company', $companyId, null, null, "Onboarded company: {$name} with subdomain: {$subdomain}");
             
             $autoDns = $request->get('auto_create_dns') ? 'Enabled & Configured Automatically' : 'Manual Setup Required';
-            Session::setFlash('new_tenant_details', [
+            Session::setFlash('new_tenant_details', json_encode([
                 'name' => $name,
                 'subdomain' => $subdomain,
                 'login_url' => "http://" . $subdomain . ".mywellgro.online/login",
@@ -299,7 +299,7 @@ class DeveloperController extends Controller {
                 'admin_email' => $adminEmail,
                 'admin_password' => $adminPassword,
                 'dns_status' => $autoDns
-            ]);
+            ]));
             Session::setFlash('success', "Company '{$name}' onboarded successfully.");
 
         } catch (\Exception $e) {
