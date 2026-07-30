@@ -173,11 +173,11 @@
                                 <?php foreach ($batchReportList as $b): ?>
                                     <tr>
                                         <td class="ps-3">
-                                            <strong class="text-primary font-monospace fs-6"><?= htmlspecialchars($b['batch_no']) ?></strong>
+                                            <strong class="text-primary font-monospace fs-6"><?= htmlspecialchars($b['batch_no'] ?? '') ?></strong>
                                         </td>
-                                        <td><span class="fw-semibold text-dark"><?= htmlspecialchars($b['buyer_name']) ?></span></td>
-                                        <td><span class="badge bg-light text-dark border font-monospace"><?= htmlspecialchars($b['po_no']) ?></span></td>
-                                        <td><small class="text-secondary"><?= htmlspecialchars($b['style_display']) ?></small></td>
+                                        <td><span class="fw-semibold text-dark"><?= htmlspecialchars($b['buyer_name'] ?? '') ?></span></td>
+                                        <td><span class="badge bg-light text-dark border font-monospace"><?= htmlspecialchars($b['po_no'] ?? '') ?></span></td>
+                                        <td><small class="text-secondary"><?= htmlspecialchars($b['style_display'] ?? '') ?></small></td>
                                         <td>
                                             <span class="fw-bold text-dark"><?= number_format($b['completed_qty']) ?></span> / <?= number_format($b['target_qty']) ?> pcs
                                         </td>
@@ -261,12 +261,12 @@
                             <?php if (!empty($cartonAnalysisList)): ?>
                                 <?php foreach ($cartonAnalysisList as $c): ?>
                                     <tr>
-                                        <td class="ps-3"><strong class="text-primary font-monospace fs-6"><?= htmlspecialchars($c['carton_no']) ?></strong></td>
-                                        <td><span class="badge bg-light text-dark border font-monospace"><?= htmlspecialchars($c['shipment_no']) ?></span></td>
-                                        <td><small class="text-secondary"><?= htmlspecialchars($c['style_display']) ?></small></td>
-                                        <td><span class="badge bg-success-subtle text-success border px-2.5 py-1"><?= number_format($c['total_qty']) ?> pcs</span></td>
-                                        <td><small class="font-monospace text-dark"><?= htmlspecialchars($c['batch_no']) ?></small></td>
-                                        <td><span class="fw-semibold text-dark"><?= htmlspecialchars($c['location']) ?></span></td>
+                                        <td class="ps-3"><strong class="text-primary font-monospace fs-6"><?= htmlspecialchars($c['carton_no'] ?? '') ?></strong></td>
+                                        <td><span class="badge bg-light text-dark border font-monospace"><?= htmlspecialchars($c['shipment_no'] ?? '') ?></span></td>
+                                        <td><small class="text-secondary"><?= htmlspecialchars($c['style_display'] ?? '') ?></small></td>
+                                        <td><span class="badge bg-success-subtle text-success border px-2.5 py-1"><?= number_format($c['total_qty'] ?? 0) ?> pcs</span></td>
+                                        <td><small class="font-monospace text-dark"><?= htmlspecialchars($c['batch_no'] ?? '') ?></small></td>
+                                        <td><span class="fw-semibold text-dark"><?= htmlspecialchars($c['location'] ?? '') ?></span></td>
                                         <td>
                                             <?php if ($c['dispatch_status'] === 'Delivered'): ?>
                                                 <span class="badge bg-success">Delivered</span>

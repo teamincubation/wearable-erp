@@ -74,20 +74,20 @@
                             ?>
                             <tr class="production-table-row" 
                                 data-batch-no="<?= htmlspecialchars($o['production_no']) ?>"
-                                data-po-no="<?= htmlspecialchars($o['buyer_po_no']) ?>"
-                                data-style-no="<?= htmlspecialchars($o['style_no']) ?>"
-                                data-style-name="<?= htmlspecialchars($o['style_name']) ?>">
+                                data-po-no="<?= htmlspecialchars($o['buyer_po_no'] ?? '') ?>"
+                                data-style-no="<?= htmlspecialchars($o['style_no'] ?? '') ?>"
+                                data-style-name="<?= htmlspecialchars($o['style_name'] ?? '') ?>">
                                 <td>
                                     <strong class="text-primary font-monospace"><?= htmlspecialchars($o['production_no']) ?></strong>
                                 </td>
-                                <td><span class="badge bg-light text-secondary font-monospace"><?= htmlspecialchars($o['buyer_po_no']) ?></span></td>
+                                <td><span class="badge bg-light text-secondary font-monospace"><?= htmlspecialchars($o['buyer_po_no'] ?? '') ?></span></td>
                                 <td>
                                     <div>
-                                        <strong class="text-dark"><?= htmlspecialchars($o['style_no']) ?></strong>
-                                        <div class="text-secondary small"><?= htmlspecialchars($o['style_name']) ?></div>
+                                        <strong class="text-dark"><?= htmlspecialchars($o['style_no'] ?? '') ?></strong>
+                                        <div class="text-secondary small"><?= htmlspecialchars($o['style_name'] ?? '') ?></div>
                                     </div>
                                 </td>
-                                <td class="fw-bold font-monospace"><?= number_format($o['target_qty']) ?> pcs</td>
+                                <td class="fw-bold font-monospace"><?= number_format($o['target_qty'] ?? 0) ?> pcs</td>
                                 <td><?= date('d M Y', strtotime($o['start_date'])) ?></td>
                                 <td>
                                     <?php if ($isStarted): ?>

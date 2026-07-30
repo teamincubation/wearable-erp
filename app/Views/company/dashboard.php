@@ -88,7 +88,7 @@
                                     <div class="d-flex justify-content-between align-items-start mb-2">
                                         <div>
                                             <span class="badge bg-primary-subtle text-primary font-monospace fw-bold px-2.5 py-1 mb-1" style="font-size: 13px;"><?= htmlspecialchars($ab['production_no']) ?></span>
-                                            <h6 class="fw-bold text-dark m-0"><?= htmlspecialchars($ab['style_no']) ?> - <?= htmlspecialchars($ab['style_name']) ?></h6>
+                                            <h6 class="fw-bold text-dark m-0"><?= htmlspecialchars($ab['style_no'] ?? '') ?> - <?= htmlspecialchars($ab['style_name'] ?? '') ?></h6>
                                         </div>
                                         <span class="badge bg-success text-white rounded-pill px-2.5 py-1" style="font-size: 11px;">
                                             <i class="fa-solid fa-spinner fa-spin me-1"></i> Running
@@ -97,11 +97,11 @@
                                     <div class="text-secondary small border-top pt-2 mt-2" style="font-size: 12px;">
                                         <div class="d-flex justify-content-between mb-1">
                                             <span>Buyer PO Contract:</span>
-                                            <strong class="text-dark font-monospace"><?= htmlspecialchars($ab['buyer_po_no']) ?> (<?= htmlspecialchars($ab['buyer_name']) ?>)</strong>
+                                            <strong class="text-dark font-monospace"><?= htmlspecialchars($ab['buyer_po_no'] ?? '') ?> (<?= htmlspecialchars($ab['buyer_name'] ?? '') ?>)</strong>
                                         </div>
                                         <div class="d-flex justify-content-between">
                                             <span>Target Contract Qty:</span>
-                                            <strong class="text-primary font-monospace"><?= number_format($ab['target_qty']) ?> pcs</strong>
+                                            <strong class="text-primary font-monospace"><?= number_format($ab['target_qty'] ?? 0) ?> pcs</strong>
                                         </div>
                                     </div>
                                 </div>
