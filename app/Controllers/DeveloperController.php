@@ -289,7 +289,17 @@ class DeveloperController extends Controller {
             $db->commit();
 
             AuditLog::log(null, Session::get('user_id'), 'onboard_company', 'Company', $companyId, null, null, "Onboarded company: {$name} with subdomain: {$subdomain}");
-            Session::setFlash('success', "Company '{$name}' onboarded successfully. Admin Email: {$adminEmail}");
+            
+            Session::set('onboarded_tenant_info', [
+                'name' => $name,
+                'subdomain' => $subdomain,
+                'admin_email' => $adminEmail,
+                'admin_password' => $adminPassword,
+                'license_key' => $licenseKey,
+                'subdomain_url' => "https://{$subdomain}.mywellgro.online/login",
+                'local_login_url' => base_url("login?tenant={$subdomain}")
+            ]);
+            Session::setFlash('success', "Tenant company '{$name}' onboarded successfully with subdomain '{$subdomain}'.");
 
         } catch (\Exception $e) {
             $db->rollBack();
@@ -508,6 +518,14 @@ class DeveloperController extends Controller {
         if (!$company) {
             Session::setFlash('error', 'Company not found.');
             $this->redirect('developer/companies');
+            return;
+        }
+
+        $confirmText = trim($request->get('confirm_text') ?? '');
+        if (strtoupper($confirmText) !== 'DELETE TENANT') {
+            Session::setFlash('error', "Deletion cancelled: You must type 'DELETE TENANT' exactly to confirm permanent tenant hard deletion.");
+            $this->redirect('developer/companies');
+            return;
         }
 
         $db = Database::getInstance();

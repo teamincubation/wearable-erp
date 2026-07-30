@@ -1,3 +1,37 @@
+<?php if ($tenantInfo = \App\Core\Session::get('onboarded_tenant_info')): \App\Core\Session::remove('onboarded_tenant_info'); ?>
+    <div class="alert alert-success border-success bg-white shadow-sm p-4 mb-4" style="border-radius: var(--border-radius-lg); border-left: 5px solid #198754 !important;">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold text-success m-0"><i class="fa-solid fa-circle-check me-2"></i> Tenant Onboarded & Subdomain Provisioned Successfully</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="p-3 bg-light rounded border">
+                    <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-building me-1 text-primary"></i> Company & Subdomain Info</h6>
+                    <p class="m-0 small"><strong>Company Name:</strong> <?= htmlspecialchars($tenantInfo['name']) ?></p>
+                    <p class="m-0 small"><strong>Provisioned Subdomain:</strong> <code class="fw-bold text-primary"><?= htmlspecialchars($tenantInfo['subdomain']) ?></code></p>
+                    <p class="m-0 small"><strong>License Key:</strong> <code><?= htmlspecialchars($tenantInfo['license_key']) ?></code></p>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="p-3 bg-light rounded border">
+                    <h6 class="fw-bold text-dark mb-2"><i class="fa-solid fa-key me-1 text-warning"></i> Super Admin Credentials</h6>
+                    <p class="m-0 small"><strong>Super Admin Email:</strong> <code><?= htmlspecialchars($tenantInfo['admin_email']) ?></code></p>
+                    <p class="m-0 small"><strong>Password:</strong> <code><?= htmlspecialchars($tenantInfo['admin_password']) ?></code></p>
+                </div>
+            </div>
+            <div class="col-12 mt-3 d-flex gap-2 flex-wrap">
+                <a href="<?= htmlspecialchars($tenantInfo['subdomain_url']) ?>" target="_blank" class="btn btn-sm btn-primary rounded-pill px-3 fw-semibold">
+                    <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Visit Subdomain Login (<?= htmlspecialchars($tenantInfo['subdomain']) ?>.mywellgro.online)
+                </a>
+                <a href="<?= htmlspecialchars($tenantInfo['local_login_url']) ?>" target="_blank" class="btn btn-sm btn-outline-dark rounded-pill px-3 fw-semibold">
+                    <i class="fa-solid fa-laptop-code me-1"></i> Test Local Login Shortcut
+                </a>
+            </div>
+        </div>
+    </div>
+<?php endif; ?>
+
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h3 class="fw-bold">Company Manager</h3>
@@ -70,14 +104,47 @@
                                     <button class="btn btn-sm btn-light border me-1" data-bs-toggle="modal" data-bs-target="#editModal-<?= $c['id'] ?>">
                                         <i class="fa-regular fa-pen-to-square"></i> Edit
                                     </button>
-                                    <form action="<?= base_url('developer/companies/delete/' . $c['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('WARNING: Are you absolutely sure you want to HARD DELETE the tenant \'<?= htmlspecialchars($c['name']) ?>\'? This will permanently erase all data, tables association, production orders, inventory ledger logs, and users. This action is irreversible!');">
-                                        <?= \App\Core\Session::csrfField() ?>
-                                        <button type="submit" class="btn btn-sm btn-danger rounded-pill px-3">
-                                            <i class="fa-solid fa-trash-can"></i> Hard Delete
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
+                                     <button type="button" class="btn btn-sm btn-danger rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#deleteModal-<?= $c['id'] ?>">
+                                         <i class="fa-solid fa-trash-can"></i> Hard Delete
+                                     </button>
+                                 </td>
+                             </tr>
+
+                             <!-- Hard Delete Confirmation Modal -->
+                             <div class="modal fade" id="deleteModal-<?= $c['id'] ?>" tabindex="-1" aria-hidden="true">
+                                 <div class="modal-dialog">
+                                     <form action="<?= base_url('developer/companies/delete/' . $c['id']) ?>" method="POST">
+                                         <?= \App\Core\Session::csrfField() ?>
+                                         <div class="modal-content text-start border-danger shadow-lg" style="border-radius: var(--border-radius-lg);">
+                                             <div class="modal-header bg-danger text-white">
+                                                 <h5 class="modal-title fw-bold">
+                                                     <i class="fa-solid fa-triangle-exclamation me-2"></i> Confirm Tenant Hard Delete
+                                                 </h5>
+                                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                             </div>
+                                             <div class="modal-body p-4">
+                                                 <div class="alert alert-warning border-warning mb-3">
+                                                     <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                                                     <strong>WARNING:</strong> You are about to permanently hard delete tenant <strong><?= htmlspecialchars($c['name']) ?></strong> (Subdomain: <code><?= htmlspecialchars($c['subdomain']) ?></code>).
+                                                     This will purge all associated database tables, users, inventory, tech packs, and settings. This action is <strong>IRREVERSIBLE</strong>.
+                                                 </div>
+                                                 <div class="mb-3">
+                                                     <label class="form-label fw-bold text-dark small">
+                                                         To confirm permanent deletion, type <code class="text-danger fw-bold fs-6">DELETE TENANT</code> below:
+                                                     </label>
+                                                     <input type="text" name="confirm_text" class="form-control form-control-lg text-uppercase font-monospace fw-bold" placeholder="DELETE TENANT" required autocomplete="off">
+                                                 </div>
+                                             </div>
+                                             <div class="modal-footer bg-light">
+                                                 <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                                                 <button type="submit" class="btn btn-danger rounded-pill px-4 fw-bold">
+                                                     <i class="fa-solid fa-trash-can me-1"></i> Permanently Delete Tenant
+                                                 </button>
+                                             </div>
+                                         </div>
+                                     </form>
+                                 </div>
+                             </div>
 
                             <!-- Edit Modal -->
                             <div class="modal fade" id="editModal-<?= $c['id'] ?>" tabindex="-1" aria-hidden="true">
