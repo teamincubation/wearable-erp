@@ -205,7 +205,7 @@ class ApiQrController extends Controller {
         $batchNo = implode('-', $parts);
 
         $stmtBatch = $db->prepare("
-            SELECT pro.id, pro.status, pro.company_id, po.quantity as target_qty, po.sizes_json,
+            SELECT pro.id, pro.status, pro.company_id, po.quantity as target_qty, COALESCE(pro.sizes_json, po.sizes_json) as sizes_json,
                    COALESCE(s.style_no, 'N/A') as style_no, COALESCE(s.name, 'Garment Piece') as style_name
             FROM production_orders pro
             LEFT JOIN buyer_pos po ON pro.po_id = po.id
@@ -360,7 +360,7 @@ class ApiQrController extends Controller {
         $batchNo = implode('-', $parts);
 
         $stmtBatch = $db->prepare("
-            SELECT pro.id, pro.status, pro.company_id, po.quantity as target_qty, po.sizes_json
+            SELECT pro.id, pro.status, pro.company_id, po.quantity as target_qty, COALESCE(pro.sizes_json, po.sizes_json) as sizes_json
             FROM production_orders pro
             LEFT JOIN buyer_pos po ON pro.po_id = po.id
             WHERE pro.production_no = ? AND pro.deleted_at IS NULL LIMIT 1
