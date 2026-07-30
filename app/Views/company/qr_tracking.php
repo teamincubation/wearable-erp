@@ -511,11 +511,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 startCameraScanner(backCameraId);
             } else {
-                switchToManualMode("No camera detected. Switched to manual mode.");
+                startCameraScanner({ facingMode: "environment" });
             }
         }).catch(err => {
             console.warn("Camera enum error:", err);
-            switchToManualMode("Unable to access camera permissions.");
+            startCameraScanner({ facingMode: "environment" });
         });
     }
 
@@ -526,9 +526,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         html5QrCode = new Html5Qrcode("reader");
         const config = {
-            fps: 20,
-            qrbox: { width: 260, height: 260 },
-            aspectRatio: 1.333333
+            fps: 10,
+            qrbox: { width: 260, height: 260 }
         };
 
         html5QrCode.start(
