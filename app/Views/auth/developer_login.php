@@ -35,7 +35,10 @@
                 <label for="password" class="form-label small fw-bold text-secondary text-uppercase" style="letter-spacing: 0.5px;">Developer Password</label>
                 <div class="input-group">
                     <span class="input-group-text bg-dark border-secondary text-secondary"><i class="fa-solid fa-lock"></i></span>
-                    <input type="password" class="form-control form-control-lg bg-dark text-white border-secondary" id="password" name="password" placeholder="••••••••" required style="font-size: 14px;">
+                    <input type="password" class="form-control form-control-lg bg-dark text-white border-secondary border-end-0" id="password" name="password" placeholder="••••••••" required style="font-size: 14px;">
+                    <span class="input-group-text bg-dark border-secondary text-secondary cursor-pointer border-start-0" id="togglePassword" style="cursor: pointer;">
+                        <i class="fa-regular fa-eye"></i>
+                    </span>
                 </div>
             </div>
 
@@ -51,3 +54,20 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const togglePassword = document.getElementById('togglePassword');
+    const password = document.getElementById('password');
+
+    if (togglePassword && password) {
+        togglePassword.addEventListener('click', function () {
+            const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+            password.setAttribute('type', type);
+            const icon = this.querySelector('i');
+            icon.classList.toggle('fa-eye');
+            icon.classList.toggle('fa-eye-slash');
+        });
+    }
+});
+</script>
