@@ -157,6 +157,11 @@ $router->get('/company/api/dashboard-chart', [DashboardController::class, 'getPr
        ->middleware(PermissionMiddleware::class)
        ->permission('company.dashboard');
 
+$router->get('/company/api/dashboard-kpis', [DashboardController::class, 'getDynamicKPIs'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('company.dashboard');
+
 // User Management
 $router->get('/company/users', [CompanyController::class, 'users'])
        ->middleware(AuthMiddleware::class)

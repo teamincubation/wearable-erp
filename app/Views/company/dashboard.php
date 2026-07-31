@@ -28,44 +28,26 @@
     </form>
 </div>
 
-<!-- Stats widgets -->
-<div class="row g-4 mb-5">
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-icon icon-primary">
-                <i class="fa-solid fa-users"></i>
+<!-- Stats widgets header -->
+<div class="d-flex justify-content-between align-items-center mb-3 mt-4">
+    <h5 class="fw-bold m-0"><i class="fa-solid fa-chart-line text-primary me-2"></i> Key Performance Indicators</h5>
+    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 shadow-sm bg-white" data-bs-toggle="modal" data-bs-target="#kpiSettingsModal" title="Configure Dashboard Cards">
+        <i class="fa-solid fa-cog me-1"></i> Configure
+    </button>
+</div>
+
+<!-- Dynamic Stats widgets container -->
+<div class="row g-4 mb-5" id="dynamicKpiContainer">
+    <!-- Skeleton Loaders (Shown while fetching) -->
+    <?php for($i=0; $i<4; $i++): ?>
+    <div class="col-md-3 kpi-skeleton">
+        <div class="stat-card" style="opacity: 0.6; min-height: 120px; display: flex; align-items: center; justify-content: center;">
+            <div class="spinner-border text-primary spinner-border-sm" role="status">
+                <span class="visually-hidden">Loading...</span>
             </div>
-            <div class="stat-number"><?= $users_count ?></div>
-            <div class="stat-label">Employees (Users)</div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-icon icon-success">
-                <i class="fa-solid fa-industry"></i>
-            </div>
-            <div class="stat-number"><?= $production_count ?></div>
-            <div class="stat-label">Active Production Batches</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-icon icon-warning">
-                <i class="fa-solid fa-boxes-stacked"></i>
-            </div>
-            <div class="stat-number"><?= $unique_stock_count ?></div>
-            <div class="stat-label">Unique Stock Categories</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-icon icon-danger">
-                <i class="fa-solid fa-circle-exclamation"></i>
-            </div>
-            <div class="stat-number"><?= number_format($reject_rate, 1) ?>%</div>
-            <div class="stat-label">Quality Rejection Rate (AQL)</div>
-        </div>
-    </div>
+    <?php endfor; ?>
 </div>
 
 <!-- Active Manufacturing Lines & Live WIP Operations Hub (Request 8) -->
@@ -230,8 +212,156 @@
     </div>
 </div>
 
+<!-- KPI Settings Modal -->
+<div class="modal fade" id="kpiSettingsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fa-solid fa-cog me-2 text-primary"></i>Configure Dashboard Cards</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-secondary small">Select exactly 4 key metrics you want to monitor on your dashboard. This preference is saved locally for this browser.</p>
+                <div class="row" id="kpiCheckboxesContainer">
+                    <?php 
+                    $availableKPIs = [
+                        'total_employees' => 'Total Employees',
+                        'active_employees_today' => 'Active Employees Today',
+                        'total_buyers' => 'Total Buyers / Clients',
+                        'total_suppliers' => 'Total Suppliers',
+                        'active_buyer_orders' => 'Active Buyer Orders',
+                        'completed_buyer_orders' => 'Completed Buyer Orders',
+                        'total_production_batches' => 'Total Production Batches',
+                        'active_batches' => 'Active Production Batches',
+                        'completed_batches' => 'Completed Batches',
+                        'unique_stock' => 'Unique Stock Categories',
+                        'reject_rate' => 'Quality Rejection Rate',
+                        'gross_sales' => 'Gross Sales Value',
+                        'total_procurement_orders' => 'Total Procurement Orders',
+                        'pending_procurement' => 'Pending POs'
+                    ];
+                    foreach ($availableKPIs as $kpiKey => $kpiLabel): 
+                    ?>
+                    <div class="col-md-6 mb-2">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input kpi-checkbox" type="checkbox" value="<?= $kpiKey ?>" id="chk_kpi_<?= $kpiKey ?>">
+                            <label class="form-check-label" for="chk_kpi_<?= $kpiKey ?>"><?= htmlspecialchars($kpiLabel) ?></label>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <div class="modal-footer bg-light d-flex justify-content-between">
+                <span class="small text-muted" id="kpiSelectionCount">0 / 4 selected</span>
+                <div>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="saveKpiSettingsBtn">Save Preferences</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener("DOMContentLoaded", function() {
+    // KPI System Logic
+    const defaultKpis = ['total_employees', 'active_batches', 'unique_stock', 'reject_rate'];
+    
+    function getSavedKpis() {
+        let saved = localStorage.getItem('dashboard_kpis');
+        let parsed = saved ? JSON.parse(saved) : null;
+        if (!parsed || !Array.isArray(parsed) || parsed.length !== 4) {
+            return defaultKpis;
+        }
+        return parsed;
+    }
+
+    function renderKpiCards(kpiData) {
+        const container = document.getElementById('dynamicKpiContainer');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        kpiData.forEach(kpi => {
+            let secText = kpi.secondary_text ? `<div class="text-secondary small mt-1">${kpi.secondary_text}</div>` : '';
+            container.innerHTML += `
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon ${kpi.color_class}">
+                            <i class="${kpi.icon}"></i>
+                        </div>
+                        <div class="stat-number">${kpi.value}</div>
+                        <div class="stat-label">${kpi.title}</div>
+                        ${secText}
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    function fetchKpis() {
+        let keys = getSavedKpis().join(',');
+        fetch(`<?= base_url('company/api/dashboard-kpis') ?>?keys=${keys}`)
+            .then(res => res.json())
+            .then(res => {
+                if(res.success && res.data) {
+                    renderKpiCards(res.data);
+                }
+            })
+            .catch(err => console.error("Failed to fetch KPIs", err));
+    }
+
+    // Modal Logic for KPIs
+    const saveKpiSettingsBtn = document.getElementById('saveKpiSettingsBtn');
+    const kpiCheckboxes = document.querySelectorAll('.kpi-checkbox');
+    const kpiCountText = document.getElementById('kpiSelectionCount');
+
+    function updateKpiCount() {
+        let count = document.querySelectorAll('.kpi-checkbox:checked').length;
+        if (kpiCountText) {
+            kpiCountText.innerText = `${count} / 4 selected`;
+            kpiCountText.className = count === 4 ? 'small text-success fw-bold' : (count > 4 ? 'small text-danger fw-bold' : 'small text-muted');
+        }
+    }
+
+    if (kpiCheckboxes.length > 0) {
+        let currentKpis = getSavedKpis();
+        kpiCheckboxes.forEach(chk => {
+            if (currentKpis.includes(chk.value)) {
+                chk.checked = true;
+            }
+            chk.addEventListener('change', updateKpiCount);
+        });
+        updateKpiCount();
+    }
+
+    if (saveKpiSettingsBtn) {
+        saveKpiSettingsBtn.addEventListener('click', function() {
+            let selected = [];
+            document.querySelectorAll('.kpi-checkbox:checked').forEach(chk => {
+                selected.push(chk.value);
+            });
+            if (selected.length !== 4) {
+                alert("Please select exactly 4 KPIs to display.");
+                return;
+            }
+            localStorage.setItem('dashboard_kpis', JSON.stringify(selected));
+            bootstrap.Modal.getInstance(document.getElementById('kpiSettingsModal')).hide();
+            
+            // Show loading skeleton while fetching
+            const container = document.getElementById('dynamicKpiContainer');
+            if (container) {
+                container.innerHTML = '';
+                for(let i=0; i<4; i++) {
+                    container.innerHTML += '<div class="col-md-3 kpi-skeleton"><div class="stat-card" style="opacity: 0.6; min-height: 120px; display: flex; align-items: center; justify-content: center;"><div class="spinner-border text-primary spinner-border-sm" role="status"></div></div></div>';
+                }
+            }
+            fetchKpis();
+        });
+    }
+
+    // Initial KPI fetch
+    fetchKpis();
+
     const ctx = document.getElementById('productionChart').getContext('2d');
     let productionChart = new Chart(ctx, {
         type: 'bar',

@@ -262,4 +262,132 @@ class DashboardController extends Controller {
             'data' => $chartData
         ]);
     }
+
+    public function getDynamicKPIs(Request $request, Response $response): void {
+        header('Content-Type: application/json');
+        $companyId = Session::get('company_id');
+        if (!$companyId) {
+            $response->json(['success' => false, 'message' => 'Unauthorized'], 401);
+            return;
+        }
+
+        $keys = $request->get('keys');
+        if (empty($keys)) {
+            $response->json(['success' => true, 'data' => []]);
+            return;
+        }
+
+        $kpiKeys = is_array($keys) ? $keys : explode(',', $keys);
+        $kpiKeys = array_map('trim', $kpiKeys);
+        
+        $db = \App\Core\Database::getInstance();
+        $results = [];
+
+        foreach ($kpiKeys as $key) {
+            $kpi = ['key' => $key, 'title' => '', 'value' => '0', 'icon' => 'fa-solid fa-chart-bar', 'color_class' => 'icon-secondary', 'secondary_text' => ''];
+            
+            switch ($key) {
+                case 'total_employees':
+                    $kpi['title'] = 'Total Employees';
+                    $kpi['icon'] = 'fa-solid fa-users';
+                    $kpi['color_class'] = 'icon-primary';
+                    $kpi['value'] = $db->query("SELECT COUNT(*) FROM users WHERE company_id = {$companyId} AND deleted_at IS NULL")->fetchColumn() ?: '0';
+                    break;
+                case 'active_employees_today':
+                    $kpi['title'] = 'Active Employees Today';
+                    $kpi['icon'] = 'fa-solid fa-user-check';
+                    $kpi['color_class'] = 'icon-success';
+                    $kpi['value'] = $db->query("SELECT COUNT(DISTINCT user_id) FROM employee_attendance WHERE company_id = {$companyId} AND date = CURDATE()")->fetchColumn() ?: '0';
+                    break;
+                case 'total_buyers':
+                    $kpi['title'] = 'Total Buyers / Clients';
+                    $kpi['icon'] = 'fa-solid fa-user-tie';
+                    $kpi['color_class'] = 'icon-info';
+                    $kpi['value'] = $db->query("SELECT COUNT(*) FROM contacts WHERE company_id = {$companyId} AND type = 'buyer' AND deleted_at IS NULL")->fetchColumn() ?: '0';
+                    break;
+                case 'total_suppliers':
+                    $kpi['title'] = 'Total Suppliers';
+                    $kpi['icon'] = 'fa-solid fa-truck-field';
+                    $kpi['color_class'] = 'icon-secondary';
+                    $kpi['value'] = $db->query("SELECT COUNT(*) FROM contacts WHERE company_id = {$companyId} AND type = 'supplier' AND deleted_at IS NULL")->fetchColumn() ?: '0';
+                    break;
+                case 'active_buyer_orders':
+                    $kpi['title'] = 'Active Buyer Orders';
+                    $kpi['icon'] = 'fa-solid fa-file-contract';
+                    $kpi['color_class'] = 'icon-primary';
+                    $kpi['value'] = $db->query("SELECT COUNT(*) FROM buyer_pos WHERE company_id = {$companyId} AND status IN ('active', 'in_progress') AND deleted_at IS NULL")->fetchColumn() ?: '0';
+                    break;
+                case 'completed_buyer_orders':
+                    $kpi['title'] = 'Completed Buyer Orders';
+                    $kpi['icon'] = 'fa-solid fa-check-double';
+                    $kpi['color_class'] = 'icon-success';
+                    $kpi['value'] = $db->query("SELECT COUNT(*) FROM buyer_pos WHERE company_id = {$companyId} AND status = 'completed' AND deleted_at IS NULL")->fetchColumn() ?: '0';
+                    break;
+                case 'total_production_batches':
+                    $kpi['title'] = 'Total Production Batches';
+                    $kpi['icon'] = 'fa-solid fa-layer-group';
+                    $kpi['color_class'] = 'icon-secondary';
+                    $kpi['value'] = $db->query("SELECT COUNT(*) FROM production_orders WHERE company_id = {$companyId} AND deleted_at IS NULL")->fetchColumn() ?: '0';
+                    break;
+                case 'active_batches':
+                    $kpi['title'] = 'Active Production Batches';
+                    $kpi['icon'] = 'fa-solid fa-industry';
+                    $kpi['color_class'] = 'icon-success';
+                    $kpi['value'] = $db->query("SELECT COUNT(*) FROM production_orders WHERE company_id = {$companyId} AND status IN ('running', 'in_progress') AND deleted_at IS NULL")->fetchColumn() ?: '0';
+                    break;
+                case 'completed_batches':
+                    $kpi['title'] = 'Completed Batches';
+                    $kpi['icon'] = 'fa-solid fa-check-to-slot';
+                    $kpi['color_class'] = 'icon-primary';
+                    $kpi['value'] = $db->query("SELECT COUNT(*) FROM production_orders WHERE company_id = {$companyId} AND status = 'completed' AND deleted_at IS NULL")->fetchColumn() ?: '0';
+                    break;
+                case 'unique_stock':
+                    $kpi['title'] = 'Unique Stock Categories';
+                    $kpi['icon'] = 'fa-solid fa-boxes-stacked';
+                    $kpi['color_class'] = 'icon-warning';
+                    $kpi['value'] = $db->query("SELECT COUNT(DISTINCT item_name) FROM inventory_transactions WHERE company_id = {$companyId}")->fetchColumn() ?: '0';
+                    break;
+                case 'reject_rate':
+                    $kpi['title'] = 'Quality Rejection Rate';
+                    $kpi['icon'] = 'fa-solid fa-circle-exclamation';
+                    $kpi['color_class'] = 'icon-danger';
+                    $inspectStats = $db->query("SELECT SUM(inspected_qty) as total_inspected, SUM(failed_qty) as total_failed FROM quality_inspections WHERE company_id = {$companyId} AND deleted_at IS NULL")->fetch();
+                    $rejectRate = 0.0;
+                    if (!empty($inspectStats['total_inspected']) && $inspectStats['total_inspected'] > 0) {
+                        $rejectRate = ($inspectStats['total_failed'] / $inspectStats['total_inspected']) * 100;
+                    }
+                    $kpi['value'] = number_format($rejectRate, 1) . '%';
+                    $kpi['secondary_text'] = 'Avg AQL';
+                    break;
+                case 'gross_sales':
+                    $kpi['title'] = 'Gross Sales Value';
+                    $kpi['icon'] = 'fa-solid fa-wallet';
+                    $kpi['color_class'] = 'icon-success';
+                    $val = $db->query("SELECT IFNULL(SUM(total_amount), 0.00) FROM buyer_pos WHERE company_id = {$companyId} AND deleted_at IS NULL")->fetchColumn();
+                    $kpi['value'] = '₹' . number_format((float)$val, 2);
+                    break;
+                case 'total_procurement_orders':
+                    $kpi['title'] = 'Total Procurement Orders';
+                    $kpi['icon'] = 'fa-solid fa-cart-shopping';
+                    $kpi['color_class'] = 'icon-primary';
+                    $kpi['value'] = $db->query("SELECT COUNT(*) FROM purchase_orders WHERE company_id = {$companyId} AND deleted_at IS NULL")->fetchColumn() ?: '0';
+                    break;
+                case 'pending_procurement':
+                    $kpi['title'] = 'Pending POs';
+                    $kpi['icon'] = 'fa-solid fa-clock-rotate-left';
+                    $kpi['color_class'] = 'icon-warning';
+                    $kpi['value'] = $db->query("SELECT COUNT(*) FROM purchase_orders WHERE company_id = {$companyId} AND status = 'pending' AND deleted_at IS NULL")->fetchColumn() ?: '0';
+                    break;
+                default:
+                    $kpi['title'] = ucwords(str_replace('_', ' ', $key));
+                    break;
+            }
+            $results[] = $kpi;
+        }
+
+        $response->json([
+            'success' => true,
+            'data' => $results
+        ]);
+    }
 }
