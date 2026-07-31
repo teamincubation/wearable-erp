@@ -288,6 +288,31 @@ small, .small, .badge, .caption, .subtext, .text-muted, figcaption, .font-monosp
     box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
 }
 
+.category-header {
+    justify-content: space-between;
+    font-weight: 600;
+    color: #cbd5e1;
+}
+
+.category-chevron {
+    transition: transform 0.3s ease;
+    font-size: 12px;
+}
+
+.category-header:not(.collapsed) .category-chevron {
+    transform: rotate(-180deg);
+}
+
+.sidebar-submenu {
+    list-style: none;
+    padding-left: 28px;
+    margin: 0;
+}
+
+.sidebar-category {
+    margin-bottom: 8px;
+}
+
 .sidebar-footer {
     padding: 20px;
     border-top: 1px solid rgba(255, 255, 255, 0.05);

@@ -50,9 +50,37 @@ if (!$isCompanyExpired && $currentPagePermission) {
     }
 }
 
-// Sidebar menu: fixed default order (hardcoded — no DB override)
-$savedOrder = ['dashboard','sales_reports','hr','production','dispatch','packing_qr','merchandising','styles','buyers','inventory','procurement','masterdata','users','roles','tally','logs','settings','rfid_tracking'];
-
+// Sidebar menu categorized structure
+$sidebarCategories = [
+    'Dashboard' => [
+        'icon' => 'fa-solid fa-chart-line',
+        'items' => ['dashboard', 'sales_reports']
+    ],
+    'Production Management' => [
+        'icon' => 'fa-solid fa-industry',
+        'items' => ['production', 'rfid_tracking', 'packing_qr', 'dispatch']
+    ],
+    'Merchandising & Orders' => [
+        'icon' => 'fa-solid fa-shirt',
+        'items' => ['buyers', 'merchandising', 'styles']
+    ],
+    'Procurement & Inventory' => [
+        'icon' => 'fa-solid fa-boxes-stacked',
+        'items' => ['procurement', 'inventory', 'masterdata']
+    ],
+    'Human Resources' => [
+        'icon' => 'fa-solid fa-users',
+        'items' => ['hr', 'users', 'roles']
+    ],
+    'Finance & Integration' => [
+        'icon' => 'fa-solid fa-coins',
+        'items' => ['tally']
+    ],
+    'Administration' => [
+        'icon' => 'fa-solid fa-gear',
+        'items' => ['settings', 'logs']
+    ]
+];
 
 $defaultMenu = [
     'dashboard' => ['name' => 'Dashboard', 'icon' => 'fa-solid fa-chart-line', 'url' => 'company/dashboard', 'permission' => 'company.dashboard', 'active_check' => '/company/dashboard', 'is_exact' => true],
@@ -74,8 +102,6 @@ $defaultMenu = [
     'settings' => ['name' => 'ERP Settings', 'icon' => 'fa-solid fa-sliders', 'url' => 'company/settings', 'permission' => 'company.settings', 'active_check' => 'company/settings'],
     'rfid_tracking' => ['name' => 'Production QR', 'icon' => 'fa-solid fa-mobile-screen-button', 'url' => 'company/production/qr-tracking', 'permission' => 'company.production.rfid_tracking', 'active_check' => 'company/production/qr-tracking']
 ];
-
-$orderedMenuKeys = array_merge($savedOrder, array_diff(array_keys($defaultMenu), $savedOrder));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -118,28 +144,55 @@ $orderedMenuKeys = array_merge($savedOrder, array_diff(array_keys($defaultMenu),
             <ul class="sidebar-menu">
                 <?php 
                     $currentUri = $_SERVER['REQUEST_URI'] ?? '';
-                    foreach ($orderedMenuKeys as $key):
-                        if (!isset($defaultMenu[$key])) continue;
-                        $item = $defaultMenu[$key];
-                        if (!\App\Core\Auth::hasPermission($item['permission'])) continue;
+                    $catIndex = 0;
+                    foreach ($sidebarCategories as $catName => $catData):
+                        $catIndex++;
+                        $accessibleItems = [];
+                        $isCategoryActive = false;
                         
-                        $activeClass = '';
-                        if (!empty($item['is_exact'])) {
-                            if ($currentUri === $item['active_check']) {
-                                $activeClass = 'active';
-                            }
-                        } else {
-                            if ($currentUri !== null && !empty($item['active_check']) && strpos($currentUri, $item['active_check']) !== false) {
-                                $activeClass = 'active';
+                        foreach ($catData['items'] as $key) {
+                            if (!isset($defaultMenu[$key])) continue;
+                            $item = $defaultMenu[$key];
+                            if (\App\Core\Auth::hasPermission($item['permission'])) {
+                                $activeClass = '';
+                                if (!empty($item['is_exact'])) {
+                                    if ($currentUri === $item['active_check']) {
+                                        $activeClass = 'active';
+                                        $isCategoryActive = true;
+                                    }
+                                } else {
+                                    if ($currentUri !== null && !empty($item['active_check']) && strpos($currentUri, $item['active_check']) !== false) {
+                                        $activeClass = 'active';
+                                        $isCategoryActive = true;
+                                    }
+                                }
+                                $item['activeClass'] = $activeClass;
+                                $accessibleItems[] = $item;
                             }
                         }
+                        
+                        if (count($accessibleItems) === 0) continue;
+                        $catId = "collapseCat" . $catIndex;
                 ?>
-                    <li class="sidebar-item">
-                        <a href="<?= base_url($item['url']) ?>" class="sidebar-link <?= $activeClass ?>">
-                            <i class="<?= $item['icon'] ?>"></i> 
-                            <span class="sidebar-text"><?= htmlspecialchars($item['name']) ?></span> 
-                            <span class="sidebar-badge-container"><?= \App\Core\Auth::getFeatureLabelBadge($item['permission']) ?></span>
+                    <li class="sidebar-category">
+                        <a href="#<?= $catId ?>" data-bs-toggle="collapse" class="sidebar-link category-header <?= $isCategoryActive ? '' : 'collapsed' ?>" aria-expanded="<?= $isCategoryActive ? 'true' : 'false' ?>">
+                            <span class="d-flex align-items-center gap-2">
+                                <i class="<?= $catData['icon'] ?> fa-fw text-primary"></i> 
+                                <span class="sidebar-text"><?= htmlspecialchars($catName) ?></span>
+                            </span>
+                            <i class="fa-solid fa-chevron-down category-chevron"></i>
                         </a>
+                        <ul class="collapse sidebar-submenu <?= $isCategoryActive ? 'show' : '' ?>" id="<?= $catId ?>" data-cat-id="<?= $catId ?>" data-is-active="<?= $isCategoryActive ? 'true' : 'false' ?>">
+                            <?php foreach ($accessibleItems as $item): ?>
+                                <li class="sidebar-item mt-1">
+                                    <a href="<?= base_url($item['url']) ?>" class="sidebar-link submenu-link py-2 <?= $item['activeClass'] ?>">
+                                        <i class="<?= $item['icon'] ?> fa-sm text-secondary"></i> 
+                                        <span class="sidebar-text"><?= htmlspecialchars($item['name']) ?></span> 
+                                        <span class="sidebar-badge-container"><?= \App\Core\Auth::getFeatureLabelBadge($item['permission']) ?></span>
+                                    </a>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
                     </li>
                 <?php endforeach; ?>
             </ul>
@@ -459,6 +512,35 @@ $orderedMenuKeys = array_merge($savedOrder, array_diff(array_keys($defaultMenu),
                 }
             });
         }
+        // Sidebar Category Persistence
+        const sidebarSubmenus = document.querySelectorAll('.sidebar-submenu');
+        
+        // Restore state
+        sidebarSubmenus.forEach(submenu => {
+            const catId = submenu.getAttribute('data-cat-id');
+            const isActive = submenu.getAttribute('data-is-active') === 'true';
+            const savedState = localStorage.getItem('sidebar-cat-' + catId);
+            
+            // If the category contains the active page, always show it (overrides saved state)
+            if (isActive) {
+                submenu.classList.add('show');
+                submenu.previousElementSibling.classList.remove('collapsed');
+                submenu.previousElementSibling.setAttribute('aria-expanded', 'true');
+            } else if (savedState === 'expanded') {
+                submenu.classList.add('show');
+                submenu.previousElementSibling.classList.remove('collapsed');
+                submenu.previousElementSibling.setAttribute('aria-expanded', 'true');
+            }
+            
+            // Listen for toggle events
+            submenu.addEventListener('shown.bs.collapse', function () {
+                localStorage.setItem('sidebar-cat-' + catId, 'expanded');
+            });
+            submenu.addEventListener('hidden.bs.collapse', function () {
+                localStorage.setItem('sidebar-cat-' + catId, 'collapsed');
+            });
+        });
+
     });
     </script>
 </body>
