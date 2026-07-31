@@ -1,4 +1,4 @@
-<div id="live-dashboard-container" class="container-fluid py-4 min-vh-100 px-3 px-md-4" style="font-family: 'Outfit', sans-serif; background-color: #090d16 !important; color: #f8fafc !important;">
+<div id="live-dashboard-container" class="container-fluid py-4 min-vh-100 px-3 px-md-4" style="font-family: 'Segoe UI Variable', sans-serif; background-color: #090d16 !important; color: #f8fafc !important;">
     
     <!-- Full Dashboard CSS Overrides for Dark Permanent Theme & High Contrast -->
     <style>
@@ -69,7 +69,7 @@
         .icon-badge-warning { background: rgba(245, 158, 11, 0.18) !important; color: #f59e0b !important; }
         .icon-badge-danger { background: rgba(239, 68, 68, 0.18) !important; color: #ef4444 !important; }
 
-        .font-outfit { font-family: 'Outfit', sans-serif; }
+        .font-outfit { font-family: 'Segoe UI Variable', sans-serif; }
 
         /* Minimal QR Bar */
         .qr-lookup-bar {
@@ -549,7 +549,7 @@
                         position: 'top',
                         labels: {
                             color: '#cbd5e1',
-                            font: { family: 'Outfit', size: 11, weight: 'bold' }
+                            font: { family: 'Segoe UI Variable', size: 11, weight: 'bold' }
                         }
                     },
                     tooltip: {
@@ -559,18 +559,18 @@
                         bodyColor: '#e2e8f0',
                         borderColor: '#334155',
                         borderWidth: 1,
-                        titleFont: { family: 'Outfit', weight: 'bold' },
-                        bodyFont: { family: 'Outfit' }
+                        titleFont: { family: 'Segoe UI Variable', weight: 'bold' },
+                        bodyFont: { family: 'Segoe UI Variable' }
                     }
                 },
                 scales: {
                     x: {
                         grid: { color: 'rgba(255, 255, 255, 0.08)' },
-                        ticks: { color: '#cbd5e1', font: { family: 'Outfit', size: 10.5, weight: 'bold' } }
+                        ticks: { color: '#cbd5e1', font: { family: 'Segoe UI Variable', size: 10.5, weight: 'bold' } }
                     },
                     y: {
                         grid: { color: 'rgba(255, 255, 255, 0.08)' },
-                        ticks: { color: '#cbd5e1', font: { family: 'Outfit', size: 10.5, weight: 'bold' } },
+                        ticks: { color: '#cbd5e1', font: { family: 'Segoe UI Variable', size: 10.5, weight: 'bold' } },
                         beginAtZero: true
                     }
                 }

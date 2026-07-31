@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>500 - Internal Server Error | Wearable ERP</title>
     <link rel="icon" type="image/png" href="<?= base_url('assets/images/favicon.ico') ?>">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
     <style>
         * { box-sizing: border-box; }
@@ -15,7 +14,7 @@
             padding: 0 !important;
             width: 100vw !important;
             height: 100vh !important;
-            font-family: 'Outfit', sans-serif;
+            font-family: 'Segoe UI Variable', sans-serif;
             background-color: #0b0f19 !important;
             color: #f8fafc !important;
             overflow: hidden !important;

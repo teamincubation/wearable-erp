@@ -11,8 +11,7 @@ $faviconUrl = $logoUrl ?: base_url('assets/images/favicon.ico');
     <title><?= $title ?? 'RFID Floor Scanner | Wearable ERP' ?></title>
     <link rel="icon" type="image/png" href="<?= $faviconUrl ?>">
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Bootstrap 5 CSS -->
+        <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
@@ -20,7 +19,7 @@ $faviconUrl = $logoUrl ?: base_url('assets/images/favicon.ico');
     <link href="<?= base_url('assets/css/app.css') ?>" rel="stylesheet">
     <style>
         body {
-            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: 'Segoe UI Variable', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: #f1f5f9;
         }
     </style>
