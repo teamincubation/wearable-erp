@@ -136,8 +136,13 @@
     <!-- Chart Widget -->
     <div class="col-md-12">
         <div class="pepp-card h-100">
-            <div class="pepp-card-header">
-                <h5 class="pepp-card-title"><i class="fa-solid fa-chart-simple text-primary me-2"></i> Weekly Garment Production Outputs (pcs)</h5>
+            <div class="pepp-card-header d-flex justify-content-between align-items-center">
+                <h5 class="pepp-card-title m-0"><i class="fa-solid fa-chart-simple text-primary me-2"></i> Garment Production Outputs (pcs)</h5>
+                <select id="productionChartFilter" class="form-select form-select-sm bg-dark text-white border-secondary" style="width: auto;">
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="yearly">Yearly</option>
+                </select>
             </div>
             <div class="pepp-card-body">
                 <canvas id="productionChart" height="260"></canvas>
@@ -191,27 +196,11 @@
 <script>
 document.addEventListener("DOMContentLoaded", function() {
     const ctx = document.getElementById('productionChart').getContext('2d');
-    new Chart(ctx, {
+    let productionChart = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-            datasets: [
-                {
-                    label: 'Knitting',
-                    data: [1500, 1800, 1600, 1900, 1750, 1200],
-                    backgroundColor: '#4f46e5'
-                },
-                {
-                    label: 'Sewing',
-                    data: [1300, 1500, 1400, 1650, 1500, 1100],
-                    backgroundColor: '#10b981'
-                },
-                {
-                    label: 'Packing',
-                    data: [1200, 1400, 1350, 1500, 1450, 1000],
-                    backgroundColor: '#f59e0b'
-                }
-            ]
+            labels: [],
+            datasets: []
         },
         options: {
             responsive: true,
@@ -224,6 +213,30 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         }
     });
+
+    const filterSelect = document.getElementById('productionChartFilter');
+    
+    function fetchChartData(filter) {
+        fetch(`<?= base_url('company/api/dashboard-chart') ?>?filter=${filter}`)
+            .then(res => res.json())
+            .then(res => {
+                if(res.success && res.data) {
+                    productionChart.data.labels = res.data.labels;
+                    productionChart.data.datasets = res.data.datasets;
+                    productionChart.update();
+                }
+            })
+            .catch(err => console.error("Failed to fetch chart data", err));
+    }
+
+    if (filterSelect) {
+        filterSelect.addEventListener('change', function() {
+            fetchChartData(this.value);
+        });
+    }
+
+    // Initial fetch
+    fetchChartData('weekly');
 
     // Track QR Unit Form Event on Main Dashboard
     const trackForm = document.getElementById('track-qr-unit-form');

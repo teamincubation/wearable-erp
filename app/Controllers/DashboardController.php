@@ -98,4 +98,163 @@ class DashboardController extends Controller {
             'active_batches' => $activeBatches
         ]);
     }
+
+    /**
+     * API: Get real-time graphical data for Dashboard Chart
+     */
+    public function getProductionChartData(Request $request, Response $response): void {
+        header('Content-Type: application/json');
+        $companyId = Session::get('company_id');
+        if (!$companyId) {
+            $response->json(['success' => false, 'message' => 'Unauthorized'], 401);
+            return;
+        }
+
+        $filter = $request->get('filter') ?: 'weekly'; // weekly, monthly, yearly
+        $db = \App\Core\Database::getInstance();
+
+        $labels = [];
+        $datasets = [
+            'knitting' => [],
+            'sewing' => [],
+            'packing' => []
+        ];
+
+        if ($filter === 'weekly') {
+            // Last 7 days including today
+            for ($i = 6; $i >= 0; $i--) {
+                $labels[] = date('D', strtotime("-$i days")); // Mon, Tue...
+            }
+            
+            $stmt = $db->prepare("
+                SELECT DATE(created_at) as log_date, stage, SUM(qty_out) as total
+                FROM production_stage_logs 
+                WHERE company_id = ? AND stage IN ('knitting', 'sewing', 'packing')
+                  AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+                GROUP BY DATE(created_at), stage
+            ");
+            $stmt->execute([$companyId]);
+            $results = $stmt->fetchAll() ?: [];
+
+            // Initialize zeros
+            $map = [];
+            for ($i = 6; $i >= 0; $i--) {
+                $dateKey = date('Y-m-d', strtotime("-$i days"));
+                $map[$dateKey] = ['knitting' => 0, 'sewing' => 0, 'packing' => 0];
+            }
+            foreach ($results as $row) {
+                if (isset($map[$row['log_date']]) && isset($map[$row['log_date']][$row['stage']])) {
+                    $map[$row['log_date']][$row['stage']] += (int)$row['total'];
+                }
+            }
+            foreach ($map as $dateKey => $stageTotals) {
+                $datasets['knitting'][] = $stageTotals['knitting'];
+                $datasets['sewing'][] = $stageTotals['sewing'];
+                $datasets['packing'][] = $stageTotals['packing'];
+            }
+
+        } elseif ($filter === 'monthly') {
+            // Last 4 weeks
+            $labels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+            $map = [
+                1 => ['knitting' => 0, 'sewing' => 0, 'packing' => 0],
+                2 => ['knitting' => 0, 'sewing' => 0, 'packing' => 0],
+                3 => ['knitting' => 0, 'sewing' => 0, 'packing' => 0],
+                4 => ['knitting' => 0, 'sewing' => 0, 'packing' => 0],
+            ];
+
+            // 28 days back
+            $stmt = $db->prepare("
+                SELECT DATEDIFF(CURDATE(), DATE(created_at)) as days_ago, stage, SUM(qty_out) as total
+                FROM production_stage_logs 
+                WHERE company_id = ? AND stage IN ('knitting', 'sewing', 'packing')
+                  AND created_at >= DATE_SUB(CURDATE(), INTERVAL 27 DAY)
+                GROUP BY DATE(created_at), stage
+            ");
+            $stmt->execute([$companyId]);
+            $results = $stmt->fetchAll() ?: [];
+
+            foreach ($results as $row) {
+                $daysAgo = (int)$row['days_ago'];
+                if ($daysAgo <= 6) $weekIdx = 4;
+                elseif ($daysAgo <= 13) $weekIdx = 3;
+                elseif ($daysAgo <= 20) $weekIdx = 2;
+                else $weekIdx = 1;
+                
+                $map[$weekIdx][$row['stage']] += (int)$row['total'];
+            }
+
+            for ($i = 1; $i <= 4; $i++) {
+                $datasets['knitting'][] = $map[$i]['knitting'];
+                $datasets['sewing'][] = $map[$i]['sewing'];
+                $datasets['packing'][] = $map[$i]['packing'];
+            }
+
+        } elseif ($filter === 'yearly') {
+            // All months in current year
+            $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            $labels = $months;
+
+            $map = [];
+            for ($i = 1; $i <= 12; $i++) {
+                $map[$i] = ['knitting' => 0, 'sewing' => 0, 'packing' => 0];
+            }
+
+            $currentYear = date('Y');
+            $stmt = $db->prepare("
+                SELECT MONTH(created_at) as log_month, stage, SUM(qty_out) as total
+                FROM production_stage_logs 
+                WHERE company_id = ? AND stage IN ('knitting', 'sewing', 'packing')
+                  AND YEAR(created_at) = ?
+                GROUP BY MONTH(created_at), stage
+            ");
+            $stmt->execute([$companyId, $currentYear]);
+            $results = $stmt->fetchAll() ?: [];
+
+            foreach ($results as $row) {
+                $m = (int)$row['log_month'];
+                if (isset($map[$m])) {
+                    $map[$m][$row['stage']] += (int)$row['total'];
+                }
+            }
+
+            for ($i = 1; $i <= 12; $i++) {
+                $datasets['knitting'][] = $map[$i]['knitting'];
+                $datasets['sewing'][] = $map[$i]['sewing'];
+                $datasets['packing'][] = $map[$i]['packing'];
+            }
+        }
+
+        $chartData = [
+            'labels' => $labels,
+            'datasets' => [
+                [
+                    'label' => 'Knitting',
+                    'data' => $datasets['knitting'],
+                    'backgroundColor' => '#4f46e5',
+                    'borderRadius' => 4,
+                    'barPercentage' => 0.6
+                ],
+                [
+                    'label' => 'Sewing',
+                    'data' => $datasets['sewing'],
+                    'backgroundColor' => '#10b981',
+                    'borderRadius' => 4,
+                    'barPercentage' => 0.6
+                ],
+                [
+                    'label' => 'Packing',
+                    'data' => $datasets['packing'],
+                    'backgroundColor' => '#f59e0b',
+                    'borderRadius' => 4,
+                    'barPercentage' => 0.6
+                ]
+            ]
+        ];
+
+        $response->json([
+            'success' => true,
+            'data' => $chartData
+        ]);
+    }
 }
