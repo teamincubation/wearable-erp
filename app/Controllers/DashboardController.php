@@ -111,36 +111,53 @@ class DashboardController extends Controller {
         }
 
         $filter = $request->get('filter') ?: 'weekly'; // weekly, monthly, yearly
-        $db = \App\Core\Database::getInstance();
+        
+        $requestedStages = $request->get('stages');
+        $stages = [];
+        if (!empty($requestedStages)) {
+            if (is_array($requestedStages)) {
+                $stages = array_map('trim', $requestedStages);
+            } else {
+                $stages = array_map('trim', explode(',', (string)$requestedStages));
+            }
+        }
+        if (empty($stages)) {
+            $stages = ['knitting', 'sewing', 'packing']; // Default fallback
+        }
 
+        $db = \App\Core\Database::getInstance();
         $labels = [];
-        $datasets = [
-            'knitting' => [],
-            'sewing' => [],
-            'packing' => []
-        ];
+        $datasets = [];
+        
+        $colorPalette = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316'];
+        $stageColors = [];
+        foreach ($stages as $idx => $stage) {
+            $datasets[$stage] = [];
+            $stageColors[$stage] = $colorPalette[$idx % count($colorPalette)];
+        }
+        
+        $placeholders = str_repeat('?,', count($stages) - 1) . '?';
+        $params = array_merge([$companyId], $stages);
 
         if ($filter === 'weekly') {
-            // Last 7 days including today
             for ($i = 6; $i >= 0; $i--) {
-                $labels[] = date('D', strtotime("-$i days")); // Mon, Tue...
+                $labels[] = date('D', strtotime("-$i days"));
             }
             
             $stmt = $db->prepare("
                 SELECT DATE(created_at) as log_date, stage, SUM(qty_out) as total
                 FROM production_stage_logs 
-                WHERE company_id = ? AND stage IN ('knitting', 'sewing', 'packing')
+                WHERE company_id = ? AND stage IN ($placeholders)
                   AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
                 GROUP BY DATE(created_at), stage
             ");
-            $stmt->execute([$companyId]);
+            $stmt->execute($params);
             $results = $stmt->fetchAll() ?: [];
 
-            // Initialize zeros
             $map = [];
             for ($i = 6; $i >= 0; $i--) {
                 $dateKey = date('Y-m-d', strtotime("-$i days"));
-                $map[$dateKey] = ['knitting' => 0, 'sewing' => 0, 'packing' => 0];
+                $map[$dateKey] = array_fill_keys($stages, 0);
             }
             foreach ($results as $row) {
                 if (isset($map[$row['log_date']]) && isset($map[$row['log_date']][$row['stage']])) {
@@ -148,30 +165,28 @@ class DashboardController extends Controller {
                 }
             }
             foreach ($map as $dateKey => $stageTotals) {
-                $datasets['knitting'][] = $stageTotals['knitting'];
-                $datasets['sewing'][] = $stageTotals['sewing'];
-                $datasets['packing'][] = $stageTotals['packing'];
+                foreach ($stages as $stage) {
+                    $datasets[$stage][] = $stageTotals[$stage];
+                }
             }
 
         } elseif ($filter === 'monthly') {
-            // Last 4 weeks
             $labels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
             $map = [
-                1 => ['knitting' => 0, 'sewing' => 0, 'packing' => 0],
-                2 => ['knitting' => 0, 'sewing' => 0, 'packing' => 0],
-                3 => ['knitting' => 0, 'sewing' => 0, 'packing' => 0],
-                4 => ['knitting' => 0, 'sewing' => 0, 'packing' => 0],
+                1 => array_fill_keys($stages, 0),
+                2 => array_fill_keys($stages, 0),
+                3 => array_fill_keys($stages, 0),
+                4 => array_fill_keys($stages, 0),
             ];
 
-            // 28 days back
             $stmt = $db->prepare("
                 SELECT DATEDIFF(CURDATE(), DATE(created_at)) as days_ago, stage, SUM(qty_out) as total
                 FROM production_stage_logs 
-                WHERE company_id = ? AND stage IN ('knitting', 'sewing', 'packing')
+                WHERE company_id = ? AND stage IN ($placeholders)
                   AND created_at >= DATE_SUB(CURDATE(), INTERVAL 27 DAY)
                 GROUP BY DATE(created_at), stage
             ");
-            $stmt->execute([$companyId]);
+            $stmt->execute($params);
             $results = $stmt->fetchAll() ?: [];
 
             foreach ($results as $row) {
@@ -181,75 +196,65 @@ class DashboardController extends Controller {
                 elseif ($daysAgo <= 20) $weekIdx = 2;
                 else $weekIdx = 1;
                 
-                $map[$weekIdx][$row['stage']] += (int)$row['total'];
+                if (isset($map[$weekIdx][$row['stage']])) {
+                    $map[$weekIdx][$row['stage']] += (int)$row['total'];
+                }
             }
 
             for ($i = 1; $i <= 4; $i++) {
-                $datasets['knitting'][] = $map[$i]['knitting'];
-                $datasets['sewing'][] = $map[$i]['sewing'];
-                $datasets['packing'][] = $map[$i]['packing'];
+                foreach ($stages as $stage) {
+                    $datasets[$stage][] = $map[$i][$stage];
+                }
             }
 
         } elseif ($filter === 'yearly') {
-            // All months in current year
             $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             $labels = $months;
 
             $map = [];
             for ($i = 1; $i <= 12; $i++) {
-                $map[$i] = ['knitting' => 0, 'sewing' => 0, 'packing' => 0];
+                $map[$i] = array_fill_keys($stages, 0);
             }
 
             $currentYear = date('Y');
+            $params = array_merge([$companyId, $currentYear], $stages);
             $stmt = $db->prepare("
                 SELECT MONTH(created_at) as log_month, stage, SUM(qty_out) as total
                 FROM production_stage_logs 
-                WHERE company_id = ? AND stage IN ('knitting', 'sewing', 'packing')
-                  AND YEAR(created_at) = ?
+                WHERE company_id = ? AND YEAR(created_at) = ? AND stage IN ($placeholders)
                 GROUP BY MONTH(created_at), stage
             ");
-            $stmt->execute([$companyId, $currentYear]);
+            $stmt->execute($params);
             $results = $stmt->fetchAll() ?: [];
 
             foreach ($results as $row) {
                 $m = (int)$row['log_month'];
-                if (isset($map[$m])) {
+                if (isset($map[$m]) && isset($map[$m][$row['stage']])) {
                     $map[$m][$row['stage']] += (int)$row['total'];
                 }
             }
 
             for ($i = 1; $i <= 12; $i++) {
-                $datasets['knitting'][] = $map[$i]['knitting'];
-                $datasets['sewing'][] = $map[$i]['sewing'];
-                $datasets['packing'][] = $map[$i]['packing'];
+                foreach ($stages as $stage) {
+                    $datasets[$stage][] = $map[$i][$stage];
+                }
             }
+        }
+
+        $formattedDatasets = [];
+        foreach ($stages as $stage) {
+            $formattedDatasets[] = [
+                'label' => ucwords(str_replace('_', ' ', $stage)),
+                'data' => $datasets[$stage],
+                'backgroundColor' => $stageColors[$stage],
+                'borderRadius' => 4,
+                'barPercentage' => 0.6
+            ];
         }
 
         $chartData = [
             'labels' => $labels,
-            'datasets' => [
-                [
-                    'label' => 'Knitting',
-                    'data' => $datasets['knitting'],
-                    'backgroundColor' => '#4f46e5',
-                    'borderRadius' => 4,
-                    'barPercentage' => 0.6
-                ],
-                [
-                    'label' => 'Sewing',
-                    'data' => $datasets['sewing'],
-                    'backgroundColor' => '#10b981',
-                    'borderRadius' => 4,
-                    'barPercentage' => 0.6
-                ],
-                [
-                    'label' => 'Packing',
-                    'data' => $datasets['packing'],
-                    'backgroundColor' => '#f59e0b',
-                    'borderRadius' => 4,
-                    'barPercentage' => 0.6
-                ]
-            ]
+            'datasets' => $formattedDatasets
         ];
 
         $response->json([

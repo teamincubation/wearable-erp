@@ -138,11 +138,16 @@
         <div class="pepp-card h-100">
             <div class="pepp-card-header d-flex justify-content-between align-items-center">
                 <h5 class="pepp-card-title m-0"><i class="fa-solid fa-chart-simple text-primary me-2"></i> Garment Production Outputs (pcs)</h5>
-                <select id="productionChartFilter" class="form-select form-select-sm bg-dark text-white border-secondary" style="width: auto;">
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                    <option value="yearly">Yearly</option>
-                </select>
+                <div class="d-flex gap-2">
+                    <select id="productionChartFilter" class="form-select form-select-sm bg-dark text-white border-secondary" style="width: auto;">
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="yearly">Yearly</option>
+                    </select>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#chartSettingsModal" title="Configure Chart Stages">
+                        <i class="fa-solid fa-cog"></i>
+                    </button>
+                </div>
             </div>
             <div class="pepp-card-body">
                 <canvas id="productionChart" height="260"></canvas>
@@ -193,6 +198,38 @@
     </div>
 </div>
 
+<!-- Chart Settings Modal -->
+<div class="modal fade" id="chartSettingsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fa-solid fa-chart-pie me-2 text-primary"></i>Configure Chart Stages</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-secondary small">Select which manufacturing stages you want to monitor on your dashboard. This preference is saved locally for this browser.</p>
+                <div class="row" id="chartStagesCheckboxes">
+                    <?php 
+                    $availableStages = ['knitting', 'dyeing', 'compacting', 'relaxing', 'spreading', 'cutting', 'bundling', 'printing', 'embroidery', 'sewing', 'checking', 'thread_cutting', 'washing', 'ironing', 'packing', 'carton_packing', 'shipment'];
+                    foreach ($availableStages as $stg): 
+                    ?>
+                    <div class="col-md-6 mb-2">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input chart-stage-checkbox" type="checkbox" value="<?= $stg ?>" id="chk_stage_<?= $stg ?>">
+                            <label class="form-check-label" for="chk_stage_<?= $stg ?>"><?= ucwords(str_replace('_', ' ', $stg)) ?></label>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="saveChartSettingsBtn">Save Preferences</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener("DOMContentLoaded", function() {
     const ctx = document.getElementById('productionChart').getContext('2d');
@@ -216,8 +253,18 @@ document.addEventListener("DOMContentLoaded", function() {
 
     const filterSelect = document.getElementById('productionChartFilter');
     
+    function getSavedStages() {
+        let saved = localStorage.getItem('dashboard_chart_stages');
+        return saved ? JSON.parse(saved) : ['knitting', 'sewing', 'packing'];
+    }
+
     function fetchChartData(filter) {
-        fetch(`<?= base_url('company/api/dashboard-chart') ?>?filter=${filter}`)
+        let stages = getSavedStages();
+        let queryParams = new URLSearchParams();
+        queryParams.append('filter', filter);
+        stages.forEach(s => queryParams.append('stages[]', s));
+
+        fetch(`<?= base_url('company/api/dashboard-chart') ?>?${queryParams.toString()}`)
             .then(res => res.json())
             .then(res => {
                 if(res.success && res.data) {
@@ -232,6 +279,30 @@ document.addEventListener("DOMContentLoaded", function() {
     if (filterSelect) {
         filterSelect.addEventListener('change', function() {
             fetchChartData(this.value);
+        });
+    }
+
+    const saveChartSettingsBtn = document.getElementById('saveChartSettingsBtn');
+    if (saveChartSettingsBtn) {
+        let currentStages = getSavedStages();
+        document.querySelectorAll('.chart-stage-checkbox').forEach(chk => {
+            if (currentStages.includes(chk.value)) {
+                chk.checked = true;
+            }
+        });
+
+        saveChartSettingsBtn.addEventListener('click', function() {
+            let selected = [];
+            document.querySelectorAll('.chart-stage-checkbox:checked').forEach(chk => {
+                selected.push(chk.value);
+            });
+            if (selected.length === 0) {
+                alert("Please select at least one stage.");
+                return;
+            }
+            localStorage.setItem('dashboard_chart_stages', JSON.stringify(selected));
+            bootstrap.Modal.getInstance(document.getElementById('chartSettingsModal')).hide();
+            fetchChartData(filterSelect ? filterSelect.value : 'weekly');
         });
     }
 
