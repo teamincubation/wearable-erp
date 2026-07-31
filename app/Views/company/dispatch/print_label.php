@@ -9,7 +9,7 @@
     <style>
         body {
             background-color: #f8fafc;
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-family: 'Segoe UI Variable Text', 'Segoe UI Variable', sans-serif;
             color: #0f172a;
         }
         .carton-label {

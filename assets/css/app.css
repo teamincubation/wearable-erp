@@ -158,7 +158,7 @@ h1, h2, h3, h4, h5, h6,
     font-optical-sizing: auto;
 }
 
-small, .small, .badge, .caption, .subtext, .text-muted, figcaption {
+small, .small, .badge, .caption, .subtext, .text-muted, figcaption, .font-monospace, code, kbd, samp, pre {
     font-family: var(--font-small);
     font-optical-sizing: auto;
 }
@@ -167,6 +167,7 @@ small, .small, .badge, .caption, .subtext, .text-muted, figcaption {
 .font-display { font-family: var(--font-display) !important; }
 .font-text { font-family: var(--font-text) !important; }
 .font-small { font-family: var(--font-small) !important; }
+.font-outfit, .font-segoe, .font-inter, .font-sans { font-family: var(--font-text) !important; }
 
 /* Authentication Styling */
 .auth-wrapper {

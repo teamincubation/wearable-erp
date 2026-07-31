@@ -191,7 +191,7 @@ function resolveSizeForSerialNum($serial, $sizes) {
     border-radius: 4px;
     min-width: 32px;
     text-align: center;
-    font-family: monospace;
+    font-family: 'Segoe UI Variable Small', 'Segoe UI Variable', sans-serif;
 }
 
 /* Print Overrides */

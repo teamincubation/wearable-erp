@@ -305,7 +305,7 @@
 
 <!-- Hidden Container for PDF Rendering -->
 <div id="payslip-pdf-template" style="display: none;">
-    <div style="padding: 40px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; line-height: 1.6;">
+    <div style="padding: 40px; font-family: 'Segoe UI Variable Text', 'Segoe UI Variable', sans-serif; color: #333; line-height: 1.6;">
         <!-- Header -->
         <table style="width: 100%; border-bottom: 2px solid #0056b3; padding-bottom: 20px; margin-bottom: 20px;">
             <tr>
