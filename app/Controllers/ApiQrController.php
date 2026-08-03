@@ -354,16 +354,41 @@ class ApiQrController extends Controller {
         $size = array_pop($parts);
         $batchNo = implode('-', $parts);
 
-        $stmtBatch = $db->prepare("
-            SELECT pro.id, pro.status, pro.company_id, po.quantity as target_qty, COALESCE(pro.sizes_json, po.sizes_json) as sizes_json
-            FROM production_orders pro
-            LEFT JOIN buyer_pos po ON pro.po_id = po.id
-            WHERE pro.production_no = ? AND pro.deleted_at IS NULL LIMIT 1
-        ");
-        $stmtBatch->execute([$batchNo]);
-        $batch = $stmtBatch->fetch();
+        try {
+            $db->beginTransaction();
 
-        if ($batch) {
+            // Lock the batch row to prevent race conditions from concurrent scans
+            $stmtBatch = $db->prepare("
+                SELECT pro.id, pro.status, pro.company_id, po.quantity as target_qty, COALESCE(pro.sizes_json, po.sizes_json) as sizes_json
+                FROM production_orders pro
+                LEFT JOIN buyer_pos po ON pro.po_id = po.id
+                WHERE pro.production_no = ? AND pro.deleted_at IS NULL LIMIT 1 FOR UPDATE
+            ");
+            $stmtBatch->execute([$batchNo]);
+            $batch = $stmtBatch->fetch();
+
+            if (!$batch) {
+                $db->rollBack();
+                $response->json(['success' => false, 'message' => "Batch '{$batchNo}' not found."], 404);
+                return;
+            }
+
+            // Check if already validated in this stage (Strict duplicate check inside lock)
+            $stmtCheckAlready = $db->prepare("
+                SELECT id 
+                FROM production_stage_logs 
+                WHERE (LOWER(TRIM(qr_code)) = LOWER(TRIM(?)) OR LOWER(TRIM(scanned_qr_code)) = LOWER(TRIM(?)))
+                  AND LOWER(TRIM(stage)) = LOWER(TRIM(?))
+                LIMIT 1
+            ");
+            $stmtCheckAlready->execute([$qrCode, $qrCode, $stage]);
+            if ($stmtCheckAlready->fetchColumn()) {
+                $db->rollBack();
+                $formattedStage = StageHelper::toStageName($stage);
+                $response->json(['success' => false, 'message' => "This QR Code ({$qrCode}) has ALREADY been logged in stage '{$formattedStage}'."], 200);
+                return;
+            }
+
             $targetQty = (int)($batch['target_qty'] ?? 0);
             $sizesJson = json_decode($batch['sizes_json'] ?? '{}', true) ?: [];
 
@@ -375,14 +400,13 @@ class ApiQrController extends Controller {
                         break;
                     }
                 }
-                
-
 
                 $stmtCount = $db->prepare("SELECT SUM(qty_out) FROM production_stage_logs WHERE production_order_id = ? AND LOWER(TRIM(stage)) = LOWER(TRIM(?))");
                 $stmtCount->execute([$batch['id'], $stage]);
                 $completedCount = (int)$stmtCount->fetchColumn();
 
                 if ($completedCount >= $targetQty) {
+                    $db->rollBack();
                     $response->json(['success' => false, 'message' => "Target reached! Batch target is {$targetQty} pcs."], 200);
                     return;
                 }
@@ -391,6 +415,7 @@ class ApiQrController extends Controller {
             // --- Sequential Stage Validation ---
             $seqValidation = $this->validateSequentialStage($db, $qrCode, $stage, (int)$batch['id'], $companyId);
             if (!$seqValidation['success']) {
+                $db->rollBack();
                 $response->json([
                     'success' => false, 
                     'message' => $seqValidation['message'],
@@ -399,24 +424,17 @@ class ApiQrController extends Controller {
                 ], 200);
                 return;
             }
-        }
 
-        if (!$batch) {
-            $response->json(['success' => false, 'message' => "Batch '{$batchNo}' not found."], 404);
-            return;
-        }
+            $batchCompanyId = (int)($batch['company_id'] ?: $companyId);
+            $qtyIn = 1;
+            $qtyOut = ($status === 'pass') ? 1 : 0;
+            $wasteQty = ($status === 'pass') ? 0 : 1;
 
-        $batchCompanyId = (int)($batch['company_id'] ?: $companyId);
-        $qtyIn = 1;
-        $qtyOut = ($status === 'pass') ? 1 : 0;
-        $wasteQty = ($status === 'pass') ? 0 : 1;
+            $nowTs = time();
+            $endTime = date('Y-m-d H:i:s', $nowTs);
+            $startTime = date('Y-m-d H:i:s', $nowTs - max(1, $durationSeconds));
+            $durationMinutes = (int)max(1, ceil($durationSeconds / 60));
 
-        $nowTs = time();
-        $endTime = date('Y-m-d H:i:s', $nowTs);
-        $startTime = date('Y-m-d H:i:s', $nowTs - max(1, $durationSeconds));
-        $durationMinutes = (int)max(1, ceil($durationSeconds / 60));
-
-        try {
             $stmtLog = $db->prepare("
                 INSERT INTO production_stage_logs 
                 (company_id, production_order_id, stage, employee_id, qty_in, qty_out, waste_qty, start_time, end_time, duration_minutes, created_by, qr_code)
@@ -441,6 +459,8 @@ class ApiQrController extends Controller {
                 $db->prepare("UPDATE production_orders SET status = 'running' WHERE id = ?")->execute([$batch['id']]);
             }
 
+            $db->commit();
+
             $response->json([
                 'success' => true,
                 'message' => "Piece #{$serial} (Size {$size}) logged as " . strtoupper($status) . " under stage " . ucfirst(str_replace('_', ' ', $stage)) . ".",
@@ -452,6 +472,9 @@ class ApiQrController extends Controller {
                 ]
             ], 200);
         } catch (\Exception $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
             $response->json(['success' => false, 'message' => 'Failed to save log to database: ' . $e->getMessage()], 500);
         }
     }
