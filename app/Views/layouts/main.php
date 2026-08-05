@@ -403,6 +403,65 @@ $defaultMenu = [
         </main>
     </div>
 
+    <!-- Universal Delete Modal -->
+    <div class="modal fade" id="universalDeleteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content shadow-lg border-0" style="border-radius: 16px;">
+                <div class="modal-header bg-danger text-white border-0 py-3" style="border-top-left-radius: 16px; border-top-right-radius: 16px;">
+                    <h5 class="modal-title fw-bold">
+                        <i class="fa-solid fa-triangle-exclamation me-2"></i> Delete Data
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="text-dark fw-semibold mb-3">
+                        You are about to delete <span id="univDeleteEntityName" class="text-danger fw-bold"></span>.
+                    </p>
+                    
+                    <form id="univDeleteForm" method="POST">
+                        <?= \App\Core\Session::csrfField() ?>
+                        <input type="hidden" name="entity_type" id="univDeleteEntityType" value="">
+                        <input type="hidden" name="entity_id" id="univDeleteEntityId" value="">
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Select Deletion Method:</label>
+                            
+                            <div class="form-check p-3 mb-2 rounded border border-warning bg-warning bg-opacity-10" style="cursor: pointer;" onclick="document.getElementById('modeSoft').click()">
+                                <input class="form-check-input ms-1" type="radio" name="delete_mode" id="modeSoft" value="soft" checked>
+                                <label class="form-check-label fw-semibold ms-2 text-dark" for="modeSoft">
+                                    Soft Delete (Recommended)
+                                </label>
+                                <div class="small text-muted ms-4 mt-1">Moves the record to the recycle bin. Can be restored later. Does not affect historical data.</div>
+                            </div>
+
+                            <div class="form-check p-3 rounded border border-danger bg-danger bg-opacity-10" style="cursor: pointer;" onclick="document.getElementById('modeHard').click()">
+                                <input class="form-check-input ms-1" type="radio" name="delete_mode" id="modeHard" value="hard">
+                                <label class="form-check-label fw-bold ms-2 text-danger" for="modeHard">
+                                    Hard Delete (Permanent)
+                                </label>
+                                <div class="small text-danger ms-4 mt-1">Permanently erases this record AND cascades to delete ALL downstream dependent records (POs, Batches, Inventory). Irreversible!</div>
+                            </div>
+                        </div>
+                        
+                        <div id="univHardDeleteWrapper" class="mb-4" style="display: none;">
+                            <label class="form-label fw-semibold text-secondary small">
+                                To confirm Hard Delete, type <strong class="text-danger">DELETE</strong> below:
+                            </label>
+                            <input type="text" class="form-control font-monospace border-danger" id="univHardDeleteInput" autocomplete="off" placeholder="Type 'DELETE'">
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-warning text-dark fw-bold py-2" id="univDeleteSubmitBtn">
+                                <i class="fa-solid fa-trash me-1"></i> Soft Delete
+                            </button>
+                            <button type="button" class="btn btn-light border py-2" data-bs-dismiss="modal">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap 5 Bundle JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
@@ -448,7 +507,66 @@ $defaultMenu = [
                     toggleIcon.classList.add('fa-circle-chevron-left');
                 }
             }
+            }
         }
+
+        // Universal Delete Handler
+        window.confirmDataDeletion = function(entityType, entityId, deleteUrl, recordName) {
+            const modalEl = document.getElementById('universalDeleteModal');
+            if (!modalEl) {
+                alert('Universal Delete Modal is missing from the layout.');
+                return;
+            }
+            
+            document.getElementById('univDeleteEntityName').innerText = recordName ? '"' + recordName + '"' : 'this record';
+            document.getElementById('univDeleteForm').action = deleteUrl;
+            document.getElementById('univDeleteEntityType').value = entityType;
+            document.getElementById('univDeleteEntityId').value = entityId;
+            
+            const hardDeleteWrapper = document.getElementById('univHardDeleteWrapper');
+            const hardDeleteInput = document.getElementById('univHardDeleteInput');
+            const submitBtn = document.getElementById('univDeleteSubmitBtn');
+            const modeRadios = document.querySelectorAll('input[name="delete_mode"]');
+            
+            // Reset state
+            hardDeleteWrapper.style.display = 'none';
+            hardDeleteInput.value = '';
+            submitBtn.disabled = false;
+            submitBtn.className = 'btn btn-warning text-dark fw-bold';
+            submitBtn.innerHTML = '<i class="fa-solid fa-trash me-1"></i> Soft Delete';
+            
+            // Default to soft delete
+            document.getElementById('modeSoft').checked = true;
+            
+            modeRadios.forEach(radio => {
+                radio.addEventListener('change', function() {
+                    if (this.value === 'hard') {
+                        hardDeleteWrapper.style.display = 'block';
+                        submitBtn.disabled = true;
+                        submitBtn.className = 'btn btn-danger fw-bold';
+                        submitBtn.innerHTML = '<i class="fa-solid fa-skull me-1"></i> Hard Delete Now';
+                    } else {
+                        hardDeleteWrapper.style.display = 'none';
+                        submitBtn.disabled = false;
+                        submitBtn.className = 'btn btn-warning text-dark fw-bold';
+                        submitBtn.innerHTML = '<i class="fa-solid fa-trash me-1"></i> Soft Delete';
+                    }
+                });
+            });
+            
+            hardDeleteInput.oninput = function() {
+                if (document.getElementById('modeHard').checked) {
+                    if (this.value.trim() === 'DELETE') {
+                        submitBtn.disabled = false;
+                    } else {
+                        submitBtn.disabled = true;
+                    }
+                }
+            };
+            
+            const bsModal = new bootstrap.Modal(modalEl);
+            bsModal.show();
+        };
 
         if (toggleBtn) {
             toggleBtn.addEventListener('click', function(e) {

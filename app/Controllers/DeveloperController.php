@@ -795,4 +795,34 @@ class DeveloperController extends Controller {
             'cron_logs' => $cronLogs
         ], 'developer');
     }
+
+    /**
+     * Dev Portal - Reset Tenant Operational Data
+     */
+    public function resetTenantData(Request $request, Response $response): void {
+        $companyId = $request->post('company_id');
+        $confirmation = $request->post('confirmation');
+
+        if ($confirmation !== 'DELETE') {
+            Session::setFlash('error', 'Type DELETE to confirm tenant data reset.');
+            $this->redirect('developer/companies');
+            return;
+        }
+
+        if (empty($companyId)) {
+            Session::setFlash('error', 'Invalid Tenant ID.');
+            $this->redirect('developer/companies');
+            return;
+        }
+
+        $success = \App\Services\DataLifecycleService::resetTenantData($companyId, Session::get('user_id'));
+
+        if ($success) {
+            Session::setFlash('success', 'Tenant Operational Data successfully wiped out. The tenant is now clean.');
+        } else {
+            Session::setFlash('error', 'An error occurred during Tenant Data Reset. Check logs.');
+        }
+
+        $this->redirect('developer/companies');
+    }
 }

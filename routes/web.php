@@ -78,6 +78,12 @@ $router->post('/developer/companies/edit/{id}', [DeveloperController::class, 'ed
        ->middleware(PermissionMiddleware::class)
        ->permission('developer.companies');
 
+$router->post('/developer/companies/reset-tenant-data', [DeveloperController::class, 'resetTenantData'])
+       ->middleware(AuthMiddleware::class)
+       ->middleware(CsrfMiddleware::class)
+       ->middleware(PermissionMiddleware::class)
+       ->permission('developer.companies');
+
 $router->post('/developer/companies/delete/{id}', [DeveloperController::class, 'deleteCompany'])
        ->middleware(AuthMiddleware::class)
        ->middleware(CsrfMiddleware::class)

@@ -67,12 +67,17 @@
                                     </span>
                                 </td>
                                 <td class="text-end">
-                                    <button class="btn btn-sm btn-light border me-1" data-bs-toggle="modal" data-bs-target="#editModal-<?= $c['id'] ?>">
-                                        <i class="fa-regular fa-pen-to-square"></i> Edit
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-danger rounded-pill px-3" onclick="confirmHardDelete(<?= $c['id'] ?>, '<?= htmlspecialchars($c['name'], ENT_QUOTES) ?>')">
-                                        <i class="fa-solid fa-trash-can"></i> Hard Delete
-                                    </button>
+                                    <div class="d-flex flex-wrap gap-1 justify-content-end">
+                                        <button class="btn btn-sm btn-light border" data-bs-toggle="modal" data-bs-target="#editModal-<?= $c['id'] ?>">
+                                            <i class="fa-regular fa-pen-to-square"></i> Edit
+                                        </button>
+                                        <button class="btn btn-sm btn-warning text-dark border" onclick="confirmTenantReset(<?= $c['id'] ?>, '<?= htmlspecialchars($c['name'], ENT_QUOTES) ?>')">
+                                            <i class="fa-solid fa-broom"></i> Reset Data
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-danger rounded-pill px-3" onclick="confirmHardDelete(<?= $c['id'] ?>, '<?= htmlspecialchars($c['name'], ENT_QUOTES) ?>')">
+                                            <i class="fa-solid fa-trash-can"></i> Hard Delete
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
 
@@ -767,6 +772,33 @@ function confirmHardDelete(companyId, companyName) {
     const bsModal = new bootstrap.Modal(modalElement);
     bsModal.show();
 }
+
+function confirmTenantReset(companyId, companyName) {
+    const modalElement = document.getElementById('tenantResetModal');
+    const titleEl = document.getElementById('tenantResetModalLabel');
+    const inputEl = document.getElementById('resetConfirmInput');
+    const btnEl = document.getElementById('confirmResetBtn');
+    const idInput = document.getElementById('resetCompanyId');
+    
+    // Set title and reset input/button
+    titleEl.innerHTML = '<i class="fa-solid fa-broom me-2"></i> Wipe Tenant Data: ' + companyName;
+    inputEl.value = '';
+    btnEl.disabled = true;
+    idInput.value = companyId;
+    
+    // Wire up input listener
+    inputEl.oninput = function() {
+        if (inputEl.value.trim() === 'DELETE') {
+            btnEl.disabled = false;
+        } else {
+            btnEl.disabled = true;
+        }
+    };
+    
+    // Show Modal
+    const bsModal = new bootstrap.Modal(modalElement);
+    bsModal.show();
+}
 </script>
 
 <!-- Reusable Hard Delete Confirmation Modal -->
@@ -796,6 +828,44 @@ function confirmHardDelete(companyId, companyName) {
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-danger fw-semibold py-2" id="confirmDeleteBtn" disabled>
                             <i class="fa-solid fa-trash-can me-1"></i> Permanently Delete Tenant
+                        </button>
+                        <button type="button" class="btn btn-light border py-2" data-bs-dismiss="modal">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reusable Tenant Reset Modal -->
+<div class="modal fade" id="tenantResetModal" tabindex="-1" aria-labelledby="tenantResetModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content shadow-lg border-0" style="border-radius: 16px;">
+            <div class="modal-header bg-warning text-dark border-0 py-3" style="border-top-left-radius: 16px; border-top-right-radius: 16px;">
+                <h5 class="modal-title fw-bold" id="tenantResetModalLabel">Wipe Tenant Data</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="text-danger fw-semibold mb-3">
+                    <i class="fa-solid fa-circle-exclamation me-1"></i> HIGH RISK OPERATION!
+                </p>
+                <p class="text-muted small mb-4">
+                    This will permanently delete all operational business data for this tenant (Buyers, Suppliers, Styles, POs, Batches, Inventory, logs). 
+                    It preserves the Tenant account, subscription, and login credentials.
+                </p>
+                
+                <form id="resetTenantForm" method="POST" action="<?= base_url('developer/companies/reset-tenant-data') ?>">
+                    <?= \App\Core\Session::csrfField() ?>
+                    <input type="hidden" name="company_id" id="resetCompanyId" value="">
+                    <div class="mb-4">
+                        <label for="resetConfirmInput" class="form-label fw-semibold text-secondary small">
+                            To confirm, please type <strong class="text-danger">DELETE</strong> in the box below:
+                        </label>
+                        <input type="text" class="form-control font-monospace" name="confirmation" id="resetConfirmInput" autocomplete="off" placeholder="Type 'DELETE'">
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-warning fw-semibold py-2 text-dark" id="confirmResetBtn" disabled>
+                            <i class="fa-solid fa-broom me-1"></i> Confirm & Wipe Operational Data
                         </button>
                         <button type="button" class="btn btn-light border py-2" data-bs-dismiss="modal">Cancel</button>
                     </div>

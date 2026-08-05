@@ -346,9 +346,25 @@ class StyleMasterController extends Controller {
     }
 
     public function deleteStyle(Request $request, Response $response, string $id): void {
-        $styleModel = new Style();
-        $styleModel->delete($id, Session::get('user_id'));
-        Session::setFlash('success', 'Style master deleted successfully.');
+        $mode = $request->post('delete_mode');
+        $companyId = Session::get('company_id');
+        $userId = Session::get('user_id');
+
+        if ($mode === 'hard') {
+            $success = \App\Services\DataLifecycleService::hardDelete('style', $id, $companyId, $userId);
+            if ($success) {
+                Session::setFlash('success', 'Style and all associated operational data permanently deleted.');
+            } else {
+                Session::setFlash('error', 'Hard delete failed due to constraints. Check system logs.');
+            }
+        } else {
+            $success = \App\Services\DataLifecycleService::softDelete('styles', $id, $companyId, $userId);
+            if ($success) {
+                Session::setFlash('success', 'Style successfully moved to recycle bin.');
+            } else {
+                Session::setFlash('error', 'Soft delete failed. Please try again.');
+            }
+        }
         $this->redirect('company/styles');
     }
 }

@@ -64,10 +64,9 @@
                                         <button class="btn btn-sm btn-light border me-1" data-bs-toggle="modal" data-bs-target="#editStyleModal-<?= $s['id'] ?>" title="Edit Details">
                                             <i class="fa-regular fa-pen-to-square"></i>
                                         </button>
-                                        <form action="<?= base_url('company/styles/delete/' . $s['id']) ?>" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this style master?');">
-                                            <?= \App\Core\Session::csrfField() ?>
-                                            <button type="submit" class="btn btn-sm btn-outline-danger border-0" title="Delete Style"><i class="fa-solid fa-trash-can"></i></button>
-                                        </form>
+                                        <button type="button" class="btn btn-sm btn-outline-danger border-0" title="Delete Style" onclick="confirmDataDeletion('style', <?= $s['id'] ?>, '<?= base_url('company/styles/delete/' . $s['id']) ?>', '<?= htmlspecialchars($s['style_no'], ENT_QUOTES) ?>')">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
                                     <?php endif; ?>
                                 </td>
                             </tr>
